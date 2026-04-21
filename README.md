@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SecureAuth Desktop
 
 Aplicacion de escritorio Java (Swing) para autenticacion segura con MySQL.
@@ -34,3 +35,7 @@ git add .
 git commit -m "feat: base secureauth con arquitectura mvc+service+repository"
 git push -u origin main
 ```
+=======
+# SecureAuth_Desktop
+arquitectura mvc service repository y setup inicial + maven"     
+>>>>>>> 8c7983e8f1c4aa4667615fe86f7cae6f2947c188
