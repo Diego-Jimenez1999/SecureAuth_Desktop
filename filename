@@ -14,7 +14,6 @@
         <mysql.version>8.3.0</mysql.version>
         <jbcrypt.version>0.4</jbcrypt.version>
         <junit.jupiter.version>5.12.2</junit.jupiter.version>
-        <mockito.version>5.14.2</mockito.version>
     </properties>
 
     <dependencies>
@@ -32,12 +31,6 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.jupiter.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-junit-jupiter</artifactId>
-            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -58,7 +51,7 @@
                             <rules>
                                 <requireJavaVersion>
                                     <version>[21,)</version>
-                                    <message>Este proyecto requiere Java 21 o superior. Verifica tu JDK y JAVA_HOME.</message>
+                                    <message>Este proyecto requiere Java 21 o superior. Por favor, verifica tu JDK y la variable JAVA_HOME.</message>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>

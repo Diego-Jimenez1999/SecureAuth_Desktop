@@ -6,10 +6,10 @@
 
 package secureauth.controller;
 
+import java.sql.SQLException;
+
 import secureauth.model.User;
 import secureauth.service.AuthService;
-
-import java.sql.SQLException;
 
 /**
  * Controlador encargado de manejar la comunicación entre la UI
@@ -29,7 +29,7 @@ public class AuthController {
     /**
      * Constructor del controlador.
      */
-    public AuthController() {
+    public AuthController(AuthService authService1) {
         this.authService = new AuthService();
     }
 

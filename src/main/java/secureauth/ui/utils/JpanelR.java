@@ -1,10 +1,21 @@
 
-package secureauth.ui;
+package secureauth.ui.utils;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.geom.RoundRectangle2D;
-import javax.swing.*;
 
+import javax.swing.JPanel;
+
+/**
+ * Clase personalizada de JPanel con bordes redondeados y fondo personalizado.
+ * Permite establecer el color de fondo, el radio de los bordes y una imagen de fondo opcional.
+ * @author Diego Alexander Gaviria Jimenez
+ */
 public class JpanelR extends JPanel {
     private Color backgroundColor = Color.WHITE;
     private int arcWidth = 20;

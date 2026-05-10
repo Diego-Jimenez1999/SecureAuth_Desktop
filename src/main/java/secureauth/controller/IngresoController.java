@@ -1,168 +1,78 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package secureauth.controller;
 
 import java.util.List;
-
 import javax.swing.table.DefaultTableModel;
-
 import secureauth.model.User;
 import secureauth.service.UserService;
-import secureauth.ui.IngresoFrame;
+import secureauth.ui.frames.IngresoFrame;
+import secureauth.ui.dialogs.EditUserDialogFactory;
 
 /**
- * Controlador del IngresoFrame
+ * Controlador del dashboard de usuarios.
  *
- * Se encarga de:
- * - Cargar datos en la tabla
- * - Gestionar búsquedas
- * - Conectar UI con Service
- *
- * Forma parte del patrón MVC
+ * <p>
+ * Este controlador queda desacoplado del armado de dependencias:
+ * recibe servicios y callbacks desde el bootstrap de la aplicación.
+ * </p>
  *
  * @author Diego
- * @version 1.0
+ * @version 2.0
  */
 public class IngresoController {
 
-    private final IngresoFrame view;
     private final UserService userService;
-    private User currentUser; // Usuario actualmente logueado
+    private final Runnable onLogout;
+    private final EditUserDialogFactory editUserDialogFactory;
+
+    private IngresoFrame view;
+    private User currentUser;
 
     /**
-     * Constructor del controlador
+     * Constructor principal para inyección de dependencias.
      *
-     * @param view vista principal
+     * @param userService servicio de usuarios
+     * @param onLogout acción a ejecutar al cerrar sesión
      */
-    public IngresoController(IngresoFrame view) {
-
-        /**
-         * 🔥 DEPENDENCIAS
-         * Se inyecta la vista y el servicio
-         */
-        this.view = view;
-        this.userService = new UserService();
-        this.currentUser = new User();
-
+    public IngresoController(UserService userService, Runnable onLogout, EditUserDialogFactory editUserDialogFactory) {
+        this.userService = userService;
+        this.onLogout = onLogout;
+        this.editUserDialogFactory = editUserDialogFactory;
     }
 
     /**
-     * Constructor del controlador
+     * Enlaza la vista y usuario de sesión con este controlador.
      *
-     * @param view vista principal
-     * @param currentUser usuario actualmente logueado
+     * @param view vista del dashboard
+     * @param currentUser usuario autenticado
      */
-    public IngresoController(IngresoFrame view, User currentUser) {
-
-        /**
-         * 🔥 DEPENDENCIAS
-         * Se inyecta la vista y el servicio
-         */
+    public void bindView(IngresoFrame view, User currentUser) {
         this.view = view;
-        this.userService = new UserService();
         this.currentUser = currentUser;
-
     }
-
-
 
     /**
-        * =========================
-        * CERRAR SESIÓN
-        * =========================
-        *
-        * Responsabilidades:
-        * - Limpiar sesión actual
-        * - Liberar recursos
-        * - Preparar salida segura
-    */
-    public void logout() {
-
-        System.out.println("Cerrando sesión...");
-
-        try{
-
-             currentUser=null; // Limpiar usuario actual
-
-            // Aquí podrías agregar lógica adicional, como cerrar conexiones, limpiar caché, etc.
-            System.out.println("Sesión cerrada exitosamente.");
-
-            new secureauth.ui.LoginFrame().setVisible(true);
-
-             view.dispose(); // Cerrar ventana actual
-
-        }catch(Exception e){
-            System.err.println("Error al cerrar sesión: " + e.getMessage());
-
-    }
-    }
-
-
-    /**
-     * =========================
-     * CARGAR USUARIOS EN TABLA
-     * =========================
+     * Cierra sesión y retorna al flujo de login.
      */
-    public void cargarUsuarios() {
+    public void logout() {
+        currentUser = null;
 
-        /**
-         * 🔥 OBTENER DATOS
-         */
-        List<User> lista = userService.findAll();
-
-        /**
-         * 🔥 MODELO DE TABLA
-         */
-        DefaultTableModel model = (DefaultTableModel) view.getTable().getModel();
-
-        /**
-         * 🔥 LIMPIAR TABLA
-         */
-        model.setRowCount(0);
-
-        /**
-         * 🔥 FOR:
-         * Recorre todos los usuarios
-         */
-        for (User u : lista) {
-
-            model.addRow(new Object[]{
-                    u.getId(),                                  // ID
-                    u.getNombre() + " " + u.getApellido(),     // NOMBRE COMPLETO
-                    u.getEmail(),                               // EMAIL
-                    u.getGenero(),                              // GENERO
-                    "Editar | Eliminar"                         // ACCION
-            });
+        if (view != null) {
+            view.dispose();
+        }
+        if (onLogout != null) {
+            onLogout.run();
         }
     }
 
     /**
-     * =========================
-     * BUSCAR USUARIOS
-     * =========================
+     * Carga usuarios en la tabla principal.
      */
-    public void buscarUsuarios() {
-
-        /**
-         * 🔥 TEXTO DE BÚSQUEDA
-         */
-        String texto = view.getTextoBusqueda();
-
-        /**
-         * 🔥 VALIDACIÓN
-         */
-        if (texto == null || texto.isEmpty()) {
-            cargarUsuarios();
+    public void cargarUsuarios() {
+        if (view == null) {
             return;
         }
 
-        /**
-         * 🔥 CONSULTA FILTRADA
-         */
-        List<User> lista = userService.search(texto);
-
+        List<User> lista = userService.findAll();
         DefaultTableModel model = (DefaultTableModel) view.getTable().getModel();
         model.setRowCount(0);
 
@@ -178,35 +88,64 @@ public class IngresoController {
     }
 
     /**
-     * Edita un usuario por su ID.
-     *
-     * @param userId identificador del usuario a editar
+     * Filtra usuarios por texto.
      */
-    public void editarUsuario(int userId) {
-        User user = userService.findById(userId);
-        if (user != null) {
-            new secureauth.ui.EditUserFrame(view, user, this).setVisible(true);
+    public void buscarUsuarios() {
+        if (view == null) {
+            return;
+        }
+
+        String texto = view.getTextoBusqueda();
+        if (texto == null || texto.isEmpty()) {
+            cargarUsuarios();
+            return;
+        }
+
+        List<User> lista = userService.search(texto);
+        DefaultTableModel model = (DefaultTableModel) view.getTable().getModel();
+        model.setRowCount(0);
+
+        for (User u : lista) {
+            model.addRow(new Object[]{
+                    u.getId(),
+                    u.getNombre() + " " + u.getApellido(),
+                    u.getEmail(),
+                    u.getGenero(),
+                    "Editar | Eliminar"
+            });
         }
     }
-    
 
     /**
-     * Actualiza un usuario existente.
+     * Abre el formulario de edición de un usuario.
      *
-     * @param user usuario con datos actualizados
+     * @param userId identificador del usuario
+     */
+    public void editarUsuario(int userId) {
+        if (view == null) {
+            return;
+        }
+
+        User user = userService.findById(userId);
+        if (user != null) {
+            editUserDialogFactory.show(view, user, this);
+        }
+    }
+
+    /**
+     * Actualiza un usuario y refresca la tabla.
+     *
+     * @param user usuario actualizado
      */
     public void actualizarUsuario(User user) {
         userService.update(user);
         cargarUsuarios();
     }
 
-
-
-    
     /**
-     * Elimina un usuario por su ID.
+     * Elimina un usuario y refresca la tabla.
      *
-     * @param userId identificador del usuario a eliminar
+     * @param userId identificador del usuario
      */
     public void eliminarUsuario(int userId) {
         userService.delete(userId);

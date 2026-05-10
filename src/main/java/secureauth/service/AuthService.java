@@ -5,14 +5,14 @@
 
 package secureauth.service;
 
+import java.sql.SQLException;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 import secureauth.model.User;
 import secureauth.repository.UserRepository;
 import secureauth.repository.UserRepositoryImpl;
 import secureauth.security.PasswordHasher;
-
-import java.sql.SQLException;
-import java.util.Locale;
-import java.util.regex.Pattern;
 
 /**
  * Servicio encargado de la lógica de autenticación del sistema.
