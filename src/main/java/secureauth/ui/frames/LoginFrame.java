@@ -8,15 +8,15 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.SQLException;
+import java.time.DateTimeException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -33,12 +33,13 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
-import javax.swing.border.AbstractBorder;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 
 import secureauth.controller.AuthController;
+import secureauth.ui.utils.ComponentUtils;
 import secureauth.ui.utils.FloatingPlaceholder;
+import secureauth.ui.utils.RoundedLineBorder;
 import secureauth.ui.utils.UiTheme;
 
 /**
@@ -47,7 +48,7 @@ import secureauth.ui.utils.UiTheme;
 public class LoginFrame extends JFrame {
 
     private static final Dimension REGISTER_FIELD_SIZE = new Dimension(230, 42);
-    private static final Dimension LOGIN_FIELD_SIZE = new Dimension(170, 34);
+    private static final Dimension LOGIN_FIELD_SIZE = new Dimension(170, 43);
     private static final Font BASE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
 
     private final AuthController controller;
@@ -79,6 +80,7 @@ public class LoginFrame extends JFrame {
     private JLabel errApellidoReg;
     private JLabel errFechaReg;
     private JLabel errGeneroReg;
+    private final List<FloatingPlaceholder> placeholders = new ArrayList<>();
 
     public LoginFrame(AuthController controller, Consumer<secureauth.model.User> onLoginSuccess) {
         this.controller = Objects.requireNonNull(controller, "AuthController es requerido");
@@ -140,12 +142,12 @@ public class LoginFrame extends JFrame {
         styleTextComponent(txtNombre, REGISTER_FIELD_SIZE);
         styleTextComponent(txtApellido, REGISTER_FIELD_SIZE);
 
-        new FloatingPlaceholder("Correo", txtEmailLogin);
-        new FloatingPlaceholder("Contraseña", txtPasswordLogin);
-        new FloatingPlaceholder("Correo electrónico", txtEmail);
-        new FloatingPlaceholder("Contraseña", txtPassword);
-        new FloatingPlaceholder("Nombre", txtNombre);
-        new FloatingPlaceholder("Apellido", txtApellido);
+        placeholders.add(new FloatingPlaceholder("Correo", txtEmailLogin));
+        placeholders.add(new FloatingPlaceholder("Contraseña", txtPasswordLogin));
+        placeholders.add(new FloatingPlaceholder("Correo electrónico", txtEmail));
+        placeholders.add(new FloatingPlaceholder("Contraseña", txtPassword));
+        placeholders.add(new FloatingPlaceholder("Nombre", txtNombre));
+        placeholders.add(new FloatingPlaceholder("Apellido", txtApellido));
 
         styleComboBox(cbDia);
         styleComboBox(cbMes);
@@ -348,26 +350,7 @@ public class LoginFrame extends JFrame {
     }
 
     private void styleTextComponent(JTextField field, Dimension size) {
-        field.setFont(BASE_FONT);
-        field.setBackground(Color.WHITE);
-        field.setForeground(new Color(35, 35, 35));
-        field.setCaretColor(new Color(35, 35, 35));
-        field.setPreferredSize(size);
-        field.setMinimumSize(size);
-        field.setMaximumSize(size);
-        field.setBorder(new CompoundBorder(new RoundedLineBorder(new Color(196, 196, 196), 14, 1), new EmptyBorder(8, 12, 8, 12)));
-
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                field.setBorder(new CompoundBorder(new RoundedLineBorder(UiTheme.FOREST_GREEN, 14, 2), new EmptyBorder(8, 12, 8, 12)));
-            }
-
-            @Override
-            public void focusLost(FocusEvent e) {
-                field.setBorder(new CompoundBorder(new RoundedLineBorder(new Color(196, 196, 196), 14, 1), new EmptyBorder(8, 12, 8, 12)));
-            }
-        });
+        ComponentUtils.styleTextField(field, size, BASE_FONT, UiTheme.FOREST_GREEN);
     }
 
     private void styleHeaderButton(JButton button) {
@@ -417,7 +400,7 @@ public class LoginFrame extends JFrame {
         comboBox.setBackground(Color.WHITE);
         comboBox.setFocusable(false);
         comboBox.setPreferredSize(new Dimension(72, 38));
-        comboBox.setBorder(new RoundedLineBorder(new Color(196, 196, 196), 10, 1));
+        comboBox.setBorder(new CompoundBorder(new RoundedLineBorder(new Color(196, 196, 196), 10, 1), new EmptyBorder(4, 8, 4, 8)));
     }
 
     private void setupFrame() {
@@ -572,7 +555,7 @@ public class LoginFrame extends JFrame {
             int anio = Integer.parseInt((String) cbAnio.getSelectedItem());
             int mes = convertirMes(mesTexto);
             return java.time.LocalDate.of(anio, mes, dia);
-        } catch (Exception e) {
+        } catch (DateTimeException | NumberFormatException | NullPointerException e) {
             throw new IllegalArgumentException("Fecha de nacimiento inválida");
         }
     }
@@ -599,9 +582,12 @@ public class LoginFrame extends JFrame {
             } else {
                 JOptionPane.showMessageDialog(this, "Correo o contraseña incorrectos");
             }
-
-        } catch (HeadlessException | SQLException e) {
-            JOptionPane.showMessageDialog(this, "Ocurrió un error inesperado.", "Error Crítico", JOptionPane.ERROR_MESSAGE);
+        } catch (IllegalArgumentException | SQLException e) {
+            String title = (e instanceof IllegalArgumentException) ? "Validación" : "Error de BD";
+            int type = (e instanceof IllegalArgumentException) ? JOptionPane.WARNING_MESSAGE : JOptionPane.ERROR_MESSAGE;
+            JOptionPane.showMessageDialog(this, e.getMessage(), title, type);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error inesperado: " + e.getMessage(), "Error Crítico", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -621,7 +607,8 @@ public class LoginFrame extends JFrame {
             user.setPassword(new String(txtPassword.getPassword()));
             user.setNombre(txtNombre.getText());
             user.setApellido(txtApellido.getText());
-            user.setFechaNacimiento(getFechaNacimiento());
+            user.setFechaNacimiento(getFechaNacimiento()); // Asegúrate que getFechaNacimiento() no devuelva null
+            user.setRolId(3); // Por defecto, asigna el rol de Recepcionista (ID 3)
 
             if (rbHombre.isSelected()) {
                 user.setGenero("M");
@@ -630,57 +617,24 @@ public class LoginFrame extends JFrame {
             } else if (rbOtro.isSelected()) {
                 user.setGenero("O");
             } else {
-                user.setGenero(null);
+                throw new IllegalArgumentException("Debe seleccionar un género.");
             }
 
             boolean success = controller.register(user);
             if (success) {
-                JOptionPane.showMessageDialog(this, "Usuario registrado");
+                JOptionPane.showMessageDialog(this, "¡Usuario registrado exitosamente!");
                 onLoginSuccess.accept(user);
                 this.dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Error al registrar");
             }
-        } catch (HeadlessException | SQLException e) {
+        } catch (IllegalArgumentException | SQLException e) {
+            String title = (e instanceof IllegalArgumentException) ? "Datos inválidos" : "Error de BD";
+            int type = (e instanceof IllegalArgumentException) ? JOptionPane.WARNING_MESSAGE : JOptionPane.ERROR_MESSAGE;
+            JOptionPane.showMessageDialog(this, e.getMessage(), title, type);
+        } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error inesperado: " + e.getMessage(), "Error Crítico", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    /**
-     * Borde redondeado personalizado para los campos de texto. Cambia de color al enfocarse.
-     */
-    private static class RoundedLineBorder extends AbstractBorder {
-        private final Color color;
-        private final int radius;
-        private final int thickness;
-
-        RoundedLineBorder(Color color, int radius, int thickness) {
-            this.color = color;
-            this.radius = radius;
-            this.thickness = thickness;
-        }
-
-        @Override
-        public void paintBorder(java.awt.Component c, java.awt.Graphics g, int x, int y, int width, int height) {
-            java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
-            g2.setColor(color);
-            g2.setStroke(new java.awt.BasicStroke(thickness));
-            g2.drawRoundRect(x + thickness / 2, y + thickness / 2, width - thickness, height - thickness, radius, radius);
-            g2.dispose();
-        }
-
-        @Override
-        public Insets getBorderInsets(java.awt.Component c) {
-            return new Insets(thickness, thickness, thickness, thickness);
-        }
-
-        @Override
-        public Insets getBorderInsets(java.awt.Component c, Insets insets) {
-            insets.left = thickness;
-            insets.right = thickness;
-            insets.top = thickness;
-            insets.bottom = thickness;
-            return insets;
-        }
-    }
 }

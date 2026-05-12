@@ -9,37 +9,55 @@ import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 
 import secureauth.controller.IngresoController;
-import secureauth.controller.MascotaController;
+import secureauth.controller.PetController;
 import secureauth.controller.SalesController;
+import secureauth.dao.OwnerDAO;
+import secureauth.dao.PetDAO;
 import secureauth.model.User;
-import secureauth.repository.MascotaRepositoryImpl;
-import secureauth.service.MascotaService;
+import secureauth.service.OwnerService;
+import secureauth.service.PetService;
+import secureauth.service.UserService;
+import secureauth.ui.components.PanelConfig;
+import secureauth.ui.components.PanelInventory;
+import secureauth.ui.components.RegMascotaPanel;
 import secureauth.ui.components.SalesPanel;
 import secureauth.ui.components.SidebarPanel;
 import secureauth.ui.components.UserPanel;
 import secureauth.ui.dialogs.SubServiceSelector;
 
 /**
- * Vista principal del dashboard de usuarios.
- *
- * <p>
- * Esta clase ahora funciona como orquestador de componentes UI más pequeños:
- * SidebarPanel, UserPanel y MascotaRegistroFrame.
- * </p>
- *
+ * Orquestador principal de la interfaz de usuario (Dashboard).
+ * 
+ * <p>Esta clase gestiona la navegación entre los diferentes módulos del sistema 
+ * utilizando un {@link CardLayout}. Actúa como el punto de integración donde 
+ * se inyectan los controladores y servicios para cada panel.</p>
+ * 
  * @author Diego Alexander Gaviria Jimenez
  * @version 2.0
+ * @see secureauth.ui.components.SidebarPanel
+ * @see secureauth.ui.components.RegMascotaPanel
  */
 public class IngresoFrame extends javax.swing.JFrame {
 
+    /** Color de fondo corporativo para los paneles principales. */
     private final Color COLOR_BG = new Color(244, 246, 249);
 
+    /** Información del usuario que inició la sesión. */
     private final User usuarioActual;
+    /** Controlador maestro para la lógica de la sesión. */
     private final IngresoController controller;
+    
+    /** Paneles de los módulos del sistema. */
     private final UserPanel userPanel;
-    private final MascotaRegistroFrame mascotaRegistroPanel;
+    private final RegMascotaPanel mascotaRegistroPanel;
     private final SalesPanel salesPanel;
+    private final PanelConfig configPanel;
+    private final PanelInventory inventoryPanel;
+   // private final PanelReports panelReports;
+    
+    /** Gestor de capas para el intercambio dinámico de vistas. */
     private final CardLayout contentLayout;
+    /** Contenedor principal donde se apilan los módulos. */
     private final JPanel contentPanel;
 
     /**
@@ -47,15 +65,18 @@ public class IngresoFrame extends javax.swing.JFrame {
      *
      * @param controller controlador ya construido en el bootstrap
      * @param usuario usuario autenticado
+     * @param subServiceSelector diálogo para selección de subservicios en ventas
      */
     public IngresoFrame(IngresoController controller, User usuario, SubServiceSelector subServiceSelector) {
         this.controller = controller;
         this.usuarioActual = usuario;
         this.userPanel = new UserPanel(this, controller);
-        MascotaService mascotaService = new MascotaService(new MascotaRepositoryImpl());
-        MascotaController mascotaController = new MascotaController(mascotaService);
-        this.mascotaRegistroPanel = new MascotaRegistroFrame(mascotaController);
+        this.mascotaRegistroPanel = new RegMascotaPanel();
+        new PetController(mascotaRegistroPanel, new PetService(new PetDAO()), new OwnerService(new OwnerDAO())); // Instanciación sin guardar referencia
         this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector);
+        this.configPanel = new PanelConfig(new UserService(), this.controller); // Pasa el IngresoController
+        this.inventoryPanel = new PanelInventory(); 
+       // this.panelReports = new PanelReports(this.controller);
         this.contentLayout = new CardLayout();
         this.contentPanel = new JPanel(contentLayout);
 
@@ -66,15 +87,22 @@ public class IngresoFrame extends javax.swing.JFrame {
     }
 
     /**
-     * Inicializa layout principal.
+     * Configura el layout principal y ensambla el {@link SidebarPanel} con sus respectivos 
+     * callbacks de navegación vinculados a los métodos {@code mostrar...} de esta clase.
      */
     private void initComponents() {
         setLayout(new BorderLayout());
-        add(new SidebarPanel(usuarioActual, controller, this::mostrarUsuarios, this::mostrarMascotas, this::mostrarVentas),
+        add(new SidebarPanel(usuarioActual, controller, this::mostrarUsuarios, 
+                this::mostrarMascotas, this::mostrarInventario, this::mostrarVentas, this::mostrarConfiguracion, this::mostrarReportes),
                 BorderLayout.WEST);
         add(buildMainPanel(), BorderLayout.CENTER);
     }
 
+    /**
+     * Construye el panel central que contiene el {@code contentPanel} con todos los módulos registrados.
+     * 
+     * @return JPanel con el CardLayout configurado.
+     */
     private JPanel buildMainPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(COLOR_BG);
@@ -84,13 +112,17 @@ public class IngresoFrame extends javax.swing.JFrame {
         contentPanel.add(userPanel, "usuarios");
         contentPanel.add(mascotaRegistroPanel, "mascotas");
         contentPanel.add(salesPanel, "ventas");
+        contentPanel.add(configPanel, "configuracion");
+        contentPanel.add(inventoryPanel, "inventario");
+       // contentPanel.add(panelReports, "reportes");
         contentLayout.show(contentPanel, "usuarios");
         panel.add(contentPanel, BorderLayout.CENTER);
         return panel;
     }
 
     /**
-     * Configuración de ventana.
+     * Establece las propiedades básicas de la ventana como tamaño, título 
+     * y posición inicial.
      */
     private void setupFrame() {
         setTitle("SecureAuth Dashboard");
@@ -126,18 +158,44 @@ public class IngresoFrame extends javax.swing.JFrame {
         return usuarioActual;
     }
 
+    /** Muestra el módulo de gestión de usuarios. */
     public void mostrarUsuarios() {
         contentLayout.show(contentPanel, "usuarios");
     }
 
+    /** Muestra el módulo de registro de mascotas. */
     public void mostrarMascotas() {
         contentLayout.show(contentPanel, "mascotas");
     }
 
     /**
-     * Cambia la vista del contenedor principal al módulo de ventas.
+     * Cambia la vista al módulo de Gestión de Inventario.
+     */
+    public void mostrarInventario() {
+        System.out.println("[DEBUG] Navegando al módulo de Inventario");
+        contentLayout.show(contentPanel, "inventario");
+    }
+
+    /**
+     * Cambia la vista al módulo de Punto de Venta (POS).
      */
     public void mostrarVentas() {
+        System.out.println("[DEBUG] Navegando al módulo de Ventas desde IngresoFrame");
         contentLayout.show(contentPanel, "ventas");
+    }
+
+    /**
+     * Cambia la vista al panel de configuración.
+     */
+    public void mostrarConfiguracion() {
+        System.out.println("[DEBUG] Navegando a Panel de Configuración desde IngresoFrame");
+        contentLayout.show(contentPanel, "configuracion");
+    }
+
+    /**
+     * Cambia la vista al módulo de reportes.
+     */
+    public void mostrarReportes() {
+        contentLayout.show(contentPanel, "reportes");
     }
 }

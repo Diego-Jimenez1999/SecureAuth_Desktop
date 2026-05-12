@@ -25,7 +25,6 @@ public class IngresoController {
     private final EditUserDialogFactory editUserDialogFactory;
 
     private IngresoFrame view;
-    private User currentUser;
 
     /**
      * Constructor principal para inyección de dependencias.
@@ -47,15 +46,12 @@ public class IngresoController {
      */
     public void bindView(IngresoFrame view, User currentUser) {
         this.view = view;
-        this.currentUser = currentUser;
     }
 
     /**
      * Cierra sesión y retorna al flujo de login.
      */
     public void logout() {
-        currentUser = null;
-
         if (view != null) {
             view.dispose();
         }

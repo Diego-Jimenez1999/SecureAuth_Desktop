@@ -89,6 +89,11 @@ public class AuthService {
         if (user.getFechaNacimiento() == null) {
             throw new IllegalArgumentException("Fecha de nacimiento requerida");
         }
+        
+        // Asignar rol por defecto (Recepcionista = 3) si no viene especificado
+        if (user.getRolId() <= 0) {
+            user.setRolId(3);
+        }
 
         validatePasswordStrength(plainPassword);
 

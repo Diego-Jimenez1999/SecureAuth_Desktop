@@ -14,6 +14,9 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import secureauth.config.DatabaseConnection;
 import secureauth.model.User;
@@ -33,12 +36,43 @@ import secureauth.model.User;
  */
 public class UserDAO {
 
+    private static final Logger LOGGER = Logger.getLogger(UserDAO.class.getName());
+
     /**
-     * =========================
-     * OBTENER TODOS LOS USUARIOS
-     * =========================
+     * Data Transfer Object (DTO) liviano diseñado específicamente para el 
+     * renderizado de filas en tablas de gestión de personal.
      * 
-     * @return Lista de usuarios
+     * <p>Evita cargar objetos pesados o datos sensibles como contraseñas en la UI.</p>
+     */
+    public static class WorkerRow {
+        private final int id;
+        private final String nombre;
+        private final String apellido;
+        private final String email;
+        private final String genero;
+        private final String rol;
+
+        public WorkerRow(int id, String nombre, String apellido, String email, String genero, String rol) {
+            this.id = id;
+            this.nombre = nombre;
+            this.apellido = apellido;
+            this.email = email;
+            this.genero = genero;
+            this.rol = rol;
+        }
+
+        public int getId() { return id; }
+        public String getNombre() { return nombre; }
+        public String getApellido() { return apellido; }
+        public String getEmail() { return email; }
+        public String getGenero() { return genero; }
+        public String getRol() { return rol; }
+    }
+
+    /**
+     * Recupera la totalidad de los usuarios registrados en el sistema.
+     * 
+     * @return Una {@link List} de objetos {@link User}.
      */
     public List<User> findAll() {
 
@@ -48,7 +82,7 @@ public class UserDAO {
          * 🔥 SQL:
          * Consulta todos los registros
          */
-        String sql = "SELECT * FROM users";
+        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users";
 
         /**
          * TRY WITH RESOURCES:
@@ -69,20 +103,17 @@ public class UserDAO {
             }
 
         } catch (SQLException e) {
-
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error al obtener todos los usuarios", e);
         }
 
         return lista;
     }
 
     /**
-     * =========================
-     * BUSCAR USUARIOS
-     * =========================
+     * Realiza una búsqueda avanzada filtrando por nombre, apellido o email.
      *
-     * @param texto texto a buscar
-     * @return lista filtrada
+     * @param texto Cadena de búsqueda (query).
+     * @return Lista filtrada de usuarios que coinciden con el criterio.
      */
     public List<User> search(String texto) {
 
@@ -93,7 +124,7 @@ public class UserDAO {
          * Permite búsqueda parcial
          */
         String sql = """
-                SELECT * FROM users
+                SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users
                 WHERE nombre LIKE ?
                 OR apellido LIKE ?
                 OR email LIKE ?
@@ -120,27 +151,23 @@ public class UserDAO {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error en la búsqueda de usuarios", e);
         }
 
         return lista;
     }
 
     /**
-     * =========================
-     * OBTENER USUARIO POR ID
-     * =========================
+     * Localiza un usuario mediante su identificador único primario.
      *
-     * Busca un usuario específico por su ID
-     *
-     * @param id identificador del usuario
-     * @return objeto User o null si no existe
+     * @param id El ID del usuario en la base de datos.
+     * @return El objeto {@link User} encontrado o {@code null} si no existe.
      */
     public User findById(int id) {
 
         User user = null;
         
-        String sql = "SELECT * FROM users WHERE id = ?";
+        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users WHERE id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -154,26 +181,22 @@ public class UserDAO {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error al buscar usuario por ID: " + id, e);
         }
 
         return user;
     }
 
-        /**
-     * =========================
-     * MAPEAR RESULTSET → USER
-     * =========================
+    /**
+     * Helper encargado de la transformación de datos relacionales (SQL) a 
+     * tipos de datos de Java.
      *
-     * Convierte una fila de la base de datos en un objeto User.
+     * <p>Maneja la conversión de {@link java.sql.Date} a {@link java.time.LocalDate} 
+     * de forma segura para evitar errores de puntero nulo.</p>
      *
-     * 🔥 RESPONSABILIDAD:
-     * - Transformar datos SQL → Objeto Java
-     * - Centralizar el mapeo (evita duplicación)
-     *
-     * @param rs ResultSet con la fila actual
-     * @return objeto User completamente construido
-     * @throws SQLException si ocurre error al leer datos
+     * @param rs ResultSet posicionado en la fila a mapear.
+     * @return Objeto {@link User} instanciado y poblado.
+     * @throws SQLException Si ocurre un error de lectura en el ResultSet.
      */
     private User mapResultSetToUser(ResultSet rs) throws SQLException {
 
@@ -215,20 +238,22 @@ public class UserDAO {
             user.setPassword(password);
             user.setGenero(genero);
             user.setFechaNacimiento(fechaNacimiento);
+            user.setRolId(rs.getInt("rol_id"));
 
             return user;
     }
     
-    
-        /**
-     * Inserta un nuevo usuario en la base de datos.
+    /**
+     * Persiste un nuevo registro de usuario en la tabla {@code users}.
      *
-     * @param user objeto usuario
-     * @return true si se insertó correctamente
+     * @param user Objeto con los datos del nuevo usuario.
+     * @return {@code true} si la operación afectó al menos una fila en la DB.
+     * @throws NullPointerException si el usuario es nulo.
      */
     public boolean insert(User user) {
+        Objects.requireNonNull(user, "El usuario no puede ser nulo para la inserción");
 
-        String sql = "INSERT INTO users (nombre, apellido, email, password, genero, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO users (nombre, apellido, email, password, genero, fecha_nacimiento, rol_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -242,12 +267,15 @@ public class UserDAO {
             /**
              * 🔥 CONVERSIÓN LocalDate → SQL Date
              */
-            ps.setDate(6, Date.valueOf(user.getFechaNacimiento()));
+            ps.setDate(6, user.getFechaNacimiento() != null 
+                    ? Date.valueOf(user.getFechaNacimiento()) 
+                    : null);
+            ps.setInt(7, user.getRolId()); // Asegurado RolId
 
             return ps.executeUpdate() > 0;
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error al insertar usuario", e);
             return false;
         }
 }
@@ -256,14 +284,14 @@ public class UserDAO {
 
 
     /**
-     * Busca un usuario por email.
+     * Recupera un usuario basándose estrictamente en su correo electrónico.
      * 
-     * @param email correo del usuario
-     * @return User o null si no existe
+     * @param email Email a consultar.
+     * @return Objeto {@link User} o {@code null} si no se encuentra el correo.
      */
     public User findByEmail(String email) {
 
-        String sql = "SELECT * FROM users WHERE email = ?";
+        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users WHERE email = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -284,18 +312,72 @@ public class UserDAO {
                 return mapResultSetToUser(rs);
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error al buscar usuario por email", e);
         }
 
         return null;
     }
 
     /**
-     * Actualiza únicamente la contraseña de un usuario.
+     * Ejecuta un JOIN entre {@code users} y {@code roles} para obtener una lista 
+     * de trabajadores con el nombre legible de su cargo.
      *
-     * @param userId identificador del usuario
-     * @param hashedPassword contraseña hash
+     * @param query Filtro opcional de texto para búsqueda.
+     * @return Lista de {@link WorkerRow} para visualización en tablas.
+     */
+    public List<WorkerRow> findAllWithRoleName(String query) {
+        List<WorkerRow> workers = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT u.id, u.nombre, u.apellido, u.email, u.genero,
+                    COALESCE(r.nombre, 'Sin rol') AS rol
+                FROM users u
+                LEFT JOIN roles r ON r.id = u.rol_id
+                """);
+
+        boolean hasQuery = query != null && !query.trim().isEmpty();
+        if (hasQuery) {
+            sql.append(" WHERE u.nombre LIKE ? OR u.apellido LIKE ? OR u.email LIKE ? ");
+        }
+        sql.append(" ORDER BY u.id ASC");
+
+        try (Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+
+            if (hasQuery) {
+                String filter = "%" + query.trim() + "%";
+                stmt.setString(1, filter);
+                stmt.setString(2, filter);
+                stmt.setString(3, filter);
+            }
+
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                workers.add(new WorkerRow(
+                        rs.getInt("id"),
+                        rs.getString("nombre"),
+                        rs.getString("apellido"),
+                        rs.getString("email"),
+                        rs.getString("genero"),
+                        rs.getString("rol")
+                ));
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error al listar trabajadores con rol", e);
+        }
+
+        return workers;
+    }
+
+    public List<WorkerRow> findAllWithRoleName() {
+        return findAllWithRoleName(null);
+    }
+
+    /**
+     * Actualiza de forma atómica la contraseña de un usuario.
+     *
+     * @param userId ID del usuario.
+     * @param hashedPassword El nuevo hash seguro (ej: BCrypt).
      * @return true si se actualizó el registro
      */
     public boolean updatePassword(int userId, String hashedPassword) {
@@ -306,17 +388,17 @@ public class UserDAO {
             ps.setString(1, hashedPassword);
             ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error al actualizar contraseña", e);
             return false;
         }
     }
 
 
     /**
-     * Elimina un usuario por su ID.
+     * Remueve físicamente un registro de usuario de la base de datos.
      *
-     * @param id identificador del usuario a eliminar
+     * @param id ID del usuario a dar de baja.
      */
     public void delete(int id) {
 
@@ -328,19 +410,22 @@ public class UserDAO {
             ps.setInt(1, id);
             ps.executeUpdate();
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error al eliminar usuario", e);
+        }
     }
-    
-}
+
     /**
-     * Actualiza un usuario existente.
+     * Sincroniza los cambios de un objeto {@link User} existente con su 
+     * fila correspondiente en la base de datos.
      *
-     * @param user objeto usuario
+     * @param user Objeto con los datos actualizados.
+     * @throws NullPointerException si el usuario es nulo.
      */
     public void update(User user) {
+        Objects.requireNonNull(user, "El usuario no puede ser nulo para la actualización");
 
-        String sql = "UPDATE users SET nombre = ?, apellido = ?, email = ?, password = ?, genero = ?, fecha_nacimiento = ? WHERE id = ?";
+        String sql = "UPDATE users SET nombre = ?, apellido = ?, email = ?, password = ?, genero = ?, fecha_nacimiento = ?, rol_id = ? WHERE id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -350,13 +435,16 @@ public class UserDAO {
             ps.setString(3, user.getEmail());
             ps.setString(4, user.getPassword());
             ps.setString(5, user.getGenero());
-            ps.setDate(6, Date.valueOf(user.getFechaNacimiento()));
-            ps.setInt(7, user.getId());
+            ps.setDate(6, user.getFechaNacimiento() != null 
+                    ? Date.valueOf(user.getFechaNacimiento()) 
+                    : null);
+            ps.setInt(7, user.getRolId()); // Asegurado RolId
+            ps.setInt(8, user.getId());
 
             ps.executeUpdate();
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error al actualizar usuario", e);
         }
 
     }

@@ -1,6 +1,7 @@
 package secureauth.service;
 
 import java.util.List;
+import secureauth.dao.UserDAO;
 import secureauth.model.User;
 import secureauth.repository.UserRepository;
 import secureauth.repository.UserRepositoryImpl;
@@ -19,6 +20,7 @@ import secureauth.repository.UserRepositoryImpl;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserDAO userDAO;
 
     /**
      * Constructor por defecto.
@@ -34,6 +36,7 @@ public class UserService {
      */
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
+        this.userDAO = new UserDAO();
     }
 
     /**
@@ -81,5 +84,14 @@ public class UserService {
      */
     public void delete(int userId) {
         userRepository.delete(userId);
+    }
+
+    /**
+     * Lista de trabajadores incluyendo nombre del rol.
+     *
+     * @return filas de trabajadores para tabla de configuración
+     */
+    public List<UserDAO.WorkerRow> findAllWorkersWithRoleName() {
+        return userDAO.findAllWithRoleName();
     }
 }

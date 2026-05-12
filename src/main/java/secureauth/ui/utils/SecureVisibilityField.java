@@ -26,14 +26,14 @@ public class SecureVisibilityField extends JPasswordField {
      * Inicializa el campo de contraseña con el botón de visibilidad oculto.
      */
     public SecureVisibilityField() {
-        initcomponents();
+        initComponentsInternal();
     }
 
     /**
      * Configura el diseño interno, carga iconos y gestiona eventos de acción.
      * <p>Utiliza un {@code null layout} interno para posicionar el toggle al final del campo.</p>
      */
-    public void initcomponents() {
+    private void initComponentsInternal() {
         setLayout(null);
 
         // Carga de recursos (Ruta absoluta desde el classpath)

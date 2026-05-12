@@ -34,6 +34,7 @@ public class FloatingPlaceholder extends JLabel {
      * @param text El texto que se mostrará como sugerencia.
      * @param component El {@link JTextComponent} (JTextField, JPasswordField) donde se aplicará.
      */
+    @SuppressWarnings("LeakingThisInConstructor")
     public FloatingPlaceholder(String text, JTextComponent component) {
         super(text);
         this.component = component;

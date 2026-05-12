@@ -6,6 +6,7 @@ package secureauth.model;
 public class Mascota {
 
     private int id;
+    private int ownerId;
     private String nombre;
     private String tipo;
     private String raza;
@@ -25,6 +26,8 @@ public class Mascota {
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
+    public int getOwnerId() { return ownerId; }
+    public void setOwnerId(int ownerId) { this.ownerId = ownerId; }
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
     public String getTipo() { return tipo; }

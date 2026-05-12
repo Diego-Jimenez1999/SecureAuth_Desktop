@@ -62,6 +62,9 @@ public class User {
     /** Género del usuario */
     private String genero;
     
+    /** Identificador del rol del usuario */
+    private int rolId;
+    
   
 
     /**
@@ -76,7 +79,7 @@ public class User {
     
     
     /**
-     * Costructor inicio de seccion
+     * Constructor para inicio de sesión.
      * @param password contraseña (hash)
      * @param email correo electrónico
      */
@@ -97,10 +100,11 @@ public class User {
      * @param apellido apellido del usuario
      * @param fechaNacimiento fecha de nacimiento
      * @param genero género
+     * @param rolId identificador del rol
      */
     public User(int id, String email, String password,
                 String nombre, String apellido,
-                LocalDate fechaNacimiento, String genero) {
+                LocalDate fechaNacimiento, String genero, int rolId) {
         this.id = id;
         this.email = email;
         this.password = password;
@@ -108,6 +112,7 @@ public class User {
         this.apellido = apellido;
         this.fechaNacimiento = fechaNacimiento;
         this.genero = genero;
+        this.rolId = rolId;
         
     }
 
@@ -180,11 +185,11 @@ public class User {
     }
 
     /**
-     * Obtiene el nombre del usuario.
+     * Obtiene el nombre completo del usuario concatenando nombre y apellido.
      *
-     * @return nombre
+     * @return nombre completo
      */
-    public String getNombrecompletoString() {
+    public String getNombreCompleto() {
         return nombre + " " + apellido;
     }
 
@@ -251,25 +256,23 @@ public class User {
     public void setGenero(String genero) {
         this.genero = genero;
     }
+    
+    /**
+     * Obtiene el identificador del rol.
+     *
+     * @return id del rol
+     */
+    public int getRolId() {
+        return rolId;
+    }
 
     /**
-     * Representación en texto del usuario.
+     * Establece el identificador del rol.
      *
-     * @return cadena con datos principales
+     * @param rolId identificador del rol
      */
-    @Override
-    public String toString() {
-        return "User{" +
-                "id=" + id +
-                ", email='" + email + '\'' +
-                ", nombre='" + nombre + '\'' +
-                ", apellido='" + apellido + '\'' +
-                '}';
+    public void setRolId(int rolId) {
+        this.rolId = rolId;
     }
-    
-  
-    
+
 }
-
-
-

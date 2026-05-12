@@ -237,7 +237,14 @@ public class SalesPanel extends JPanel {
         body.add(totalsPanel);
         body.add(Box.createVerticalStrut(16));
         body.add(registerButton);
-        summary.add(body, BorderLayout.CENTER);
+
+        JScrollPane bodyScroll = new JScrollPane(body);
+        bodyScroll.setBorder(null);
+        bodyScroll.setOpaque(false);
+        bodyScroll.getViewport().setOpaque(false);
+        bodyScroll.getVerticalScrollBar().setUnitIncrement(12);
+
+        summary.add(bodyScroll, BorderLayout.CENTER);
 
         return summary;
     }

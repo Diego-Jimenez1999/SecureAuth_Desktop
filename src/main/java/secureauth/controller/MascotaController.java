@@ -3,8 +3,9 @@ package secureauth.controller;
 import java.util.regex.Pattern;
 
 import secureauth.model.Mascota;
+import secureauth.model.Owner;
 import secureauth.service.MascotaService;
-import secureauth.ui.frames.MascotaRegistroFrame;
+import secureauth.ui.components.RegMascotaPanel;
 
 /**
  * Controlador del formulario de registro de mascotas.
@@ -14,13 +15,13 @@ public class MascotaController {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
     private final MascotaService mascotaService;
-    private MascotaRegistroFrame view;
+    private RegMascotaPanel view;
 
     public MascotaController(MascotaService mascotaService) {
         this.mascotaService = mascotaService;
     }
 
-    public void bindView(MascotaRegistroFrame view) {
+    public void bindView(RegMascotaPanel view) {
         this.view = view;
     }
 
@@ -30,6 +31,7 @@ public class MascotaController {
         }
 
         String nombre = view.getNombreMascota();
+        Owner selectedOwner = view.getSelectedOwner();
         String tipo = view.getTipoMascota();
         String raza = view.getRazaMascota();
         String edadTxt = view.getEdadMascota();
@@ -44,7 +46,7 @@ public class MascotaController {
         String correoDueno = view.getCorreoDueno();
         String direccionDueno = view.getDireccionDueno();
 
-        if (isBlank(nombre) || isBlank(tipo) || isBlank(raza) || isBlank(edadTxt)
+        if (isBlank(nombre) || selectedOwner == null || isBlank(tipo) || isBlank(raza) || isBlank(edadTxt)
                 || isBlank(pesoTxt) || isBlank(sexo) || isBlank(frecuencia) || isBlank(estadoSalud)
                 || isBlank(nombreDueno) || isBlank(telefonoDueno) || isBlank(correoDueno) || isBlank(direccionDueno)) {
             view.showError("Completa todos los campos obligatorios.");
@@ -82,6 +84,7 @@ public class MascotaController {
 
         Mascota mascota = new Mascota();
         mascota.setNombre(nombre.trim());
+        mascota.setOwnerId(selectedOwner.getId());
         mascota.setTipo(tipo.trim());
         mascota.setRaza(raza.trim());
         mascota.setEdad(edad);

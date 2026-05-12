@@ -59,10 +59,10 @@ public final class EditUserFrame extends JDialog {
     private JComboBox<String> cmbGenero;
 
     // Indicadores de error
-    private JLabel errNombre = new JLabel("❓");
-    private JLabel errApellido = new JLabel("❓");
-    private JLabel errEmail = new JLabel("❓");
-    private JLabel errPassword = new JLabel("❓");
+    private final JLabel errNombre = new JLabel("❓");
+    private final JLabel errApellido = new JLabel("❓");
+    private final JLabel errEmail = new JLabel("❓");
+    private final JLabel errPassword = new JLabel("❓");
 
     /**
      * Constructor principal del diálogo.
