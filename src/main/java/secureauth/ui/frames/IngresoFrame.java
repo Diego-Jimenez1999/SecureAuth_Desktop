@@ -27,6 +27,8 @@ import secureauth.ui.components.SalesPanel;
 import secureauth.ui.components.SidebarPanel;
 import secureauth.ui.components.UserPanel;
 import secureauth.ui.dialogs.SubServiceSelector;
+import secureauth.ui.enterprise.ClientsPanel;
+import secureauth.ui.enterprise.HomeDashboardPanel;
 
 /**
  * Orquestador principal de la interfaz de usuario (Dashboard).
@@ -52,6 +54,8 @@ public class IngresoFrame extends javax.swing.JFrame {
     
     /** Paneles de los módulos del sistema. */
     private final UserPanel userPanel;
+    private final HomeDashboardPanel homePanel;
+    private final ClientsPanel clientsPanel;
     private final RegMascotaPanel mascotaRegistroPanel;
     private final SalesPanel salesPanel;
     private final PanelConfig configPanel;
@@ -74,6 +78,8 @@ public class IngresoFrame extends javax.swing.JFrame {
         this.controller = controller;
         this.usuarioActual = usuario;
         this.userPanel = new UserPanel(this, controller);
+        this.homePanel = new HomeDashboardPanel();
+        this.clientsPanel = new ClientsPanel();
         this.mascotaRegistroPanel = new RegMascotaPanel();
         new PetController(mascotaRegistroPanel, new PetService(new PetDAO()), new OwnerService(new OwnerDAO())); // Instanciación sin guardar referencia
         this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector);
@@ -98,7 +104,7 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     private void initComponents() {
         setLayout(new BorderLayout());
-        add(new SidebarPanel(usuarioActual, controller, this::mostrarUsuarios, 
+        add(new SidebarPanel(usuarioActual, controller, this::mostrarHome, this::mostrarUsuarios,
                 this::mostrarMascotas, this::mostrarInventario, this::mostrarVentas, this::mostrarConfiguracion, this::mostrarReportes),
                 BorderLayout.WEST);
         add(buildMainPanel(), BorderLayout.CENTER);
@@ -115,13 +121,15 @@ public class IngresoFrame extends javax.swing.JFrame {
         panel.setBorder(new EmptyBorder(20, 25, 20, 25));
 
         contentPanel.setOpaque(false);
+        contentPanel.add(homePanel, "home");
+        contentPanel.add(clientsPanel, "clientes");
         contentPanel.add(userPanel, "usuarios");
         contentPanel.add(mascotaRegistroPanel, "mascotas");
         contentPanel.add(salesPanel, "ventas");
         contentPanel.add(configPanel, "configuracion");
         contentPanel.add(inventoryPanel, "inventario");
         contentPanel.add(panelReports, "reportes");
-        contentLayout.show(contentPanel, "usuarios");
+        contentLayout.show(contentPanel, "home");
         panel.add(contentPanel, BorderLayout.CENTER);
         return panel;
     }
@@ -164,9 +172,14 @@ public class IngresoFrame extends javax.swing.JFrame {
         return usuarioActual;
     }
 
+    public void mostrarHome() {
+        homePanel.refresh();
+        contentLayout.show(contentPanel, "home");
+    }
+
     /** Muestra el módulo de gestión de usuarios. */
     public void mostrarUsuarios() {
-        contentLayout.show(contentPanel, "usuarios");
+        contentLayout.show(contentPanel, "clientes");
     }
 
     /** Muestra el módulo de registro de mascotas. */

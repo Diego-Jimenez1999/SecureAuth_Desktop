@@ -47,10 +47,6 @@ import secureauth.ui.utils.UiTheme;
  */
 public class LoginFrame extends JFrame {
 
-    private static final Dimension REGISTER_FIELD_SIZE = new Dimension(230, 42);
-    private static final Dimension LOGIN_FIELD_SIZE = new Dimension(170, 43);
-    private static final Font BASE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
-
     private final AuthController controller;
     private final Consumer<secureauth.model.User> onLoginSuccess;
 
@@ -152,12 +148,12 @@ public class LoginFrame extends JFrame {
     private void applyBaseStyles() {
         getContentPane().setBackground(UiTheme.BG_LIGHT);
 
-        styleTextComponent(txtEmailLogin, LOGIN_FIELD_SIZE);
-        styleTextComponent(txtPasswordLogin, LOGIN_FIELD_SIZE);
-        styleTextComponent(txtEmail, REGISTER_FIELD_SIZE);
-        styleTextComponent(txtPassword, REGISTER_FIELD_SIZE);
-        styleTextComponent(txtNombre, REGISTER_FIELD_SIZE);
-        styleTextComponent(txtApellido, REGISTER_FIELD_SIZE);
+        styleTextComponent(txtEmailLogin, new Dimension(170, 43));
+        styleTextComponent(txtPasswordLogin, new Dimension(170, 43));
+        styleTextComponent(txtEmail, UiTheme.FIELD_SIZE_MEDIUM);
+        styleTextComponent(txtPassword, UiTheme.FIELD_SIZE_MEDIUM);
+        styleTextComponent(txtNombre, UiTheme.FIELD_SIZE_MEDIUM);
+        styleTextComponent(txtApellido, UiTheme.FIELD_SIZE_MEDIUM);
 
         placeholders.add(new FloatingPlaceholder("Correo", txtEmailLogin));
         placeholders.add(new FloatingPlaceholder("Contraseña", txtPasswordLogin));
@@ -377,7 +373,7 @@ public class LoginFrame extends JFrame {
     }
 
     private void styleTextComponent(JTextField field, Dimension size) {
-        ComponentUtils.styleTextField(field, size, BASE_FONT, UiTheme.FOREST_GREEN);
+        ComponentUtils.styleTextField(field, size, UiTheme.BODY_FONT, UiTheme.FOREST_GREEN);
     }
 
     private void styleHeaderButton(JButton button) {
@@ -417,13 +413,13 @@ public class LoginFrame extends JFrame {
     private void styleRadioButton(JRadioButton radioButton) {
         radioButton.setOpaque(false);
         radioButton.setFocusPainted(false);
-        radioButton.setFont(BASE_FONT);
+        radioButton.setFont(UiTheme.BODY_FONT);
         radioButton.setForeground(new Color(45, 45, 45));
         radioButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
     }
 
     private void styleComboBox(JComboBox<String> comboBox) {
-        comboBox.setFont(BASE_FONT);
+        comboBox.setFont(UiTheme.BODY_FONT);
         comboBox.setBackground(Color.WHITE);
         comboBox.setFocusable(false);
         comboBox.setPreferredSize(new Dimension(72, 38));
@@ -432,7 +428,7 @@ public class LoginFrame extends JFrame {
 
     private void setupFrame() {
         setTitle("SecureAuth - Registro de Usuarios");
-        setMinimumSize(new Dimension(1300, 760));
+        setMinimumSize(new Dimension(UiTheme.SIDEBAR_WIDTH * 5, 760));
         setSize(1180, 760);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -469,7 +465,7 @@ public class LoginFrame extends JFrame {
         JLabel label = new JLabel("❓");
         label.setForeground(new Color(170, 0, 0));
         label.setVisible(false);
-        label.setFont(BASE_FONT);
+        label.setFont(UiTheme.BODY_FONT);
         return label;
     }
     
@@ -484,7 +480,7 @@ public class LoginFrame extends JFrame {
         labelPanel.setOpaque(false);
 
         JLabel label = new JLabel(text);
-        label.setFont(BASE_FONT);
+        label.setFont(UiTheme.BODY_FONT);
         label.setForeground(new Color(50, 50, 50));
 
         labelPanel.add(label, BorderLayout.WEST);

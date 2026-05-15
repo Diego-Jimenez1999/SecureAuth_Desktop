@@ -1,17 +1,13 @@
 package secureauth.ui.components;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionListener;
+import java.util.List;
 
 import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -20,198 +16,100 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
-import secureauth.ui.utils.JpanelR;
+import secureauth.model.enterprise.InventoryItem;
+import secureauth.ui.utils.UiTheme;
 
-/**
- * Módulo de Gestión de Inventario - SecureAuth Desktop
- * Implementación optimizada utilizando el componente personalizado JpanelR.
- */
+/** Panel enterprise de inventario multi-sucursal. */
 public class PanelInventory extends JPanel {
 
-    // Paleta de colores oficial del proyecto
-    private static final Color BG_PAGE = new Color(0xF5F7F9);
-    private static final Color BG_CARD = Color.WHITE;
-    private static final Color BORDER_COLOR = new Color(0xE5E7EB);
-    private static final Color PRIMARY_BLUE = new Color(0x2563EB);
-    private static final Color SUCCESS_GREEN = new Color(0x16A34A);
-    private static final Color TEXT_DARK = new Color(0x111827);
-    private static final Color TEXT_GRAY = new Color(0x6B7280);
-
-    private JTable inventoryTable;
-    private DefaultTableModel tableModel;
-    private JTextField txtSearch;
-    private JButton btnAdd;
-    private JPanel centerPanel;
+    private final DefaultTableModel tableModel;
+    private final JTable inventoryTable;
+    private final JTextField txtSearch;
+    private final JButton btnConsultar;
+    private final JButton btnImport;
+    private final JLabel lblTotal;
+    private final JLabel lblLow;
 
     public PanelInventory() {
-        setLayout(new BorderLayout(0, 24));
-        setBackground(BG_PAGE);
-        setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+        setLayout(new BorderLayout(0, 16));
+        setBackground(UiTheme.BG_PAGE);
+        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        centerPanel = new JPanel(new BorderLayout(0, 20));
-        centerPanel.setOpaque(false);
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+        JLabel title = new JLabel("Inventario Integrado");
+        title.setFont(UiTheme.TITLE_FONT_SECTION);
+        title.setForeground(UiTheme.TEXT_PRIMARY);
+        top.add(title, BorderLayout.WEST);
 
-        initHeader();
-        initStats();
-        initTable();
-    }
-
-    private void initHeader() {
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setOpaque(false);
-
-        // Título y Subtítulo
-        JPanel titleGroup = new JPanel();
-        titleGroup.setLayout(new BoxLayout(titleGroup, BoxLayout.Y_AXIS));
-        titleGroup.setOpaque(false);
-
-        JLabel lblTitle = new JLabel("Inventario de Productos");
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        lblTitle.setForeground(TEXT_DARK);
-
-        JLabel lblSub = new JLabel("Control de stock y suministros de la veterinaria");
-        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        lblSub.setForeground(TEXT_GRAY);
-
-        titleGroup.add(lblTitle);
-        titleGroup.add(Box.createVerticalStrut(4));
-        titleGroup.add(lblSub);
-
-        // Barra de acciones
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
-        actionPanel.setOpaque(false);
-
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.setOpaque(false);
         txtSearch = new JTextField(20);
-        txtSearch.putClientProperty("JTextField.placeholderText", "Buscar producto por nombre o ID...");
-        txtSearch.setPreferredSize(new Dimension(250, 40));
+        txtSearch.setPreferredSize(new Dimension(220, 34));
+        txtSearch.setFont(UiTheme.BODY_FONT);
+        btnConsultar = new JButton("Ver Inventario");
+        btnImport = new JButton("Importar CSV/Excel");
+        UiTheme.styleButton(btnConsultar, UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT, 140, 34, 12, true, false, 8);
+        UiTheme.styleButton(btnImport, UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT, 180, 34, 12, true, false, 8);
+        actions.add(txtSearch);
+        actions.add(btnConsultar);
+        actions.add(btnImport);
+        top.add(actions, BorderLayout.EAST);
 
-        btnAdd = new JButton("+ Nuevo Producto");
-        btnAdd.setBackground(SUCCESS_GREEN);
-        btnAdd.setForeground(Color.WHITE);
-        btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnAdd.setFocusPainted(false);
-        btnAdd.setBorderPainted(false);
-        btnAdd.setPreferredSize(new Dimension(160, 40));
-        btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        JPanel stats = new JPanel(new GridLayout(1, 2, 8, 8));
+        stats.setOpaque(false);
+        lblTotal = metric("Total Productos", "0");
+        lblLow = metric("Alertas Stock", "0");
+        stats.add(wrap(lblTotal));
+        stats.add(wrap(lblLow));
 
-        actionPanel.add(txtSearch);
-        actionPanel.add(btnAdd);
-
-        headerPanel.add(titleGroup, BorderLayout.WEST);
-        headerPanel.add(actionPanel, BorderLayout.EAST);
-
-        add(headerPanel, BorderLayout.NORTH);
-    }
-
-    private void initStats() {
-        JPanel statsContainer = new JPanel(new GridLayout(1, 3, 20, 0));
-        statsContainer.setOpaque(false);
-
-        statsContainer.add(createStatCard("Total Productos", "124", PRIMARY_BLUE));
-        statsContainer.add(createStatCard("Stock Bajo", "8", new Color(0xDC2626)));
-        statsContainer.add(createStatCard("Categorías", "12", TEXT_DARK));
-
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setOpaque(false);
-        wrapper.add(statsContainer, BorderLayout.CENTER);
-        wrapper.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
-
-        centerPanel.add(wrapper, BorderLayout.NORTH);
-        add(centerPanel, BorderLayout.CENTER);
-    }
-
-    private void initTable() {
-        // Uso de JpanelR para el contenedor de la tabla
-        JpanelR tableCard = new JpanelR();
-        tableCard.setBackgroundColor(BG_CARD);
-        tableCard.setArc(16);
-        tableCard.setBorderConfig(BORDER_COLOR, 1.0f); // Borde sutil para definición
-        tableCard.setLayout(new BorderLayout());
-        tableCard.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-
-        String[] columns = {"ID", "Producto", "Categoría", "Stock", "Precio", "Estado", "Acciones"};
-        tableModel = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
-        };
-
-        // Datos de ejemplo
-        tableModel.addRow(new Object[]{"#P001", "Alimento ProPlan Adulto", "Comida", "45", "$85.000", "Disponible", "⚙"});
-        tableModel.addRow(new Object[]{"#P002", "Shampoo Antipulgas", "Aseo", "4", "$22.500", "Bajo Stock", "⚙"});
-
+        String[] columns = {"SKU", "Nombre", "Categoría", "Stock", "Mínimo", "Proveedor", "Costo", "Precio", "Estado"};
+        tableModel = new DefaultTableModel(columns, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
         inventoryTable = new JTable(tableModel);
-        styleTable(inventoryTable);
+        inventoryTable.setRowHeight(28);
+        inventoryTable.setFont(UiTheme.BODY_FONT);
 
-        JScrollPane scroll = new JScrollPane(inventoryTable);
-        scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.getViewport().setBackground(BG_CARD);
-
-        tableCard.add(scroll, BorderLayout.CENTER);
-
-        // Integración en el panel central
-        centerPanel.add(tableCard, BorderLayout.CENTER);
+        add(top, BorderLayout.NORTH);
+        add(stats, BorderLayout.CENTER);
+        add(new JScrollPane(inventoryTable), BorderLayout.SOUTH);
     }
 
-    private void styleTable(JTable table) {
-        table.setRowHeight(48);
-        table.setShowVerticalLines(false);
-        table.setGridColor(new Color(0xF3F4F6));
-        table.setSelectionBackground(new Color(0xEFF6FF));
-        table.setSelectionForeground(PRIMARY_BLUE);
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
-        table.getTableHeader().setBackground(BG_CARD);
-        table.getTableHeader().setForeground(TEXT_GRAY);
-        table.getTableHeader().setPreferredSize(new Dimension(0, 45));
-        ((JLabel)table.getTableHeader().getDefaultRenderer()).setHorizontalAlignment(JLabel.LEFT);
+    public void renderItems(List<InventoryItem> items) {
+        tableModel.setRowCount(0);
+        int low = 0;
+        for (InventoryItem item : items) {
+            if (item.stock() <= item.minStock()) low++;
+            tableModel.addRow(new Object[]{item.sku(), item.name(), item.category(), item.stock(), item.minStock(), item.supplier(), item.cost(), item.price(), item.status()});
+        }
+        lblTotal.setText("Total Productos: " + items.size());
+        lblLow.setText("Alertas Stock: " + low);
     }
 
-    private JPanel createStatCard(String title, String value, Color accentColor) {
-        // Uso de JpanelR para las tarjetas de KPI
-        JpanelR card = new JpanelR();
-        card.setBackgroundColor(BG_CARD);
-        card.setArc(14);
-        card.setBorderConfig(BORDER_COLOR, 1.0f);
-        card.setLayout(new BorderLayout());
-        card.setBorder(BorderFactory.createEmptyBorder(18, 22, 18, 22));
-        card.setPreferredSize(new Dimension(220, 100));
-
-        JLabel lblTitle = new JLabel(title);
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lblTitle.setForeground(TEXT_GRAY);
-
-        JLabel lblValue = new JLabel(value);
-        lblValue.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        lblValue.setForeground(accentColor);
-
-        card.add(lblTitle, BorderLayout.NORTH);
-        card.add(lblValue, BorderLayout.CENTER);
-        
-        return card;
-    }
-
-    /**
-     * Permite enlazar la acción de búsqueda desde el controlador.
-     *
-     * @param listener listener ejecutado al presionar Enter en el buscador
-     */
     public void setSearchAction(ActionListener listener) {
         txtSearch.addActionListener(listener);
+        btnConsultar.addActionListener(listener);
     }
 
-    /**
-     * Permite enlazar la acción del botón "Nuevo Producto" desde el controlador.
-     *
-     * @param listener listener ejecutado al hacer clic en el botón
-     */
-    public void setNewProductAction(ActionListener listener) {
-        btnAdd.addActionListener(listener);
+    public void setImportAction(ActionListener listener) {
+        btnImport.addActionListener(listener);
     }
 
-    /**
-     * @return texto actual del buscador, recortado.
-     */
     public String getSearchText() {
         return txtSearch.getText() == null ? "" : txtSearch.getText().trim();
+    }
+
+    private JLabel metric(String title, String value) {
+        JLabel label = new JLabel(title + ": " + value);
+        label.setFont(UiTheme.BODY_FONT.deriveFont(java.awt.Font.BOLD));
+        label.setForeground(UiTheme.TEXT_PRIMARY);
+        return label;
+    }
+
+    private JPanel wrap(JLabel label) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.setBackground(UiTheme.PANEL_WHITE);
+        panel.setBorder(BorderFactory.createLineBorder(UiTheme.BORDER_COLOR));
+        panel.add(label);
+        return panel;
     }
 }

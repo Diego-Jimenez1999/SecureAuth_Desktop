@@ -74,4 +74,12 @@ public class SalesController {
     public List<SaleItem> getItems() {
         return Collections.unmodifiableList(saleItems);
     }
+
+    /**
+     * Limpia el estado de la venta actual.
+     */
+    public void clearSale() {
+        saleItems.clear();
+        listModel.clear();
+    }
 }

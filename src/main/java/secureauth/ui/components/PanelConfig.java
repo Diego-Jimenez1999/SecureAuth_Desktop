@@ -48,7 +48,11 @@ import secureauth.dao.UserDAO;
 import secureauth.repository.UserRepositoryImpl;
 import secureauth.service.AuthService;
 import secureauth.service.UserService;
+import secureauth.ui.dialogs.GestionVentasServiciosDialog;
+import secureauth.ui.dialogs.PreciosPorTamanoDialog;
 import secureauth.ui.dialogs.RegistroTrabajadores;
+import secureauth.ui.dialogs.SalesModuleConfigDialog;
+import secureauth.ui.utils.UiTheme;
 
 /**
  * Panel de Configuración y Ajustes del sistema SecureAuth Desktop (PetStore).
@@ -80,33 +84,6 @@ import secureauth.ui.dialogs.RegistroTrabajadores;
  * @version 2.0
  */
 public class PanelConfig extends JPanel {
-
-    // ─── Paleta de colores ────────────────────────────────────────────────────
-    private static final Color BG_PAGE        = new Color(0xF5F7F9);
-    private static final Color BG_CARD        = Color.WHITE;
-    private static final Color ACCENT_BLUE    = new Color(0x2563EB);
-    private static final Color ACCENT_GREEN   = new Color(0x16A34A);
-    private static final Color ACCENT_AMBER   = new Color(0xD97706);
-    private static final Color ACCENT_PURPLE  = new Color(0x7C3AED);
-    private static final Color TEXT_PRIMARY   = new Color(0x111827);
-    private static final Color TEXT_SECONDARY = new Color(0x6B7280);
-    private static final Color TEXT_MUTED     = new Color(0x9CA3AF);
-    private static final Color BORDER_COLOR   = new Color(0xE5E7EB);
-    private static final Color BTN_DARK       = new Color(0x1F2937);
-    private static final Color BTN_DARK_HOVER = new Color(0x374151);
-    private static final Color DANGER_RED     = new Color(0xDC2626);
-    private static final Color EDIT_BLUE      = new Color(0x3B82F6);
-
-    // ─── Tipografía ───────────────────────────────────────────────────────────
-    private static final Font FONT_TITLE    = new Font("Segoe UI", Font.BOLD,  22);
-    private static final Font FONT_SUBTITLE = new Font("Segoe UI", Font.PLAIN, 13);
-    private static final Font FONT_CARD_VAL = new Font("Segoe UI", Font.BOLD,  26);
-    private static final Font FONT_CARD_LBL = new Font("Segoe UI", Font.BOLD,  12);
-    private static final Font FONT_SECTION  = new Font("Segoe UI", Font.BOLD,  15);
-    private static final Font FONT_BODY     = new Font("Segoe UI", Font.PLAIN, 13);
-    private static final Font FONT_BTN      = new Font("Segoe UI", Font.BOLD,  12);
-    private static final Font FONT_TABLE_H  = new Font("Segoe UI", Font.BOLD,  12);
-    private static final Font FONT_TABLE    = new Font("Segoe UI", Font.PLAIN, 13);
 
     // ─── Componentes de tabla (Dueños) ────────────────────────────────────────
     private JTable              workersTable;
@@ -146,30 +123,30 @@ public class PanelConfig extends JPanel {
      */
     private void initComponents() {
         setLayout(new BorderLayout());
-        setBackground(BG_PAGE);
+        setBackground(UiTheme.BG_PAGE);
 
         // Contenedor interior con padding
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setBackground(BG_PAGE);
+        content.setBackground(UiTheme.BG_PAGE);
         content.setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
 
         // Ensamblaje de secciones verticales
         content.add(buildHeaderSection());
-        content.add(Box.createVerticalStrut(24));
+        content.add(Box.createVerticalStrut(UiTheme.DEFAULT_PADDING * 2));
         content.add(buildMetricsSection());
-        content.add(Box.createVerticalStrut(20));
+        content.add(Box.createVerticalStrut(UiTheme.CARD_SPACING));
         content.add(buildActionCardsSection());
-        content.add(Box.createVerticalStrut(20));
+        content.add(Box.createVerticalStrut(UiTheme.CARD_SPACING));
         content.add(buildPeopleTablesSection());
-        content.add(Box.createVerticalStrut(20));
+        content.add(Box.createVerticalStrut(UiTheme.CARD_SPACING));
         content.add(buildSystemConfigSection());
         content.add(Box.createVerticalStrut(16));
 
         JScrollPane scrollPane = new JScrollPane(content);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.setBackground(BG_PAGE);
+        scrollPane.setBackground(UiTheme.BG_PAGE);
         add(scrollPane, BorderLayout.CENTER);
     }
     
@@ -180,7 +157,7 @@ public class PanelConfig extends JPanel {
     private JPanel buildPeopleTablesSection() {
         peopleTablesLayout = new CardLayout();
         peopleTablesContainer = new JPanel(peopleTablesLayout);
-        peopleTablesContainer.setBackground(BG_PAGE);
+        peopleTablesContainer.setBackground(UiTheme.BG_PAGE);
         peopleTablesContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 340));
         peopleTablesContainer.add(buildWorkersTableSection(), "workers");
         peopleTablesLayout.show(peopleTablesContainer, "workers"); // Mostrar la tabla de trabajadores por defecto
@@ -198,19 +175,19 @@ public class PanelConfig extends JPanel {
      */
     private JPanel buildHeaderSection() {
         JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(BG_PAGE);
-        header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
+        header.setBackground(UiTheme.BG_PAGE);
+        header.setMaximumSize(new Dimension(Integer.MAX_VALUE, UiTheme.HEADER_HEIGHT));
 
         JLabel title = new JLabel("Centro de Configuración y Ajustes");
-        title.setFont(FONT_TITLE);
-        title.setForeground(TEXT_PRIMARY);
+        title.setFont(UiTheme.TITLE_FONT_SECTION);
+        title.setForeground(UiTheme.TEXT_PRIMARY);
 
         JLabel subtitle = new JLabel("Administra los parámetros globales del sistema");
-        subtitle.setFont(FONT_SUBTITLE);
-        subtitle.setForeground(TEXT_SECONDARY);
+        subtitle.setFont(UiTheme.SMALL_FONT);
+        subtitle.setForeground(UiTheme.TEXT_SECONDARY);
 
         JPanel texts = new JPanel(new GridLayout(2, 1, 0, 2));
-        texts.setBackground(BG_PAGE);
+        texts.setBackground(UiTheme.BG_PAGE);
         texts.add(title);
         texts.add(subtitle);
 
@@ -229,51 +206,51 @@ public class PanelConfig extends JPanel {
      * @return JPanel con las 4 tarjetas de métricas
      */
     private JPanel buildMetricsSection() {
-        JPanel row = new JPanel(new GridLayout(1, 4, 16, 0));
-        row.setBackground(BG_PAGE);
+        JPanel row = new JPanel(new GridLayout(1, 4, UiTheme.CARD_SPACING, 0));
+        row.setBackground(UiTheme.BG_PAGE);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
 
         // Tarjeta 1 — Ventas Totales
         lblVentasValor = new JLabel("$2,503.64");
-        lblVentasValor.setFont(FONT_CARD_VAL);
-        lblVentasValor.setForeground(TEXT_PRIMARY);
-        JLabel ventasTrend = trendLabel("↑ 3 Crecimiento", ACCENT_GREEN);
+        lblVentasValor.setFont(UiTheme.CARD_VALUE_FONT);
+        lblVentasValor.setForeground(UiTheme.TEXT_PRIMARY);
+        JLabel ventasTrend = trendLabel("↑ 3 Crecimiento", UiTheme.SUCCESS_COLOR);
         row.add(buildMetricCard("💰", "Ventas Totales (Este Mes)", lblVentasValor,
-                ventasTrend, ACCENT_BLUE));
+                ventasTrend, UiTheme.ACCENT_BLUE));
 
         // Tarjeta 2 — Servicios Populares
         JPanel servContent = new JPanel(new GridLayout(2, 3, 4, 2));
-        servContent.setBackground(BG_CARD);
+        servContent.setBackground(UiTheme.PANEL_WHITE);
         String[] sLabels = {"Hotel", "Consulta", "Consulta", "53%", "50%", "70%"};
         for (int i = 0; i < sLabels.length; i++) {
             JLabel l = new JLabel(sLabels[i], SwingConstants.CENTER);
-            l.setFont(i < 3 ? new Font("Segoe UI", Font.BOLD, 11) : new Font("Segoe UI", Font.PLAIN, 11));
-            l.setForeground(i < 3 ? TEXT_PRIMARY : ACCENT_AMBER);
+            l.setFont(i < 3 ? UiTheme.SMALL_FONT.deriveFont(Font.BOLD) : UiTheme.SMALL_FONT);
+            l.setForeground(i < 3 ? UiTheme.TEXT_PRIMARY : UiTheme.ACCENT_AMBER);
             servContent.add(l);
         }
         // "Baño" en la primera posición de la segunda fila (ajuste visual)
-        row.add(buildMetricCardCustom("⭐", "Servicios Más Populares", servContent, ACCENT_AMBER));
+        row.add(buildMetricCardCustom("⭐", "Servicios Más Populares", servContent, UiTheme.ACCENT_AMBER));
 
         // Tarjeta 3 — Ingresos por Categoría
         JPanel ingContent = new JPanel(new GridLayout(2, 2, 8, 4));
-        ingContent.setBackground(BG_CARD);
+        ingContent.setBackground(UiTheme.PANEL_WHITE);
         String[] cats   = {"Alimentos", "$3%", "Accesorios", "$3%"};
-        Color[]  catClr = {TEXT_PRIMARY, ACCENT_GREEN, TEXT_PRIMARY, ACCENT_GREEN};
+        Color[]  catClr = {UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR, UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR};
         for (int i = 0; i < cats.length; i++) {
             JLabel l = new JLabel(cats[i]);
-            l.setFont(FONT_BODY);
+            l.setFont(UiTheme.BODY_FONT);
             l.setForeground(catClr[i]);
             ingContent.add(l);
         }
-        row.add(buildMetricCardCustom("📊", "Ingresos por Categoría", ingContent, ACCENT_PURPLE));
+        row.add(buildMetricCardCustom("📊", "Ingresos por Categoría", ingContent, UiTheme.ACCENT_PURPLE));
 
         // Tarjeta 4 — Nuevos Clientes
         lblClientesValor = new JLabel("3");
-        lblClientesValor.setFont(FONT_CARD_VAL);
-        lblClientesValor.setForeground(TEXT_PRIMARY);
-        JLabel clientesTrend = trendLabel("↑ Crecimiento", ACCENT_GREEN);
+        lblClientesValor.setFont(UiTheme.CARD_VALUE_FONT);
+        lblClientesValor.setForeground(UiTheme.TEXT_PRIMARY);
+        JLabel clientesTrend = trendLabel("↑ Crecimiento", UiTheme.SUCCESS_COLOR);
         row.add(buildMetricCard("👥", "Nuevos Clientes", lblClientesValor,
-                clientesTrend, ACCENT_GREEN));
+                clientesTrend, UiTheme.SUCCESS_COLOR));
 
         return row;
     }
@@ -283,7 +260,7 @@ public class PanelConfig extends JPanel {
      */
     private JPanel buildMetricCard(String icon, String label,
                                     JLabel valueLabel, JLabel trendLabel, Color accent) {
-        RoundedPanel card = new RoundedPanel(14, BG_CARD);
+        RoundedPanel card = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
         card.setLayout(new BorderLayout(8, 0));
         card.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
@@ -292,10 +269,10 @@ public class PanelConfig extends JPanel {
 
         // Textos
         JPanel texts = new JPanel(new GridLayout(3, 1, 0, 2));
-        texts.setBackground(BG_CARD);
+        texts.setBackground(UiTheme.PANEL_WHITE);
         JLabel lbl = new JLabel(label);
-        lbl.setFont(FONT_CARD_LBL);
-        lbl.setForeground(TEXT_SECONDARY);
+        lbl.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+        lbl.setForeground(UiTheme.TEXT_SECONDARY);
         texts.add(lbl);
         texts.add(valueLabel);
         texts.add(trendLabel);
@@ -310,17 +287,17 @@ public class PanelConfig extends JPanel {
      */
     private JPanel buildMetricCardCustom(String icon, String label,
                                         JPanel customContent, Color accent) {
-        RoundedPanel card = new RoundedPanel(14, BG_CARD);
+        RoundedPanel card = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
         card.setLayout(new BorderLayout(8, 0));
         card.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
         JPanel iconBadge = buildIconBadge(icon, accent);
 
         JPanel texts = new JPanel(new BorderLayout(0, 6));
-        texts.setBackground(BG_CARD);
+        texts.setBackground(UiTheme.PANEL_WHITE);
         JLabel lbl = new JLabel(label);
-        lbl.setFont(FONT_CARD_LBL);
-        lbl.setForeground(TEXT_SECONDARY);
+        lbl.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+        lbl.setForeground(UiTheme.TEXT_SECONDARY);
         texts.add(lbl,           BorderLayout.NORTH);
         texts.add(customContent, BorderLayout.CENTER);
 
@@ -339,14 +316,14 @@ public class PanelConfig extends JPanel {
      * @return JPanel con las 3 tarjetas de acción
      */
     private JPanel buildActionCardsSection() {
-        JPanel row = new JPanel(new GridLayout(1, 3, 16, 0));
-        row.setBackground(BG_PAGE);
+        JPanel row = new JPanel(new GridLayout(1, 3, UiTheme.CARD_SPACING, 0));
+        row.setBackground(UiTheme.BG_PAGE);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
 
         // Tarjeta 1 — Gestión de Ventas y Servicios
         row.add(buildActionCard(
             "🛒", "Gestión de Ventas y Servicios",
-            "Configura categorías, subcategorías y precios dinámicos para Hotel, Colegio, Baño y Consultas",
+            "Configura categorías, subcategorías y precios dinámicos para guardería canina y otros tipos de negocio",
             new String[]{"Tabla de Servicios", "Precios por Tamaño"},
             new ActionListener[]{
                 e -> onTablaServiciosClick(),
@@ -397,19 +374,19 @@ public class PanelConfig extends JPanel {
      */
     private JPanel buildActionCard(String icon, String title, String description,
                                     String[] btnLabels, ActionListener[] listeners) {
-        RoundedPanel card = new RoundedPanel(14, BG_CARD);
+        RoundedPanel card = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
         card.setLayout(new BorderLayout(0, 12));
         card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         // Zona de íconos decorativos superiores
         JPanel iconRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        iconRow.setBackground(BG_CARD);
+        iconRow.setBackground(UiTheme.PANEL_WHITE);
         JLabel ico1 = new JLabel(icon);
         ico1.setPreferredSize(new Dimension(32,32));
         ico1.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 25));
         JLabel arrow = new JLabel("⇄");
         arrow.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
-        arrow.setForeground(TEXT_MUTED);
+        arrow.setForeground(UiTheme.TEXT_MUTED);
         JLabel ico2 = new JLabel("⚙️");
         ico2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 35));
         iconRow.add(ico1);
@@ -418,19 +395,19 @@ public class PanelConfig extends JPanel {
 
         // Título y descripción
         JPanel textBlock = new JPanel(new BorderLayout(0, 6));
-        textBlock.setBackground(BG_CARD);
+        textBlock.setBackground(UiTheme.PANEL_WHITE);
         JLabel titleLbl = new JLabel("<html>" + title + "</html>");
-        titleLbl.setFont(FONT_SECTION);
-        titleLbl.setForeground(TEXT_PRIMARY);
+        titleLbl.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
+        titleLbl.setForeground(UiTheme.TEXT_PRIMARY);
         JLabel descLbl = new JLabel("<html><p style='width:200px'>" + description + "</p></html>");
-        descLbl.setFont(FONT_BODY);
-        descLbl.setForeground(TEXT_SECONDARY);
+        descLbl.setFont(UiTheme.BODY_FONT);
+        descLbl.setForeground(UiTheme.TEXT_SECONDARY);
         textBlock.add(titleLbl, BorderLayout.NORTH);
         textBlock.add(descLbl,  BorderLayout.CENTER);
 
         // Botones
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        btnRow.setBackground(BG_CARD);
+        btnRow.setBackground(UiTheme.PANEL_WHITE);
         for (int i = 0; i < btnLabels.length; i++) {
             JButton btn = buildDarkButton(btnLabels[i]);
             btn.addActionListener(listeners[i]);
@@ -450,21 +427,21 @@ public class PanelConfig extends JPanel {
      * @return JPanel con la tabla y barra de búsqueda para trabajadores
      */
     private JPanel buildWorkersTableSection() {
-        RoundedPanel panel = new RoundedPanel(14, BG_CARD);
+        RoundedPanel panel = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
         panel.setLayout(new BorderLayout(0, 16));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 340));
 
         JPanel sectionHeader = new JPanel(new BorderLayout());
-        sectionHeader.setBackground(BG_CARD);
+        sectionHeader.setBackground(UiTheme.PANEL_WHITE);
         JPanel sectionTitles = new JPanel(new GridLayout(2, 1, 0, 2));
-        sectionTitles.setBackground(BG_CARD);
+        sectionTitles.setBackground(UiTheme.PANEL_WHITE);
         JLabel sTitle = new JLabel("Gestión de Personal (Trabajadores)"); // Título actualizado
-        sTitle.setFont(FONT_SECTION);
-        sTitle.setForeground(TEXT_PRIMARY);
+        sTitle.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
+        sTitle.setForeground(UiTheme.TEXT_PRIMARY);
         JLabel sSub = new JLabel("Administra los usuarios y sus roles en el sistema"); // Subtítulo actualizado
-        sSub.setFont(FONT_SUBTITLE);
-        sSub.setForeground(TEXT_SECONDARY);
+        sSub.setFont(UiTheme.SMALL_FONT);
+        sSub.setForeground(UiTheme.TEXT_SECONDARY);
         sectionTitles.add(sTitle);
         sectionTitles.add(sSub);
 
@@ -491,24 +468,24 @@ public class PanelConfig extends JPanel {
         }
 
         JScrollPane tableScroll = new JScrollPane(workersTable);
-        tableScroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        tableScroll.setBorder(BorderFactory.createLineBorder(UiTheme.BORDER_COLOR));
         tableScroll.setPreferredSize(new Dimension(0, 160));
 
         // ── Barra de búsqueda rápida ───────────────────────────────────────
         JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
-        searchBar.setBackground(BG_CARD);
+        searchBar.setBackground(UiTheme.PANEL_WHITE);
         JLabel searchLabel = new JLabel("Consulta rápida");
         searchLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        searchLabel.setForeground(TEXT_PRIMARY);
+        searchLabel.setForeground(UiTheme.TEXT_PRIMARY);
         JLabel searchHint = new JLabel("Buscar trabajador por nombre o email"); // Placeholder actualizado
-        searchHint.setFont(FONT_SUBTITLE);
-        searchHint.setForeground(TEXT_MUTED);
+        searchHint.setFont(UiTheme.SMALL_FONT);
+        searchHint.setForeground(UiTheme.TEXT_MUTED);
         searchBar.add(searchLabel);
         searchBar.add(searchHint);
         searchField = new JTextField(22); // Reutiliza el campo de búsqueda
-        searchField.setFont(FONT_BODY);
+        searchField.setFont(UiTheme.BODY_FONT);
         searchField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
+                BorderFactory.createLineBorder(UiTheme.BORDER_COLOR),
                 BorderFactory.createEmptyBorder(6, 10, 6, 10)));
         JButton btnConsultar = buildDarkButton("Consultar");
         btnConsultar.addActionListener(e -> onConsultarWorkersClick()); // Nuevo listener para búsqueda de trabajadores
@@ -533,17 +510,17 @@ public class PanelConfig extends JPanel {
      * @return JPanel con los controles de configuración de sistema
      */
     private JPanel buildSystemConfigSection() {
-        RoundedPanel panel = new RoundedPanel(14, BG_CARD);
+        RoundedPanel panel = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
         panel.setLayout(new BorderLayout(0, 16));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
 
         JLabel sTitle = new JLabel("Configuración del Sistema");
-        sTitle.setFont(FONT_SECTION);
-        sTitle.setForeground(TEXT_PRIMARY);
+        sTitle.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
+        sTitle.setForeground(UiTheme.TEXT_PRIMARY);
 
         JPanel toggleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 24, 8));
-        toggleRow.setBackground(BG_CARD);
+        toggleRow.setBackground(UiTheme.PANEL_WHITE);
 
         // Toggle — Notificaciones
         toggleRow.add(buildToggleItem("🔔 Notificaciones",
@@ -551,7 +528,7 @@ public class PanelConfig extends JPanel {
 
         JSeparator sep1 = new JSeparator(SwingConstants.VERTICAL);
         sep1.setPreferredSize(new Dimension(1, 50));
-        sep1.setForeground(BORDER_COLOR);
+        sep1.setForeground(UiTheme.BORDER_COLOR);
         toggleRow.add(sep1);
 
         // Toggle — Backup Automático
@@ -560,7 +537,7 @@ public class PanelConfig extends JPanel {
 
         JSeparator sep2 = new JSeparator(SwingConstants.VERTICAL);
         sep2.setPreferredSize(new Dimension(1, 50));
-        sep2.setForeground(BORDER_COLOR);
+        sep2.setForeground(UiTheme.BORDER_COLOR);
         toggleRow.add(sep2);
 
         // Checkboxes — Métodos de Pago (tabla payment_methods)
@@ -581,16 +558,16 @@ public class PanelConfig extends JPanel {
      */
     private JPanel buildToggleItem(String label, String description, boolean defaultOn) {
         JPanel item = new JPanel(new BorderLayout(0, 4));
-        item.setBackground(BG_CARD);
+        item.setBackground(UiTheme.PANEL_WHITE);
 
         JPanel topRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        topRow.setBackground(BG_CARD);
+        topRow.setBackground(UiTheme.PANEL_WHITE);
 
         JToggleButton toggle = new JToggleButton(defaultOn ? "ON" : "OFF");
         toggle.setSelected(defaultOn);
         toggle.setFont(new Font("Segoe UI", Font.BOLD, 10));
         toggle.setPreferredSize(new Dimension(56, 26));
-        toggle.setBackground(defaultOn ? ACCENT_GREEN : new Color(0xD1D5DB));
+        toggle.setBackground(defaultOn ? UiTheme.SUCCESS_COLOR : new Color(0xD1D5DB));
         toggle.setForeground(Color.WHITE);
         toggle.setBorderPainted(false);
         toggle.setFocusPainted(false);
@@ -598,19 +575,19 @@ public class PanelConfig extends JPanel {
         toggle.addActionListener(e -> {
             boolean on = toggle.isSelected();
             toggle.setText(on ? "ON" : "OFF");
-            toggle.setBackground(on ? ACCENT_GREEN : new Color(0xD1D5DB));
+            toggle.setBackground(on ? UiTheme.SUCCESS_COLOR : new Color(0xD1D5DB));
             System.out.println("[DEBUG] Configuración: Notificaciones " + (on ? "ON" : "OFF"));
         });
 
         JLabel lbl = new JLabel(label);
         lbl.setFont(new Font("Segoe UI Emoji", Font.BOLD, 13));
-        lbl.setForeground(TEXT_PRIMARY);
+        lbl.setForeground(UiTheme.TEXT_PRIMARY);
         topRow.add(toggle);
         topRow.add(lbl);
 
         JLabel desc = new JLabel(description);
         desc.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 11));
-        desc.setForeground(TEXT_SECONDARY);
+        desc.setForeground(UiTheme.TEXT_SECONDARY);
 
         item.add(topRow, BorderLayout.NORTH);
         item.add(desc,   BorderLayout.CENTER);
@@ -625,11 +602,11 @@ public class PanelConfig extends JPanel {
      */
     private JPanel buildPaymentMethodsPanel() {
         JPanel panel = new JPanel(new GridLayout(3, 2, 8, 4));
-        panel.setBackground(BG_CARD);
+        panel.setBackground(UiTheme.PANEL_WHITE);
 
         JLabel title = new JLabel("💳 Pasarelas de Pago Activas:");
         title.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        title.setForeground(TEXT_PRIMARY);
+        title.setForeground(UiTheme.TEXT_PRIMARY);
 
         // Placeholder — conectar a PaymentMethodDAO.getAll()
         String[] methods = {"Efectivo", "Tarjeta", "Nequi", "Daviplata"};
@@ -637,9 +614,9 @@ public class PanelConfig extends JPanel {
         panel.add(new JLabel()); // spacer
         for (String method : methods) {
             JCheckBox cb = new JCheckBox(method, true);
-            cb.setFont(FONT_BODY);
-            cb.setBackground(BG_CARD);
-            cb.setForeground(TEXT_PRIMARY);
+            cb.setFont(UiTheme.BODY_FONT);
+            cb.setBackground(UiTheme.PANEL_WHITE);
+            cb.setForeground(UiTheme.TEXT_PRIMARY);
             cb.addActionListener(e -> 
                 System.out.println("[Placeholder] Método " + method + " activo: " + cb.isSelected())
             );
@@ -650,19 +627,19 @@ public class PanelConfig extends JPanel {
 
     private JPanel configApp(String icon, String title, String description,
                                     String[] btnLabels, ActionListener[] listeners) {
-        RoundedPanel card = new RoundedPanel(14, BG_CARD);
+        RoundedPanel card = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
         card.setLayout(new BorderLayout(0, 12));
         card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         // Zona de íconos decorativos superiores
         JPanel iconRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        iconRow.setBackground(BG_CARD);
+        iconRow.setBackground(UiTheme.PANEL_WHITE);
         JLabel ico1 = new JLabel(icon);
         ico1.setPreferredSize(new Dimension(32,32));
         ico1.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 25));
         JLabel arrow = new JLabel("⇄");
         arrow.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
-        arrow.setForeground(TEXT_MUTED);
+        arrow.setForeground(UiTheme.TEXT_MUTED);
         JLabel ico2 = new JLabel("⚙️");
        // ico2.setPreferredSize(new Dimension(32,32));
         ico2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 30));
@@ -672,19 +649,19 @@ public class PanelConfig extends JPanel {
 
         // Título y descripción
         JPanel textBlock = new JPanel(new BorderLayout(0, 6));
-        textBlock.setBackground(BG_CARD);
+        textBlock.setBackground(UiTheme.PANEL_WHITE);
         JLabel titleLbl = new JLabel("<html>" + title + "</html>");
-        titleLbl.setFont(FONT_SECTION);
-        titleLbl.setForeground(TEXT_PRIMARY);
+        titleLbl.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
+        titleLbl.setForeground(UiTheme.TEXT_PRIMARY);
         JLabel descLbl = new JLabel("<html><p style='width:200px'>" + description + "</p></html>");
-        descLbl.setFont(FONT_BODY);
-        descLbl.setForeground(TEXT_SECONDARY);
+        descLbl.setFont(UiTheme.BODY_FONT);
+        descLbl.setForeground(UiTheme.TEXT_SECONDARY);
         textBlock.add(titleLbl, BorderLayout.NORTH);
         textBlock.add(descLbl,  BorderLayout.CENTER);
 
         // Botones
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        btnRow.setBackground(BG_CARD);
+        btnRow.setBackground(UiTheme.PANEL_WHITE);
         for (int i = 0; i < btnLabels.length; i++) {
             JButton btn = buildDarkButton(btnLabels[i]);
             btn.addActionListener(listeners[i]);
@@ -703,37 +680,37 @@ public class PanelConfig extends JPanel {
 
     /** Aplica estilos visuales profesionales a un JTable. */
     private void styleTable(JTable table) {
-        table.setFont(FONT_TABLE);
+        table.setFont(UiTheme.BODY_FONT);
         table.setRowHeight(38);
         table.setShowVerticalLines(false);
         table.setShowHorizontalLines(true);
-        table.setGridColor(BORDER_COLOR);
-        table.setBackground(BG_CARD);
+        table.setGridColor(UiTheme.BORDER_COLOR);
+        table.setBackground(UiTheme.PANEL_WHITE);
         table.setSelectionBackground(new Color(0xEFF6FF));
-        table.setSelectionForeground(TEXT_PRIMARY);
+        table.setSelectionForeground(UiTheme.TEXT_PRIMARY);
         table.setIntercellSpacing(new Dimension(0, 0));
 
         JTableHeader header = table.getTableHeader();
-        header.setFont(FONT_TABLE_H);
+        header.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
         header.setBackground(new Color(0xF9FAFB));
-        header.setForeground(TEXT_SECONDARY);
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, BORDER_COLOR));
+        header.setForeground(UiTheme.TEXT_SECONDARY);
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, UiTheme.BORDER_COLOR));
         header.setReorderingAllowed(false);
     }
 
     /** Crea un botón estilo oscuro (fondo #1F2937). */
     private JButton buildDarkButton(String text) {
         JButton btn = new JButton(text);
-        btn.setFont(FONT_BTN);
-        btn.setBackground(BTN_DARK);
+        btn.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+        btn.setBackground(UiTheme.BTN_DARK);
         btn.setForeground(Color.WHITE);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
         btn.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(BTN_DARK_HOVER); }
-            @Override public void mouseExited(MouseEvent e)  { btn.setBackground(BTN_DARK); }
+            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(UiTheme.BTN_DARK_HOVER); }
+            @Override public void mouseExited(MouseEvent e)  { btn.setBackground(UiTheme.BTN_DARK); }
         });
         return btn;
     }
@@ -800,12 +777,20 @@ private JPanel buildIconBadge(String icon, Color accent) {
 
     /** Abre el panel de tabla de servicios.
      * @code SettingsController.showServicesTable() */
-    private void onTablaServiciosClick()    { System.out.println("[DEBUG] Abriendo gestión de servicios..."); }
+    private void onTablaServiciosClick()    {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        Frame parent = (window instanceof Frame) ? (Frame) window : null;
+        new GestionVentasServiciosDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+    }
 
     /** Abre el configurador de precios por tamaño.
      * @code SettingsController.showPricesBySize()
      */
-    private void onPreciosTamanoClick()     { System.out.println("[DEBUG] Abriendo configuración de precios..."); }
+    private void onPreciosTamanoClick()     {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        Frame parent = (window instanceof Frame) ? (Frame) window : null;
+        new PreciosPorTamanoDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+    }
 
     /** Abre el visor de inventario.
      * @code InventoryController.show()
@@ -830,7 +815,9 @@ private JPanel buildIconBadge(String icon, Color accent) {
 
     /** Abre el panel de configuración general de la aplicación. */
     private void onConfigAppClick() {
-        System.out.println("[DEBUG] Abriendo configuración general de la aplicación...");
+        Window window = SwingUtilities.getWindowAncestor(this);
+        Frame parent = (window instanceof Frame) ? (Frame) window : null;
+        new SalesModuleConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
     }
 
     /** Abre el formulario de registro de usuarios existente. */
@@ -923,7 +910,7 @@ private JPanel buildIconBadge(String icon, Color accent) {
             g2.fill(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 2, radius, radius));
 
             // Borde sutil
-            g2.setColor(new Color(0xE5E7EB));
+            g2.setColor(UiTheme.BORDER_COLOR);
             g2.setStroke(new BasicStroke(1f));
             g2.draw(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 2, radius, radius));
 
@@ -942,9 +929,9 @@ private JPanel buildIconBadge(String icon, Color accent) {
 
         public ActionButtonRenderer() {
             setLayout(new FlowLayout(FlowLayout.CENTER, 4, 4));
-            setBackground(Color.WHITE);
-            styleActionBtn(editBtn, EDIT_BLUE);
-            styleActionBtn(delBtn,  DANGER_RED);
+            setBackground(UiTheme.PANEL_WHITE);
+            styleActionBtn(editBtn, UiTheme.EDIT_BLUE);
+            styleActionBtn(delBtn,  UiTheme.ERROR_COLOR);
             add(editBtn);
             add(delBtn);
         }
@@ -952,7 +939,7 @@ private JPanel buildIconBadge(String icon, Color accent) {
         private void styleActionBtn(JButton btn, Color color) {
             btn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 12));
             btn.setBackground(color);
-            btn.setForeground(Color.WHITE);
+            btn.setForeground(UiTheme.TEXT_LIGHT);
             btn.setBorderPainted(false);
             btn.setFocusPainted(false);
             btn.setPreferredSize(new Dimension(30, 26));
@@ -961,7 +948,7 @@ private JPanel buildIconBadge(String icon, Color accent) {
         @Override
         public Component getTableCellRendererComponent(JTable t, Object v,
                 boolean sel, boolean foc, int row, int col) {
-            setBackground(sel ? new Color(0xEFF6FF) : Color.WHITE);
+            setBackground(sel ? new Color(0xEFF6FF) : UiTheme.PANEL_WHITE);
             return this;
         }
     }
@@ -980,9 +967,9 @@ private JPanel buildIconBadge(String icon, Color accent) {
             super(cb);
             this.userService = userService;
             this.ingresoController = ingresoController;
-            panel.setBackground(Color.WHITE);
-            styleBtn(editBtn, EDIT_BLUE);
-            styleBtn(delBtn,  DANGER_RED);
+            panel.setBackground(UiTheme.PANEL_WHITE);
+            styleBtn(editBtn, UiTheme.EDIT_BLUE);
+            styleBtn(delBtn,  UiTheme.ERROR_COLOR);
 
             editBtn.addActionListener(e -> {
                 int row = table.getSelectedRow();
@@ -1016,7 +1003,7 @@ private JPanel buildIconBadge(String icon, Color accent) {
         private void styleBtn(JButton btn, Color color) {
             btn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 12));
             btn.setBackground(color);
-            btn.setForeground(Color.WHITE);
+            btn.setForeground(UiTheme.TEXT_LIGHT);
             btn.setBorderPainted(false);
             btn.setFocusPainted(false);
             btn.setPreferredSize(new Dimension(30, 26));

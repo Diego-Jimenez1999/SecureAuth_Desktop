@@ -43,11 +43,11 @@ import secureauth.ui.utils.UiTheme;
  */
 public class RegMascotaPanel extends JPanel {
 
-    private static final Color COLOR_BG = new Color(244, 246, 249);
-    private static final Color COLOR_CARD = new Color(236, 238, 243);
-    private static final Font BASE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
-    private static final Dimension FIELD_SIZE = new Dimension(20, 20);
-    private static final Color DEFAULT_BORDER_COLOR = new Color(196, 196, 196);
+    private static final Color COLOR_BG = UiTheme.BG_PAGE;
+    private static final Color COLOR_CARD = UiTheme.PANEL_WHITE;
+    private static final Font BASE_FONT = UiTheme.BODY_FONT;
+    private static final Dimension FIELD_SIZE = new Dimension(20, 18);
+    private static final Color DEFAULT_BORDER_COLOR = UiTheme.BORDER_COLOR;
 
     private JLabel lblImagenMascota;
     private String rutaImagenSeleccionada;
@@ -90,7 +90,7 @@ public class RegMascotaPanel extends JPanel {
 
         JPanel root = new JPanel(new BorderLayout(0, 10));
         root.setBackground(COLOR_BG);
-        root.setBorder(BorderFactory.createEmptyBorder(8, 20, 14, 20));
+        root.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
 
         root.add(buildHeader(), BorderLayout.NORTH);
         root.add(buildContentCard(), BorderLayout.CENTER);
@@ -107,10 +107,10 @@ public class RegMascotaPanel extends JPanel {
         JPanel left = new JPanel(new GridLayout(2, 1, 0, 2));
         left.setOpaque(false);
         JLabel title = new JLabel("Registro de Mascota");
-        title.setFont(new Font("SansSerif", Font.BOLD, 48));
+        title.setFont(UiTheme.TITLE_FONT_SECTION);
         JLabel sub = new JLabel("Ingresa la información de una nueva mascota");
-        sub.setForeground(Color.GRAY);
-        sub.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        sub.setForeground(UiTheme.TEXT_SECONDARY);
+        sub.setFont(UiTheme.BODY_FONT);
         left.add(title);
         left.add(sub);
 
@@ -123,11 +123,11 @@ public class RegMascotaPanel extends JPanel {
     }
 
     private JPanel buildContentCard() {
-        JPanel card = new JPanel(new BorderLayout(20, 0));
+        JPanel card = new JPanel(new BorderLayout(12, 0));
         card.setBackground(COLOR_CARD);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(210, 213, 220)),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
+                BorderFactory.createLineBorder(UiTheme.BORDER_COLOR),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
         card.add(buildImageSide(), BorderLayout.WEST);
         card.add(buildFormSide(), BorderLayout.CENTER);
@@ -137,18 +137,18 @@ public class RegMascotaPanel extends JPanel {
     private JPanel buildImageSide() {
         JPanel left = new JPanel(new BorderLayout(0, 10));
         left.setOpaque(false);
-        left.setPreferredSize(new Dimension(360, 0));
+        left.setPreferredSize(new Dimension(280, 0));
 
         JLabel t = new JLabel("Imagen de la mascota");
-        t.setFont(new Font("SansSerif", Font.BOLD, 24));
+        t.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD, 16f));
         left.add(t, BorderLayout.NORTH);
 
         lblImagenMascota = new JLabel();
         lblImagenMascota.setHorizontalAlignment(JLabel.CENTER);
         lblImagenMascota.setOpaque(true);
         lblImagenMascota.setBackground(Color.WHITE);
-        lblImagenMascota.setBorder(BorderFactory.createLineBorder(new Color(195, 199, 210)));
-        lblImagenMascota.setPreferredSize(new Dimension(330, 360));
+        lblImagenMascota.setBorder(BorderFactory.createLineBorder(UiTheme.BORDER_COLOR));
+        lblImagenMascota.setPreferredSize(new Dimension(240, 260));
         setDefaultImage();
 
         JPanel centerWrap = new JPanel(new FlowLayout(FlowLayout.CENTER));
@@ -157,7 +157,7 @@ public class RegMascotaPanel extends JPanel {
         left.add(centerWrap, BorderLayout.CENTER);
 
         btnSubirImagen = new JButton("Subir imagen");
-        btnSubirImagen.setPreferredSize(new Dimension(210, 42));
+        btnSubirImagen.setPreferredSize(new Dimension(180, 34));
         btnSubirImagen.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         JPanel bottom = new JPanel(new GridLayout(3, 1, 0, 4));
@@ -260,10 +260,10 @@ public class RegMascotaPanel extends JPanel {
         grid.add(field("Correo electronico *", txtCorreoDueno));
         grid.add(field("Direccion *", txtDireccionDueno));
         JScrollPane cuidadosScroll = new JScrollPane(taCuidados);
-        cuidadosScroll.setPreferredSize(new Dimension(0, 120));
+        cuidadosScroll.setPreferredSize(new Dimension(0, 90));
         grid.add(field("Cuidados especiales", cuidadosScroll));
         JScrollPane notasScroll = new JScrollPane(taNotasAdicionales);
-        notasScroll.setPreferredSize(new Dimension(0, 90));
+        notasScroll.setPreferredSize(new Dimension(0, 72));
         grid.add(field("Notas adicionales", notasScroll));
 
         // Envoltura para evitar distorsión: Usamos un panel intermedio en el NORTH del scroll
@@ -319,10 +319,10 @@ public class RegMascotaPanel extends JPanel {
     if (url != null) {
         ImageIcon icon = new ImageIcon(url); 
 
-        // Escalar imagen a 330x360
+        // Escalar imagen a tamaño compacto
         Image scaledImage = icon.getImage().getScaledInstance(
-                330, 
-                360, 
+                240,
+                260,
                 Image.SCALE_SMOOTH // mejor calidad
         );
 

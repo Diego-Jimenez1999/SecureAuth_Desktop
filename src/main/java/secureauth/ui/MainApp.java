@@ -9,6 +9,7 @@ import secureauth.repository.UserRepository;
 import secureauth.repository.UserRepositoryImpl;
 import secureauth.service.AuthService;
 import secureauth.service.UserService;
+import secureauth.service.enterprise.EnterpriseBootstrapService;
 import secureauth.ui.dialogs.EditUserDialogFactory;
 import secureauth.ui.dialogs.SubServiceDialog;
 import secureauth.ui.dialogs.SubServiceSelector;
@@ -38,6 +39,7 @@ public final class MainApp {
     private final AuthController authController; // Controlador de autenticación
     private final EditUserDialogFactory editUserDialogFactory;
     private final SubServiceSelector subServiceSelector;
+    private final EnterpriseBootstrapService enterpriseBootstrapService;
 
     /**
      * Constructor del bootstrap principal.
@@ -60,6 +62,8 @@ public final class MainApp {
             dialog.setVisible(true);
             return dialog.getSelectedItem();
         };
+        this.enterpriseBootstrapService = new EnterpriseBootstrapService();
+        this.enterpriseBootstrapService.initialize();
     }
 
     /**

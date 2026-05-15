@@ -76,9 +76,9 @@ public class PanelReports extends JPanel {
         JPanel grid = new JPanel(new GridLayout(1, 3, 20, 0));
         grid.setOpaque(false);
 
-        grid.add(createCard("Ventas (Hoy)", ventasValue, PRIMARY_BLUE));
-        grid.add(createCard("Citas (Hoy)", citasValue, SUCCESS_GREEN));
-        grid.add(createCard("Nuevos Clientes (Mes)", nuevosClientesValue, TEXT_DARK));
+        grid.add(createCard("Ventas del Día", ventasValue, PRIMARY_BLUE));
+        grid.add(createCard("Ventas del Mes", citasValue, SUCCESS_GREEN));
+        grid.add(createCard("Productos Vendidos (Mes)", nuevosClientesValue, TEXT_DARK));
         return grid;
     }
 

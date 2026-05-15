@@ -1,11 +1,9 @@
 package secureauth.ui.components;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
@@ -45,6 +43,7 @@ public class SidebarPanel extends JPanel {
     
     /** Callbacks de navegación inyectados desde el frame principal. */
     private final Runnable onHomeClick;
+    private final Runnable onUsersClick;
     private final Runnable onPetsClick;
     private final Runnable onInventoryClick;
     private final Runnable onSalesClick;
@@ -66,11 +65,13 @@ public class SidebarPanel extends JPanel {
      * @param onSettings Acción para mostrar la configuración del sistema.
      * @param onReportes Acción para mostrar el módulo de reportes.
      */
-    public SidebarPanel(User user, IngresoController controller, Runnable onHome, 
+    public SidebarPanel(User user, IngresoController controller, Runnable onHome,
+                        Runnable onUsers,
                         Runnable onPets, Runnable onInventory, Runnable onSales, Runnable onSettings, Runnable onReportes) {
         this.usuarioActual = user;
         this.controller = controller;
         this.onHomeClick = onHome;
+        this.onUsersClick = onUsers;
         this.onPetsClick = onPets;
         this.onInventoryClick = onInventory;
         this.onSalesClick = onSales;
@@ -87,7 +88,7 @@ public class SidebarPanel extends JPanel {
      */
     public SidebarPanel(User user, IngresoController controller, Runnable onHome,
                         Runnable onPets, Runnable onInventory, Runnable onReportes, Runnable onSettings) {
-        this(user, controller, onHome, onPets, onInventory, null, onSettings, onReportes);
+        this(user, controller, onHome, onHome, onPets, onInventory, null, onSettings, onReportes);
     }
 
     /**
@@ -95,7 +96,7 @@ public class SidebarPanel extends JPanel {
      */
     private void init() {
         setBackground(UiTheme.DARK_SIDEBAR);
-        setPreferredSize(new Dimension(260, getHeight()));
+        setPreferredSize(new Dimension(UiTheme.SIDEBAR_WIDTH, getHeight()));
         setLayout(new BorderLayout());
 
         add(buildTopPanel(), BorderLayout.NORTH);
@@ -124,9 +125,9 @@ public class SidebarPanel extends JPanel {
         lblTitle.setFont(UiTheme.bold(18));
         lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblSubtitle = new JLabel("DASHBOARD");
-        lblSubtitle.setForeground(new Color(150, 150, 150));
-        lblSubtitle.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        JLabel lblSubtitle = new JLabel(UiTheme.APP_SUBTITLE.toUpperCase());
+        lblSubtitle.setForeground(UiTheme.TEXT_MUTED);
+        lblSubtitle.setFont(UiTheme.SMALL_FONT);
         lblSubtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         topPanel.add(lblImage);
@@ -147,7 +148,7 @@ public class SidebarPanel extends JPanel {
         menuPanel.setOpaque(false);
 
         JButton btnHome = createSidebarButton("  Home", true, "/icon/home.png");
-        JButton btnUsuarios = createSidebarButton("  Usuarios", false, "/icon/usuario.png");
+        JButton btnUsuarios = createSidebarButton("  Personal", false, "/icon/usuario.png");
         JButton btnMascotas = createSidebarButton("   Mascotas", false, "/icon/huella.png");
         
         // Botón de Inventario estilizado (Caja/Paquete)
@@ -174,7 +175,7 @@ public class SidebarPanel extends JPanel {
         });
         btnUsuarios.addActionListener(e -> {
             cambiarBotonActivo(btnUsuarios);
-            if (onHomeClick != null) onHomeClick.run(); // Usuarios actúa como Home en este flujo
+            if (onUsersClick != null) onUsersClick.run();
         });
         btnMascotas.addActionListener(e -> {
             cambiarBotonActivo(btnMascotas);

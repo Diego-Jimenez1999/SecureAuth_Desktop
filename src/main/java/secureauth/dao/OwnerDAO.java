@@ -60,6 +60,25 @@ public class OwnerDAO {
         return null;
     }
 
+    /**
+     * Inserta un nuevo dueño/cliente.
+     *
+     * @param owner datos del cliente
+     */
+    public void insert(Owner owner) {
+        final String sql = "INSERT INTO owners (nombre_completo, telefono, correo, direccion) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, owner.getNombreCompleto());
+            ps.setString(2, owner.getTelefono());
+            ps.setString(3, owner.getCorreo());
+            ps.setString(4, owner.getDireccion());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error insertando owner.", e);
+        }
+    }
+
     private Owner mapRow(ResultSet rs) throws SQLException {
         return new Owner(
                 rs.getInt("id"),
