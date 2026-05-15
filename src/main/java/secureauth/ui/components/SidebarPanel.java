@@ -80,6 +80,17 @@ public class SidebarPanel extends JPanel {
     }
 
     /**
+     * Constructor compatible con navegación base solicitada:
+     * Home, Mascotas, Inventario, Reportes y Configuración.
+     *
+     * <p>Ventas queda opcionalmente deshabilitado al no inyectar callback.</p>
+     */
+    public SidebarPanel(User user, IngresoController controller, Runnable onHome,
+                        Runnable onPets, Runnable onInventory, Runnable onReportes, Runnable onSettings) {
+        this(user, controller, onHome, onPets, onInventory, null, onSettings, onReportes);
+    }
+
+    /**
      * Configura las propiedades visuales básicas y ensambla las regiones del panel.
      */
     private void init() {

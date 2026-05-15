@@ -45,6 +45,7 @@ public class PetController {
         view.getBtnSubirImagen().addActionListener(e -> openImageChooser());
     }
 
+    @SuppressWarnings("UseSpecificCatch")
     private void onGuardarMascota() {
         try {
             Pet pet = buildPetFromView();

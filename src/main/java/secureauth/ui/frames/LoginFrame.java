@@ -67,6 +67,8 @@ public class LoginFrame extends JFrame {
     private JComboBox<String> cbMes;
     private JComboBox<String> cbAnio;
 
+    private JComboBox<String> RolBox;
+
     private JRadioButton rbHombre;
     private JRadioButton rbMujer;
     private JRadioButton rbOtro;
@@ -82,6 +84,12 @@ public class LoginFrame extends JFrame {
     private JLabel errGeneroReg;
     private final List<FloatingPlaceholder> placeholders = new ArrayList<>();
 
+    /**
+     * Constructor principal de la ventana de autenticación.
+     *
+     * @param controller el controlador de autenticación
+     * @param onLoginSuccess el callback que se ejecuta al iniciar sesión exitosamente
+     */
     public LoginFrame(AuthController controller, Consumer<secureauth.model.User> onLoginSuccess) {
         this.controller = Objects.requireNonNull(controller, "AuthController es requerido");
         this.onLoginSuccess = Objects.requireNonNull(onLoginSuccess, "Callback de login es requerido");
@@ -89,6 +97,9 @@ public class LoginFrame extends JFrame {
         setupFrame();
     }
 
+    /**
+     * Inicializa los componentes de la interfaz.
+     */
     private void initComponents() {
         txtEmailLogin = new JTextField();
         txtPasswordLogin = new JPasswordField();
@@ -106,6 +117,9 @@ public class LoginFrame extends JFrame {
         rbHombre = new JRadioButton("Hombre");
         rbMujer = new JRadioButton("Mujer");
         rbOtro = new JRadioButton("Otro");
+
+        RolBox = new JComboBox<>(new String[] {"Administrador", "Recepcionista", "Médico"});
+
 
         ButtonGroup grupoGenero = new ButtonGroup();
         grupoGenero.add(rbHombre);
@@ -132,6 +146,9 @@ public class LoginFrame extends JFrame {
         btnRegistrar.addActionListener(e -> register());
     }
 
+    /**
+     * Aplica estilos base a los componentes.
+     */
     private void applyBaseStyles() {
         getContentPane().setBackground(UiTheme.BG_LIGHT);
 
@@ -187,6 +204,11 @@ public class LoginFrame extends JFrame {
         return header;
     }
 
+    /*
+    * Construye el panel central con la imagen a la izquierda y el formulario de registro a la derecha. 
+    * El panel de imagen se oculta automáticamente en ventanas pequeñas.
+    * @return el panel central completamente construido
+    */
     private JPanel buildCenter() {
         JPanel center = new JPanel(new GridBagLayout());
         center.setBackground(UiTheme.BG_LIGHT);
@@ -223,7 +245,12 @@ public class LoginFrame extends JFrame {
         panel.add(image);
         return panel;
     }
-
+    
+    /**
+     * Construye el contenedor del formulario de registro.
+     *
+     * @return el contenedor del formulario de registro completamente construido
+     */
     private JPanel buildRegisterContainer() {
         JPanel container = new JPanel(new GridBagLayout());
         container.setOpaque(false);
@@ -583,8 +610,8 @@ public class LoginFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, "Correo o contraseña incorrectos");
             }
         } catch (IllegalArgumentException | SQLException e) {
-            String title = (e instanceof IllegalArgumentException) ? "Validación" : "Error de BD";
-            int type = (e instanceof IllegalArgumentException) ? JOptionPane.WARNING_MESSAGE : JOptionPane.ERROR_MESSAGE;
+            String title = (e instanceof SQLException) ? "Error de BD" : "Validación";
+            int type = (e instanceof SQLException) ? JOptionPane.ERROR_MESSAGE : JOptionPane.WARNING_MESSAGE;
             JOptionPane.showMessageDialog(this, e.getMessage(), title, type);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error inesperado: " + e.getMessage(), "Error Crítico", JOptionPane.ERROR_MESSAGE);
@@ -629,8 +656,8 @@ public class LoginFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, "Error al registrar");
             }
         } catch (IllegalArgumentException | SQLException e) {
-            String title = (e instanceof IllegalArgumentException) ? "Datos inválidos" : "Error de BD";
-            int type = (e instanceof IllegalArgumentException) ? JOptionPane.WARNING_MESSAGE : JOptionPane.ERROR_MESSAGE;
+            String title = (e instanceof SQLException) ? "Error de BD" : "Datos inválidos";
+            int type = (e instanceof SQLException) ? JOptionPane.ERROR_MESSAGE : JOptionPane.WARNING_MESSAGE;
             JOptionPane.showMessageDialog(this, e.getMessage(), title, type);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error inesperado: " + e.getMessage(), "Error Crítico", JOptionPane.ERROR_MESSAGE);

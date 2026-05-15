@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.event.ActionListener;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -39,6 +40,7 @@ public class PanelInventory extends JPanel {
     private JTable inventoryTable;
     private DefaultTableModel tableModel;
     private JTextField txtSearch;
+    private JButton btnAdd;
     private JPanel centerPanel;
 
     public PanelInventory() {
@@ -83,7 +85,7 @@ public class PanelInventory extends JPanel {
         txtSearch.putClientProperty("JTextField.placeholderText", "Buscar producto por nombre o ID...");
         txtSearch.setPreferredSize(new Dimension(250, 40));
 
-        JButton btnAdd = new JButton("+ Nuevo Producto");
+        btnAdd = new JButton("+ Nuevo Producto");
         btnAdd.setBackground(SUCCESS_GREEN);
         btnAdd.setForeground(Color.WHITE);
         btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -186,5 +188,30 @@ public class PanelInventory extends JPanel {
         card.add(lblValue, BorderLayout.CENTER);
         
         return card;
+    }
+
+    /**
+     * Permite enlazar la acción de búsqueda desde el controlador.
+     *
+     * @param listener listener ejecutado al presionar Enter en el buscador
+     */
+    public void setSearchAction(ActionListener listener) {
+        txtSearch.addActionListener(listener);
+    }
+
+    /**
+     * Permite enlazar la acción del botón "Nuevo Producto" desde el controlador.
+     *
+     * @param listener listener ejecutado al hacer clic en el botón
+     */
+    public void setNewProductAction(ActionListener listener) {
+        btnAdd.addActionListener(listener);
+    }
+
+    /**
+     * @return texto actual del buscador, recortado.
+     */
+    public String getSearchText() {
+        return txtSearch.getText() == null ? "" : txtSearch.getText().trim();
     }
 }

@@ -328,12 +328,13 @@ public class UserDAO {
      */
     public List<WorkerRow> findAllWithRoleName(String query) {
         List<WorkerRow> workers = new ArrayList<>();
+        String roleNameColumn = resolveRoleNameColumn();
         StringBuilder sql = new StringBuilder("""
                 SELECT u.id, u.nombre, u.apellido, u.email, u.genero,
-                    COALESCE(r.nombre, 'Sin rol') AS rol
+                    COALESCE(r.%s, 'Sin rol') AS rol
                 FROM users u
                 LEFT JOIN roles r ON r.id = u.rol_id
-                """);
+                """.formatted(roleNameColumn));
 
         boolean hasQuery = query != null && !query.trim().isEmpty();
         if (hasQuery) {
@@ -371,6 +372,27 @@ public class UserDAO {
 
     public List<WorkerRow> findAllWithRoleName() {
         return findAllWithRoleName(null);
+    }
+
+    private String resolveRoleNameColumn() {
+        String[] candidates = { "nombre", "nombre_rol", "rol", "name" };
+        String sql = "SHOW COLUMNS FROM roles";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                String column = rs.getString("Field");
+                for (String candidate : candidates) {
+                    if (candidate.equalsIgnoreCase(column)) {
+                        return candidate;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "No se pudo resolver la columna de nombre del rol. Se usará 'nombre_rol'.", e);
+        }
+        return "nombre_rol";
     }
 
     /**

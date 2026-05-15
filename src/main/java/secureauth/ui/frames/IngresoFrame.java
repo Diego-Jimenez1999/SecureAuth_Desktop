@@ -9,7 +9,9 @@ import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 
 import secureauth.controller.IngresoController;
+import secureauth.controller.InventoryController;
 import secureauth.controller.PetController;
+import secureauth.controller.ReportController;
 import secureauth.controller.SalesController;
 import secureauth.dao.OwnerDAO;
 import secureauth.dao.PetDAO;
@@ -19,6 +21,7 @@ import secureauth.service.PetService;
 import secureauth.service.UserService;
 import secureauth.ui.components.PanelConfig;
 import secureauth.ui.components.PanelInventory;
+import secureauth.ui.components.PanelReports;
 import secureauth.ui.components.RegMascotaPanel;
 import secureauth.ui.components.SalesPanel;
 import secureauth.ui.components.SidebarPanel;
@@ -53,7 +56,7 @@ public class IngresoFrame extends javax.swing.JFrame {
     private final SalesPanel salesPanel;
     private final PanelConfig configPanel;
     private final PanelInventory inventoryPanel;
-   // private final PanelReports panelReports;
+    private final PanelReports panelReports;
     
     /** Gestor de capas para el intercambio dinámico de vistas. */
     private final CardLayout contentLayout;
@@ -75,8 +78,11 @@ public class IngresoFrame extends javax.swing.JFrame {
         new PetController(mascotaRegistroPanel, new PetService(new PetDAO()), new OwnerService(new OwnerDAO())); // Instanciación sin guardar referencia
         this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector);
         this.configPanel = new PanelConfig(new UserService(), this.controller); // Pasa el IngresoController
-        this.inventoryPanel = new PanelInventory(); 
-       // this.panelReports = new PanelReports(this.controller);
+        this.inventoryPanel = new PanelInventory();
+        this.panelReports = new PanelReports();
+        new InventoryController(this.inventoryPanel);
+        ReportController reportController = new ReportController(this.panelReports);
+        reportController.loadMetrics();
         this.contentLayout = new CardLayout();
         this.contentPanel = new JPanel(contentLayout);
 
@@ -114,7 +120,7 @@ public class IngresoFrame extends javax.swing.JFrame {
         contentPanel.add(salesPanel, "ventas");
         contentPanel.add(configPanel, "configuracion");
         contentPanel.add(inventoryPanel, "inventario");
-       // contentPanel.add(panelReports, "reportes");
+        contentPanel.add(panelReports, "reportes");
         contentLayout.show(contentPanel, "usuarios");
         panel.add(contentPanel, BorderLayout.CENTER);
         return panel;

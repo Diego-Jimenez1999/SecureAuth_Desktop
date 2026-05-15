@@ -46,7 +46,7 @@ public class RegMascotaPanel extends JPanel {
     private static final Color COLOR_BG = new Color(244, 246, 249);
     private static final Color COLOR_CARD = new Color(236, 238, 243);
     private static final Font BASE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
-    private static final Dimension FIELD_SIZE = new Dimension(230, 36);
+    private static final Dimension FIELD_SIZE = new Dimension(20, 20);
     private static final Color DEFAULT_BORDER_COLOR = new Color(196, 196, 196);
 
     private JLabel lblImagenMascota;

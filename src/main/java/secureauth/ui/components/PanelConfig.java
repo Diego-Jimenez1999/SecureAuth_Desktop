@@ -10,11 +10,13 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.RenderingHints;
+import java.awt.Window;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -35,6 +37,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
@@ -42,9 +45,10 @@ import javax.swing.table.TableCellRenderer;
 import secureauth.controller.AuthController;
 import secureauth.controller.IngresoController;
 import secureauth.dao.UserDAO;
+import secureauth.repository.UserRepositoryImpl;
 import secureauth.service.AuthService;
 import secureauth.service.UserService;
-import secureauth.ui.frames.LoginFrame;
+import secureauth.ui.dialogs.RegistroTrabajadores;
 
 /**
  * Panel de Configuración y Ajustes del sistema SecureAuth Desktop (PetStore).
@@ -150,6 +154,7 @@ public class PanelConfig extends JPanel {
         content.setBackground(BG_PAGE);
         content.setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
 
+        // Ensamblaje de secciones verticales
         content.add(buildHeaderSection());
         content.add(Box.createVerticalStrut(24));
         content.add(buildMetricsSection());
@@ -167,7 +172,11 @@ public class PanelConfig extends JPanel {
         scrollPane.setBackground(BG_PAGE);
         add(scrollPane, BorderLayout.CENTER);
     }
-
+    
+    /**
+     * Construye la sección de tablas de personas.
+     * @return JPanel con la sección de tablas de personas
+     */
     private JPanel buildPeopleTablesSection() {
         peopleTablesLayout = new CardLayout();
         peopleTablesContainer = new JPanel(peopleTablesLayout);
@@ -273,7 +282,7 @@ public class PanelConfig extends JPanel {
      * Construye una tarjeta de métrica estándar con valor numérico.
      */
     private JPanel buildMetricCard(String icon, String label,
-                                   JLabel valueLabel, JLabel trendLabel, Color accent) {
+                                    JLabel valueLabel, JLabel trendLabel, Color accent) {
         RoundedPanel card = new RoundedPanel(14, BG_CARD);
         card.setLayout(new BorderLayout(8, 0));
         card.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
@@ -300,7 +309,7 @@ public class PanelConfig extends JPanel {
      * Construye una tarjeta de métrica con contenido personalizado (sin valor único).
      */
     private JPanel buildMetricCardCustom(String icon, String label,
-                                          JPanel customContent, Color accent) {
+                                        JPanel customContent, Color accent) {
         RoundedPanel card = new RoundedPanel(14, BG_CARD);
         card.setLayout(new BorderLayout(8, 0));
         card.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
@@ -367,6 +376,12 @@ public class PanelConfig extends JPanel {
             }
         ));
 
+        row.add(configApp("🎨", "Configuración de la Aplicación",
+                "Gestiona las opciones generales de configuración de la aplicación",
+                new String[]{"Opciones Generales"},
+                new ActionListener[]{e -> onConfigAppClick()}
+        ));
+
         return row;
     }
 
@@ -390,12 +405,13 @@ public class PanelConfig extends JPanel {
         JPanel iconRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         iconRow.setBackground(BG_CARD);
         JLabel ico1 = new JLabel(icon);
-        ico1.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 36));
+        ico1.setPreferredSize(new Dimension(32,32));
+        ico1.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 25));
         JLabel arrow = new JLabel("⇄");
-        arrow.setFont(new Font("Segoe UI", Font.PLAIN, 20));
+        arrow.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
         arrow.setForeground(TEXT_MUTED);
         JLabel ico2 = new JLabel("⚙️");
-        ico2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 32));
+        ico2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 35));
         iconRow.add(ico1);
         iconRow.add(arrow);
         iconRow.add(ico2);
@@ -587,13 +603,13 @@ public class PanelConfig extends JPanel {
         });
 
         JLabel lbl = new JLabel(label);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lbl.setFont(new Font("Segoe UI Emoji", Font.BOLD, 13));
         lbl.setForeground(TEXT_PRIMARY);
         topRow.add(toggle);
         topRow.add(lbl);
 
         JLabel desc = new JLabel(description);
-        desc.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        desc.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 11));
         desc.setForeground(TEXT_SECONDARY);
 
         item.add(topRow, BorderLayout.NORTH);
@@ -632,6 +648,55 @@ public class PanelConfig extends JPanel {
         return panel;
     }
 
+    private JPanel configApp(String icon, String title, String description,
+                                    String[] btnLabels, ActionListener[] listeners) {
+        RoundedPanel card = new RoundedPanel(14, BG_CARD);
+        card.setLayout(new BorderLayout(0, 12));
+        card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // Zona de íconos decorativos superiores
+        JPanel iconRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        iconRow.setBackground(BG_CARD);
+        JLabel ico1 = new JLabel(icon);
+        ico1.setPreferredSize(new Dimension(32,32));
+        ico1.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 25));
+        JLabel arrow = new JLabel("⇄");
+        arrow.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
+        arrow.setForeground(TEXT_MUTED);
+        JLabel ico2 = new JLabel("⚙️");
+       // ico2.setPreferredSize(new Dimension(32,32));
+        ico2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 30));
+        iconRow.add(ico1);
+        iconRow.add(arrow);
+        iconRow.add(ico2);
+
+        // Título y descripción
+        JPanel textBlock = new JPanel(new BorderLayout(0, 6));
+        textBlock.setBackground(BG_CARD);
+        JLabel titleLbl = new JLabel("<html>" + title + "</html>");
+        titleLbl.setFont(FONT_SECTION);
+        titleLbl.setForeground(TEXT_PRIMARY);
+        JLabel descLbl = new JLabel("<html><p style='width:200px'>" + description + "</p></html>");
+        descLbl.setFont(FONT_BODY);
+        descLbl.setForeground(TEXT_SECONDARY);
+        textBlock.add(titleLbl, BorderLayout.NORTH);
+        textBlock.add(descLbl,  BorderLayout.CENTER);
+
+        // Botones
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        btnRow.setBackground(BG_CARD);
+        for (int i = 0; i < btnLabels.length; i++) {
+            JButton btn = buildDarkButton(btnLabels[i]);
+            btn.addActionListener(listeners[i]);
+            btnRow.add(btn);
+        }
+
+        card.add(iconRow,   BorderLayout.NORTH);
+        card.add(textBlock, BorderLayout.CENTER);
+        card.add(btnRow,    BorderLayout.SOUTH);
+
+        return card;
+    }
     // ═════════════════════════════════════════════════════════════════════════
     //  HELPERS DE ESTILO
     // ═════════════════════════════════════════════════════════════════════════
@@ -672,27 +737,54 @@ public class PanelConfig extends JPanel {
         });
         return btn;
     }
+/** 
+ * Crea un badge circular con ícono para las tarjetas de métricas.
+ * Se asegura de que sea un círculo perfecto incluso si el panel se estira.
+ */
+private JPanel buildIconBadge(String icon, Color accent) {
+    JPanel badge = new JPanel() {
+        @Override 
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            // Suavizado de bordes para que el círculo no se vea pixelado
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            // Calculamos el tamaño del círculo (el lado más corto)
+            int size = Math.min(getWidth(), getHeight());
+            
+            // Calculamos la posición para que siempre esté centrado
+            int x = (getWidth() - size) / 2;
+            int y = (getHeight() - size) / 2;
+            
+            // Color de fondo con transparencia (25 de alpha)
+            g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 25));
+            
+            // Dibujamos el círculo usando el tamaño calculado
+            g2.fillOval(x, y, size, size);
+            
+            g2.dispose();
+            // Llamamos a super al final para que los componentes hijos (el emoji) se pinten encima
+            super.paintComponent(g);
+        }
+    };
 
-    /** Crea un badge circular con ícono para las tarjetas de métricas. */
-    private JPanel buildIconBadge(String icon, Color accent) {
-        JPanel badge = new JPanel() {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 25));
-                g2.fillOval(0, 0, getWidth(), getHeight());
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        badge.setOpaque(false);
-        badge.setPreferredSize(new Dimension(50, 50));
-        badge.setLayout(new GridBagLayout());
-        JLabel iconLbl = new JLabel(icon);
-        iconLbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
-        badge.add(iconLbl);
-        return badge;
-    }
+    badge.setOpaque(false);
+    
+    // Establecemos un tamaño fijo sugerido para ayudar al LayoutManager
+    Dimension size = new Dimension(50, 50);
+    badge.setPreferredSize(size);
+    badge.setMinimumSize(size);
+    badge.setMaximumSize(size);
+
+    badge.setLayout(new GridBagLayout());
+    
+    JLabel iconLbl = new JLabel(icon);
+    // Usamos Segoe UI Emoji para asegurar compatibilidad de iconos
+    iconLbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
+    
+    badge.add(iconLbl);
+    return badge;
+}
 
     /** Crea una etiqueta de tendencia con color. */
     private JLabel trendLabel(String text, Color color) {
@@ -706,16 +798,23 @@ public class PanelConfig extends JPanel {
     //  MÉTODOS PLACEHOLDER — CONECTAR AL CONTROLADOR
     // ═════════════════════════════════════════════════════════════════════════
 
-    /** Abre el panel de tabla de servicios. TODO: SettingsController.showServicesTable() */
+    /** Abre el panel de tabla de servicios.
+     * @code SettingsController.showServicesTable() */
     private void onTablaServiciosClick()    { System.out.println("[DEBUG] Abriendo gestión de servicios..."); }
 
-    /** Abre el configurador de precios por tamaño. TODO: SettingsController.showPricesBySize() */
+    /** Abre el configurador de precios por tamaño.
+     * @code SettingsController.showPricesBySize()
+     */
     private void onPreciosTamanoClick()     { System.out.println("[DEBUG] Abriendo configuración de precios..."); }
 
-    /** Abre el visor de inventario. TODO: InventoryController.show() */
+    /** Abre el visor de inventario.
+     * @code InventoryController.show()
+    */
     private void onVerInventarioClick()     { System.out.println("[DEBUG] Abriendo visor de inventario..."); }
 
-    /** Abre el importador CSV/Excel. TODO: InventoryController.importCSV() */
+    /** Abre el importador CSV/Excel.
+     * @code InventoryController.importCSV()
+     */
     private void onImportarCSVClick()       { System.out.println("[DEBUG] Abriendo importador CSV..."); }
 
     /** Abre la lista de trabajadores (tabla users) dentro de Configuración. */
@@ -729,12 +828,28 @@ public class PanelConfig extends JPanel {
         }
     }
 
+    /** Abre el panel de configuración general de la aplicación. */
+    private void onConfigAppClick() {
+        System.out.println("[DEBUG] Abriendo configuración general de la aplicación...");
+    }
+
     /** Abre el formulario de registro de usuarios existente. */
     private void onNuevoTrabajadorClick() {
         System.out.println("[DEBUG] PanelConfig: onNuevoTrabajadorClick disparado.");
-        AuthController authController = new AuthController(new AuthService());
-        LoginFrame loginFrame = new LoginFrame(authController, user -> {});
-        loginFrame.setVisible(true);
+        
+        // Obtener el Frame principal para el JDialog modal
+        Window window = SwingUtilities.getWindowAncestor(this);
+        Frame parentFrame = (window instanceof Frame) ? (Frame) window : null;
+
+        // Instanciar el controlador con sus dependencias requeridas (Repository -> Service -> Controller)
+        AuthController authController = new AuthController(new AuthService(new UserRepositoryImpl()));
+
+        // Abrir el diálogo RegistroTrabajadores solicitado
+        RegistroTrabajadores registrationDialog = new RegistroTrabajadores(parentFrame, authController);
+        registrationDialog.setVisible(true);
+        
+        // Refrescar la tabla de trabajadores para mostrar el nuevo registro inmediatamente
+        loadWorkersTableData(null);
     }
 
     /** Ejecuta la búsqueda de trabajadores. */
@@ -759,8 +874,8 @@ public class PanelConfig extends JPanel {
             String q = query.toLowerCase().trim();
             workers = workers.stream()
                 .filter(w -> w.getNombre().toLowerCase().contains(q) || 
-                             w.getApellido().toLowerCase().contains(q) || 
-                             w.getEmail().toLowerCase().contains(q))
+                            w.getApellido().toLowerCase().contains(q) || 
+                            w.getEmail().toLowerCase().contains(q))
                 .toList();
         }
 

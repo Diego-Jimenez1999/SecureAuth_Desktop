@@ -1,12 +1,14 @@
 package secureauth.ui.utils;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 
 import javax.swing.JComboBox;
+import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
@@ -19,6 +21,7 @@ public class ComponentUtils {
     private static final Color DEFAULT_BORDER_COLOR = new Color(196, 196, 196);
     private static final Color TEXT_COLOR = new Color(35, 35, 35);
     private static final Color BG_COLOR = Color.WHITE;
+    private static final Font BASE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
 
     public static void styleTextField(JTextField field, Dimension size, Font font, Color focusColor) {
         field.setFont(font);
@@ -54,4 +57,13 @@ public class ComponentUtils {
         }
         comboBox.setBorder(new CompoundBorder(new RoundedLineBorder(DEFAULT_BORDER_COLOR, 14, 1), new EmptyBorder(8, 12, 8, 12)));
     }
+
+    public static void styleRadioButton(JRadioButton radioButton) {
+        radioButton.setOpaque(false);
+        radioButton.setFocusPainted(false);
+        radioButton.setFont(BASE_FONT);
+        radioButton.setForeground(new Color(45, 45, 45));
+        radioButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    }
+
 }
