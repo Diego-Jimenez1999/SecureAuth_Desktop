@@ -1,6 +1,7 @@
 package secureauth.dao.enterprise;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -26,6 +27,27 @@ public class SalesTransactionDAO {
                         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     )
                     """);
+
+            // Migración para instalaciones previas: Asegurar que las columnas business_id y branch_id existan
+            // If the table existed before these columns were added to the CREATE TABLE statement
+            if (!columnExists(conn, "sales_tx", "business_id")) {
+                st.execute("ALTER TABLE sales_tx ADD COLUMN business_id INT NOT NULL DEFAULT 1");
+            }
+            if (!columnExists(conn, "sales_tx", "branch_id")) {
+                st.execute("ALTER TABLE sales_tx ADD COLUMN branch_id INT NOT NULL DEFAULT 1");
+            }
+
+        } catch (SQLException e) {
+            // Log as SEVERE as schema initialization is critical
+            System.err.println("Error initializing SalesTransactionDAO schema: " + e.getMessage());
+            throw e; // Re-throw to indicate a critical failure
+        }
+    }
+
+    private boolean columnExists(Connection conn, String tableName, String columnName) throws SQLException {
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getColumns(null, null, tableName, columnName)) {
+            return rs.next();
         }
     }
 

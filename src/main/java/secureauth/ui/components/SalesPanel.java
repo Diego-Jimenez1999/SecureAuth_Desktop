@@ -6,14 +6,13 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.text.NumberFormat;
 import java.util.Locale;
-import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JList;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -23,13 +22,13 @@ import javax.swing.border.EmptyBorder;
 
 import secureauth.controller.SalesController;
 import secureauth.model.SaleItem;
+import secureauth.service.enterprise.SalesTransactionService;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
 import secureauth.ui.dialogs.PreciosPorTamanoDialog;
 import secureauth.ui.dialogs.SubServiceSelector;
 import secureauth.ui.sales.SalesServiceCatalog;
 import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
 import secureauth.ui.utils.UiTheme;
-import secureauth.service.enterprise.SalesTransactionService;
 
 /** Panel de ventas integrado con gestión de servicios, categorías y precios por tamaño. */
 public class SalesPanel extends JPanel {
@@ -250,7 +249,7 @@ public class SalesPanel extends JPanel {
             refreshCatalog();
             updateTotals();
             JOptionPane.showMessageDialog(this, "Venta registrada correctamente.");
-        } catch (Exception ex) {
+        } catch (java.sql.SQLException ex) { // Changed to SQLException as database operations are the primary source of exceptions
             JOptionPane.showMessageDialog(this, "No se pudo registrar venta: " + ex.getMessage());
         }
     }

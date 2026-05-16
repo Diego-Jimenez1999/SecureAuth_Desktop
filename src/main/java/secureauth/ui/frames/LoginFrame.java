@@ -63,7 +63,6 @@ public class LoginFrame extends JFrame {
     private JComboBox<String> cbMes;
     private JComboBox<String> cbAnio;
 
-    private JComboBox<String> RolBox;
 
     private JRadioButton rbHombre;
     private JRadioButton rbMujer;
@@ -114,7 +113,6 @@ public class LoginFrame extends JFrame {
         rbMujer = new JRadioButton("Mujer");
         rbOtro = new JRadioButton("Otro");
 
-        RolBox = new JComboBox<>(new String[] {"Administrador", "Recepcionista", "Médico"});
 
 
         ButtonGroup grupoGenero = new ButtonGroup();
@@ -586,6 +584,7 @@ public class LoginFrame extends JFrame {
     /**
      * Intenta iniciar sesión con las credenciales proporcionadas.
      */
+    @SuppressWarnings("UseSpecificCatch")
     private void login() {
         try {
             String email = txtEmailLogin.getText();
@@ -617,6 +616,7 @@ public class LoginFrame extends JFrame {
     /**
      * Registra un nuevo usuario.
      */
+    @SuppressWarnings("UseSpecificCatch")
     private void register() {
         try {
             clearRegisterErrors();
@@ -658,6 +658,10 @@ public class LoginFrame extends JFrame {
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error inesperado: " + e.getMessage(), "Error Crítico", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    public List<FloatingPlaceholder> getPlaceholders() {
+        return placeholders;
     }
 
 }

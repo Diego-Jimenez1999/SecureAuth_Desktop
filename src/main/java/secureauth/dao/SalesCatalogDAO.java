@@ -1,6 +1,7 @@
 package secureauth.dao;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -60,14 +61,29 @@ public class SalesCatalogDAO {
                 )
                 """);
 
-            // Migración para instalaciones previas
-            try { st.execute("ALTER TABLE sales_categories ADD COLUMN IF NOT EXISTS business_id INT NOT NULL DEFAULT 1"); } catch (SQLException ignored) {}
-            try { st.execute("ALTER TABLE sales_categories ADD COLUMN IF NOT EXISTS branch_id INT NOT NULL DEFAULT 1"); } catch (SQLException ignored) {}
-            try { st.execute("ALTER TABLE sales_items ADD COLUMN IF NOT EXISTS business_id INT NOT NULL DEFAULT 1"); } catch (SQLException ignored) {}
-            try { st.execute("ALTER TABLE sales_items ADD COLUMN IF NOT EXISTS branch_id INT NOT NULL DEFAULT 1"); } catch (SQLException ignored) {}
+            // Migración para instalaciones previas: Asegurar que las columnas business_id y branch_id existan
+            if (!columnExists(conn, "sales_categories", "business_id")) {
+                st.execute("ALTER TABLE sales_categories ADD COLUMN business_id INT NOT NULL DEFAULT 1");
+            }
+            if (!columnExists(conn, "sales_categories", "branch_id")) {
+                st.execute("ALTER TABLE sales_categories ADD COLUMN branch_id INT NOT NULL DEFAULT 1");
+            }
+            if (!columnExists(conn, "sales_items", "business_id")) {
+                st.execute("ALTER TABLE sales_items ADD COLUMN business_id INT NOT NULL DEFAULT 1");
+            }
+            if (!columnExists(conn, "sales_items", "branch_id")) {
+                st.execute("ALTER TABLE sales_items ADD COLUMN branch_id INT NOT NULL DEFAULT 1");
+            }
 
         } catch (SQLException e) {
-            LOGGER.log(Level.WARNING, "No fue posible inicializar esquema de ventas/servicios", e);
+            LOGGER.log(Level.SEVERE, "No fue posible inicializar esquema de ventas/servicios", e);
+        }
+    }
+
+    private boolean columnExists(Connection conn, String tableName, String columnName) throws SQLException {
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getColumns(null, null, tableName, columnName)) {
+            return rs.next();
         }
     }
 

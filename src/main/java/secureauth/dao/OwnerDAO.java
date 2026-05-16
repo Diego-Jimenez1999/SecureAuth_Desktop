@@ -11,43 +11,47 @@ import secureauth.config.DatabaseConnection;
 import secureauth.model.Owner;
 
 /**
- * DAO para consulta de dueños en la tabla owners.
+ * DAO (Data Access Object) para gestionar las consultas y operaciones
+ * de los dueños o clientes directamente en la base de datos (tabla owners).
  *
  * @author Diego Alexander Gaviria Jimenez
  */
 public class OwnerDAO {
 
     /**
-     * Recupera todos los dueños registrados.
+     * Recupera todos los dueños registrados en la base de datos.
      *
-     * @return lista de dueños
+     * @return Una lista con todos los objetos Owner, ordenada alfabéticamente por nombre.
      */
     public List<Owner> findAll() {
         final String sql = "SELECT id, nombre_completo, telefono, correo, direccion FROM owners ORDER BY nombre_completo";
         List<Owner> owners = new ArrayList<>();
 
+        // Usamos try-with-resources para que las conexiones se cierren solas
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery()) {
+            
             while (rs.next()) {
                 owners.add(mapRow(rs));
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error consultando owners.", e);
+            throw new RuntimeException("Error consultando la lista de dueños.", e);
         }
         return owners;
     }
 
     /**
-     * Busca un dueño por su id.
+     * Busca un dueño específico usando su identificador único (id).
      *
-     * @param id identificador del dueño
-     * @return dueño encontrado o null si no existe
+     * @param id El número de identificación del dueño en la base de datos.
+     * @return El objeto Owner si lo encuentra, o null si no existe.
      */
     public Owner findById(int id) {
         final String sql = "SELECT id, nombre_completo, telefono, correo, direccion FROM owners WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -55,30 +59,65 @@ public class OwnerDAO {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error consultando owner por id.", e);
+            throw new RuntimeException("Error buscando al dueño por su id.", e);
         }
         return null;
     }
 
     /**
-     * Inserta un nuevo dueño/cliente.
+     * Guarda un nuevo dueño/cliente en la base de datos.
      *
-     * @param owner datos del cliente
+     * @param owner El objeto con los datos del cliente que queremos registrar.
      */
     public void insert(Owner owner) {
         final String sql = "INSERT INTO owners (nombre_completo, telefono, correo, direccion) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            
             ps.setString(1, owner.getNombreCompleto());
             ps.setString(2, owner.getTelefono());
             ps.setString(3, owner.getCorreo());
             ps.setString(4, owner.getDireccion());
-            ps.executeUpdate();
+            ps.executeUpdate(); // Ejecuta la inserción
         } catch (SQLException e) {
-            throw new RuntimeException("Error insertando owner.", e);
+            throw new RuntimeException("Error al intentar guardar un nuevo dueño.", e);
         }
     }
 
+    /**
+     * Cuenta cuántos dueños o clientes se han registrado en el mes actual.
+     * Ideal para alimentar las métricas o gráficas del dashboard.
+     *
+     * @return La cantidad de clientes nuevos en este mes. Retorna 0 si hay algún error 
+     *         (por ejemplo, si la tabla o la columna fecha_registro aún no existen).
+     */
+    public int countNewThisMonth() {
+        final String sql = """
+                SELECT COUNT(*) FROM owners
+                WHERE YEAR(fecha_registro)  = YEAR(CURRENT_DATE())
+                AND   MONTH(fecha_registro) = MONTH(CURRENT_DATE())
+                """;
+        try (Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery()) {
+
+            return rs.next() ? rs.getInt(1) : 0;
+
+        } catch (SQLException e) {
+            // Se traga la excepción a propósito para que el dashboard no se caiga 
+            // si la base de datos todavía se está configurando.
+            return 0;
+        }
+    }
+
+    /**
+     * Método ayudante (helper) para convertir una fila que devuelve la base de datos 
+     * en un objeto Java tipo Owner. Así no repetimos este bloque de código en cada consulta.
+     *
+     * @param rs El ResultSet que trae los datos de la consulta SQL.
+     * @return Un objeto Owner con todos sus datos armados.
+     * @throws SQLException Si algo falla al leer las columnas.
+     */
     private Owner mapRow(ResultSet rs) throws SQLException {
         return new Owner(
                 rs.getInt("id"),

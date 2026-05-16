@@ -328,7 +328,7 @@ public class GestionVentasServiciosDialog extends JDialog {
     private double parseDouble(String value) {
         try {
             return Double.parseDouble(value.trim().replace(',', '.'));
-        } catch (Exception ex) {
+        } catch (NumberFormatException ex) {
             return 0d;
         }
     }

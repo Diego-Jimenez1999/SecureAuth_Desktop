@@ -19,6 +19,7 @@ import secureauth.model.User;
 import secureauth.service.OwnerService;
 import secureauth.service.PetService;
 import secureauth.service.UserService;
+import secureauth.ui.components.HomeDashboardPanel;
 import secureauth.ui.components.PanelConfig;
 import secureauth.ui.components.PanelInventory;
 import secureauth.ui.components.PanelReports;
@@ -28,7 +29,6 @@ import secureauth.ui.components.SidebarPanel;
 import secureauth.ui.components.UserPanel;
 import secureauth.ui.dialogs.SubServiceSelector;
 import secureauth.ui.enterprise.ClientsPanel;
-import secureauth.ui.enterprise.HomeDashboardPanel;
 
 /**
  * Orquestador principal de la interfaz de usuario (Dashboard).
