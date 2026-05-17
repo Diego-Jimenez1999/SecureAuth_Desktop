@@ -32,7 +32,7 @@ import secureauth.ui.utils.UiTheme;
  * 
  * @author Diego Alexander Gaviria Jimenez
  * @version 2.0
- * @see secureauth.ui.frames.IngresoFrame
+ * @see secureauth.secureauth.ui.frames.IngresoFrame
  */
 public class SidebarPanel extends JPanel {
 
@@ -274,7 +274,7 @@ public class SidebarPanel extends JPanel {
         btn.setOpaque(isActive);
 
         if (isActive) {
-            btn.setBackground(UiTheme.ACCENT_RED);
+            btn.setBackground(UiTheme.themePrimary());
             btn.setForeground(UiTheme.TEXT_LIGHT);
         } else {
             btn.setForeground(UiTheme.TEXT_MUTED);
@@ -304,7 +304,7 @@ public class SidebarPanel extends JPanel {
             public void focusGained(FocusEvent e) {
                 if (btn != botonActivo) {
                     btn.setOpaque(true);
-                    btn.setBackground(UiTheme.ACCENT_RED);
+                    btn.setBackground(UiTheme.themePrimary());
                     btn.setForeground(UiTheme.TEXT_LIGHT);
                 }
             }

@@ -2,18 +2,18 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-
+ 
 package secureauth.service;
-
+ 
 import java.sql.SQLException;
 import java.util.Locale;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
-
+ 
 import secureauth.model.User;
 import secureauth.repository.UserRepository;
-import secureauth.repository.UserRepositoryImpl;
 import secureauth.security.PasswordHasher;
-
+ 
 /**
  * Servicio encargado de la lógica de autenticación del sistema.
  *
@@ -33,26 +33,24 @@ import secureauth.security.PasswordHasher;
  * @version 1.0
  */
 public class AuthService {
-
+ 
+    private static final Logger LOGGER = Logger.getLogger(AuthService.class.getName());
     private final UserRepository userRepository;
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
-
+ 
     /**
-     * Constructor del servicio.
-     */
-    public AuthService() {
-        this(new UserRepositoryImpl());
-    }
-
-    /**
-     * Constructor para inyección de dependencias.
+     * Constructor con inyección de dependencias.
+     *
+     * <p>Use siempre este constructor. El repositorio se construye en {@code MainApp}
+     * y se pasa hacia abajo por toda la cadena, evitando instancias sueltas.</p>
      *
      * @param userRepository repositorio de usuarios
+     * @throws NullPointerException si {@code userRepository} es null
      */
     public AuthService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+        this.userRepository = java.util.Objects.requireNonNull(userRepository, "UserRepository requerido");
     }
-
+ 
     /**
      * Registra un nuevo usuario en el sistema.
      *
@@ -64,22 +62,22 @@ public class AuthService {
         if (user == null) {
             throw new IllegalArgumentException("Usuario requerido");
         }
-
+ 
         String email = normalizeEmail(user.getEmail());
         String plainPassword = user.getPassword();
-
+ 
         if (email == null || email.isEmpty()) {
             throw new IllegalArgumentException("Email requerido");
         }
-
+ 
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new IllegalArgumentException("Email inválido");
         }
-
+ 
         if (plainPassword == null || plainPassword.isEmpty()) {
             throw new IllegalArgumentException("Password requerido");
         }
-
+ 
         if (user.getNombre() == null || user.getNombre().trim().isEmpty()) {
             throw new IllegalArgumentException("Nombre requerido");
         }
@@ -94,22 +92,24 @@ public class AuthService {
         if (user.getRolId() <= 0) {
             user.setRolId(3);
         }
-
-        validatePasswordStrength(plainPassword);
-
+ 
+        if (!PasswordHasher.isStrongPassword(plainPassword)) {
+            throw new IllegalArgumentException(PasswordHasher.getPolicyMessage());
+        }
+ 
         User existingUser = userRepository.findByEmail(email);
-
+ 
         if (existingUser != null) {
             throw new IllegalArgumentException("El usuario ya existe");
         }
-
+ 
         String hashedPassword = PasswordHasher.hash(plainPassword);
         user.setEmail(email);
         user.setPassword(hashedPassword);
-
+ 
         return userRepository.insert(user);
     }
-
+ 
     /**
      * Valida el login de un usuario.
      *
@@ -119,51 +119,43 @@ public class AuthService {
      * @throws SQLException si ocurre error en BD
      */
     public User login(String email, String password) throws SQLException {
-
         String normalizedEmail = normalizeEmail(email);
-
+ 
         if (normalizedEmail == null || normalizedEmail.isEmpty()) {
-            throw new IllegalArgumentException("Email requerido");
+            throw new IllegalArgumentException("El correo electrónico es obligatorio.");
         }
-
+ 
         if (password == null || password.isEmpty()) {
-            throw new IllegalArgumentException("Password requerido");
+            throw new IllegalArgumentException("La contraseña es obligatoria.");
         }
-
+ 
         User user = userRepository.findByEmail(normalizedEmail);
-
+ 
         if (user == null) {
+            LOGGER.warning("Intento de login fallido: Usuario no encontrado o inactivo -> " + normalizedEmail);
             return null;
         }
-
+ 
         boolean isValid = PasswordHasher.verify(password, user.getPassword());
-
+ 
         if (isValid) {
-            if (PasswordHasher.needsRehash(user.getPassword())) {
+            LOGGER.info("Autenticación exitosa para: " + normalizedEmail);
+            // Migración automática: Si el password era texto plano o hash débil, actualizar a BCrypt
+            if (!PasswordHasher.isBcryptHash(user.getPassword())) {
+                LOGGER.info("Migrando contraseña de usuario " + user.getId() + " a BCrypt.");
                 userRepository.updatePassword(user.getId(), PasswordHasher.hash(password));
             }
             return user;
         }
-
+ 
+        LOGGER.warning("Intento de login fallido: Contraseña incorrecta para -> " + normalizedEmail);
         return null;
     }
-
+ 
     private String normalizeEmail(String email) {
         if (email == null) {
             return null;
         }
         return email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private void validatePasswordStrength(String password) {
-        if (password.length() < 8) {
-            throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres");
-        }
-        if (!password.chars().anyMatch(Character::isDigit)) {
-            throw new IllegalArgumentException("La contraseña debe incluir al menos un número");
-        }
-        if (!password.chars().anyMatch(Character::isUpperCase)) {
-            throw new IllegalArgumentException("La contraseña debe incluir al menos una mayúscula");
-        }
     }
 }

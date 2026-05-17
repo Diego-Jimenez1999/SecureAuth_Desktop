@@ -1,7 +1,6 @@
 package secureauth.dao.enterprise;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -9,76 +8,89 @@ import java.sql.Statement;
 
 import secureauth.config.DatabaseConnection;
 
-/** DAO de ventas POS para persistir totales y métricas por sucursal. */
+/** DAO de ventas POS sobre esquema ERP (tabla sales). */
 public class SalesTransactionDAO {
 
     public void ensureSchema() throws SQLException {
         try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
             st.execute("""
-                    CREATE TABLE IF NOT EXISTS sales_tx (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        business_id INT NOT NULL,
-                        branch_id INT NOT NULL,
-                        total DECIMAL(12,2) NOT NULL,
-                        gain DECIMAL(12,2) NOT NULL,
-                        tax DECIMAL(12,2) NOT NULL,
-                        items_count INT NOT NULL,
-                        payment_method VARCHAR(30) NOT NULL,
-                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """);
+                CREATE TABLE IF NOT EXISTS sales (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    business_id INT NOT NULL,
+                    branch_id INT,
+                    user_id INT NOT NULL,
+                    owner_id INT,
+                    subtotal DECIMAL(10,2) NOT NULL,
+                    descuento DECIMAL(10,2) DEFAULT 0,
+                    impuestos DECIMAL(10,2) DEFAULT 0,
+                    total DECIMAL(10,2) NOT NULL,
+                    metodo_pago_id INT,
+                    estado ENUM('PENDIENTE','COMPLETADA','CANCELADA') DEFAULT 'COMPLETADA',
+                    observaciones TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
 
-            // Migración para instalaciones previas: Asegurar que las columnas business_id y branch_id existan
-            // If the table existed before these columns were added to the CREATE TABLE statement
-            if (!columnExists(conn, "sales_tx", "business_id")) {
-                st.execute("ALTER TABLE sales_tx ADD COLUMN business_id INT NOT NULL DEFAULT 1");
-            }
-            if (!columnExists(conn, "sales_tx", "branch_id")) {
-                st.execute("ALTER TABLE sales_tx ADD COLUMN branch_id INT NOT NULL DEFAULT 1");
-            }
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS payment_methods (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nombre VARCHAR(50) NOT NULL UNIQUE,
+                    activo BOOLEAN DEFAULT TRUE
+                )
+                """);
 
-        } catch (SQLException e) {
-            // Log as SEVERE as schema initialization is critical
-            System.err.println("Error initializing SalesTransactionDAO schema: " + e.getMessage());
-            throw e; // Re-throw to indicate a critical failure
+            st.execute("INSERT IGNORE INTO payment_methods(nombre, activo) VALUES ('Efectivo', TRUE), ('Tarjeta', TRUE), ('Transferencia', TRUE)");
         }
     }
 
-    private boolean columnExists(Connection conn, String tableName, String columnName) throws SQLException {
-        DatabaseMetaData meta = conn.getMetaData();
-        try (ResultSet rs = meta.getColumns(null, null, tableName, columnName)) {
-            return rs.next();
-        }
-    }
-
-    public void insertTx(int businessId, int branchId, double total, double gain, double tax, int items, String paymentMethod) throws SQLException {
-        String sql = "INSERT INTO sales_tx(business_id, branch_id, total, gain, tax, items_count, payment_method) VALUES(?,?,?,?,?,?,?)";
+    public void insertTx(int businessId, int branchId, int userId, double total, double gain, double tax, int items, String paymentMethod) throws SQLException {
+        int paymentId = resolvePaymentMethod(paymentMethod);
+        double subtotal = total - tax;
+        String sql = "INSERT INTO sales(business_id, branch_id, user_id, subtotal, descuento, impuestos, total, metodo_pago_id, estado, observaciones) VALUES(?,?,?,?,0,?,?,?,'COMPLETADA',?)";
         try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, businessId);
             ps.setInt(2, branchId);
-            ps.setDouble(3, total);
-            ps.setDouble(4, gain);
+            ps.setInt(3, userId);
+            ps.setDouble(4, subtotal);
             ps.setDouble(5, tax);
-            ps.setInt(6, items);
-            ps.setString(7, paymentMethod);
+            ps.setDouble(6, total);
+            ps.setInt(7, paymentId);
+            ps.setString(8, "items=" + items + ";gain=" + gain);
             ps.executeUpdate();
         }
     }
 
     public double salesToday(int businessId, int branchId) throws SQLException {
-        return singleDouble("SELECT COALESCE(SUM(total),0) FROM sales_tx WHERE business_id=? AND branch_id=? AND DATE(created_at)=CURRENT_DATE()", businessId, branchId);
+        return singleDouble("SELECT COALESCE(SUM(total),0) FROM sales WHERE business_id=? AND (branch_id=? OR branch_id IS NULL) AND DATE(created_at)=CURRENT_DATE()", businessId, branchId);
     }
 
     public double salesMonth(int businessId, int branchId) throws SQLException {
-        return singleDouble("SELECT COALESCE(SUM(total),0) FROM sales_tx WHERE business_id=? AND branch_id=? AND YEAR(created_at)=YEAR(CURRENT_DATE()) AND MONTH(created_at)=MONTH(CURRENT_DATE())", businessId, branchId);
+        return singleDouble("SELECT COALESCE(SUM(total),0) FROM sales WHERE business_id=? AND (branch_id=? OR branch_id IS NULL) AND YEAR(created_at)=YEAR(CURRENT_DATE()) AND MONTH(created_at)=MONTH(CURRENT_DATE())", businessId, branchId);
     }
 
     public double gainMonth(int businessId, int branchId) throws SQLException {
-        return singleDouble("SELECT COALESCE(SUM(gain),0) FROM sales_tx WHERE business_id=? AND branch_id=? AND YEAR(created_at)=YEAR(CURRENT_DATE()) AND MONTH(created_at)=MONTH(CURRENT_DATE())", businessId, branchId);
+        return singleDouble("SELECT COALESCE(SUM(total-impuestos-descuento),0) FROM sales WHERE business_id=? AND (branch_id=? OR branch_id IS NULL) AND YEAR(created_at)=YEAR(CURRENT_DATE()) AND MONTH(created_at)=MONTH(CURRENT_DATE())", businessId, branchId);
     }
 
     public int itemsMonth(int businessId, int branchId) throws SQLException {
-        return (int) singleDouble("SELECT COALESCE(SUM(items_count),0) FROM sales_tx WHERE business_id=? AND branch_id=? AND YEAR(created_at)=YEAR(CURRENT_DATE()) AND MONTH(created_at)=MONTH(CURRENT_DATE())", businessId, branchId);
+        return (int) singleDouble("SELECT COALESCE(SUM(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(observaciones,'items=',-1),';',1) AS UNSIGNED)),0) FROM sales WHERE business_id=? AND (branch_id=? OR branch_id IS NULL) AND YEAR(created_at)=YEAR(CURRENT_DATE()) AND MONTH(created_at)=MONTH(CURRENT_DATE())", businessId, branchId);
+    }
+
+    private int resolvePaymentMethod(String name) throws SQLException {
+        String select = "SELECT id FROM payment_methods WHERE nombre=? LIMIT 1";
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(select)) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement("INSERT INTO payment_methods(nombre, activo) VALUES(?, TRUE)", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, name);
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                return rs.next() ? rs.getInt(1) : 1;
+            }
+        }
     }
 
     private double singleDouble(String sql, int businessId, int branchId) throws SQLException {

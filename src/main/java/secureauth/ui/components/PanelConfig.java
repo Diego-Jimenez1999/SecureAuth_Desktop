@@ -51,7 +51,7 @@ import secureauth.service.UserService;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
 import secureauth.ui.dialogs.PreciosPorTamanoDialog;
 import secureauth.ui.dialogs.RegistroTrabajadores;
-import secureauth.ui.dialogs.SalesModuleConfigDialog;
+import secureauth.ui.dialogs.BrandingConfigDialog;
 import secureauth.ui.utils.UiTheme;
 
 /**
@@ -817,7 +817,7 @@ private JPanel buildIconBadge(String icon, Color accent) {
     private void onConfigAppClick() {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame parent = (window instanceof Frame) ? (Frame) window : null;
-        new SalesModuleConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+        new BrandingConfigDialog(parent).setVisible(true);
     }
 
     /** Abre el formulario de registro de usuarios existente. */

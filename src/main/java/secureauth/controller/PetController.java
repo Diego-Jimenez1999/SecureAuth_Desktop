@@ -8,6 +8,8 @@ import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import secureauth.events.AppEventBus;
+import secureauth.events.ClientCreatedEvent;
 import secureauth.model.Owner;
 import secureauth.model.Pet;
 import secureauth.service.OwnerService;
@@ -38,6 +40,7 @@ public class PetController {
         this.ownerService = ownerService;
         loadOwnersIntoCombo();
         bindEvents();
+        AppEventBus.getInstance().subscribe(ClientCreatedEvent.class, event -> loadOwnersIntoCombo());
     }
 
     private void bindEvents() {
@@ -131,7 +134,7 @@ public class PetController {
 
     private void updateImagePreview(File file) {
         ImageIcon icon = new ImageIcon(file.getAbsolutePath());
-        Image scaled = icon.getImage().getScaledInstance(330, 360, Image.SCALE_SMOOTH);
+        Image scaled = icon.getImage().getScaledInstance(240, 260, Image.SCALE_SMOOTH);
         view.getLblImagenMascota().setText("");
         view.getLblImagenMascota().setIcon(new ImageIcon(scaled));
     }

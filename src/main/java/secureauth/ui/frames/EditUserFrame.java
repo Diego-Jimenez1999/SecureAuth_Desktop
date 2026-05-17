@@ -310,9 +310,9 @@ public final class EditUserFrame extends JDialog {
         valido &= validarCampo(txtEmail, errEmail);
 
         String nuevaPassword = new String(txtPassword.getPassword()).trim();
-        if (!nuevaPassword.isEmpty() && nuevaPassword.length() < 8) {
+        if (!nuevaPassword.isEmpty() && !PasswordHasher.isStrongPassword(nuevaPassword)) {
             txtPassword.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
-            errPassword.setToolTipText("Si escribe contraseña, debe tener al menos 8 caracteres");
+            errPassword.setToolTipText(PasswordHasher.getPolicyMessage());
             errPassword.setVisible(true);
             valido = false;
         } else {

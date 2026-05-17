@@ -42,4 +42,13 @@ public class OwnerService {
     public Owner findOwnerById(int id) {
         return ownerDAO.findById(id);
     }
+
+    /**
+     * Registra un nuevo dueño/cliente.
+     *
+     * @param owner datos del dueño
+     */
+    public void createOwner(Owner owner) {
+        ownerDAO.insert(owner);
+    }
 }

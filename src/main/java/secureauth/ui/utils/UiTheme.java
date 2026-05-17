@@ -66,6 +66,12 @@ import javax.swing.border.EmptyBorder;
  * @version 2.0
  */
 public final class UiTheme {
+    private static Color dynamicPrimary = new Color(198, 40, 40);
+    private static Color dynamicSecondary = new Color(23, 33, 49);
+    private static Color dynamicTertiary = new Color(0x1F2937);
+    private static String dynamicLogoPath = null;
+    private static String dynamicBannerPath = null;
+    private static String dynamicAppTitle = null;
 
     /* =========================================================
      * CONSTRUCTOR PRIVADO
@@ -683,11 +689,13 @@ public final class UiTheme {
     ) {
 
         try {
-
-            ImageIcon icon =
-                    new ImageIcon(
-                            UiTheme.class.getResource(path)
-                    );
+            java.net.URL resource = UiTheme.class.getResource(path);
+            ImageIcon icon;
+            if (resource != null) {
+                icon = new ImageIcon(resource);
+            } else {
+                icon = new ImageIcon(path);
+            }
 
             Image img =
                     icon.getImage()
@@ -729,6 +737,12 @@ public final class UiTheme {
             int height
     ) {
 
+        if (dynamicLogoPath != null && !dynamicLogoPath.isBlank()) {
+            ImageIcon dynamic = scaleImage(dynamicLogoPath, width, height);
+            if (dynamic != null) {
+                return dynamic;
+            }
+        }
         return scaleImage(
                 LOGO_PATH,
                 width,
@@ -757,5 +771,23 @@ public final class UiTheme {
         );
 
     }
+
+    /** Aplica branding dinámico para toda la aplicación. */
+    public static void applyDynamicBranding(Color primary, Color secondary, Color tertiary,
+                                            String logoPath, String bannerPath, String appTitle) {
+        dynamicPrimary = primary == null ? ACCENT_RED : primary;
+        dynamicSecondary = secondary == null ? DARK_PRIMARY : secondary;
+        dynamicTertiary = tertiary == null ? BTN_DARK : tertiary;
+        dynamicLogoPath = logoPath;
+        dynamicBannerPath = bannerPath;
+        dynamicAppTitle = appTitle;
+    }
+
+    public static Color themePrimary() { return dynamicPrimary; }
+    public static Color themeSecondary() { return dynamicSecondary; }
+    public static Color themeTertiary() { return dynamicTertiary; }
+    public static Color themePrimaryHover() { return dynamicPrimary.darker(); }
+    public static String themeBannerPath() { return dynamicBannerPath; }
+    public static String themeAppTitle() { return dynamicAppTitle == null ? APP_NAME : dynamicAppTitle; }
 
 }

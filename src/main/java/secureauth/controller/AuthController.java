@@ -1,60 +1,63 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
-
 package secureauth.controller;
 
 import java.sql.SQLException;
+import java.util.Objects;
 
 import secureauth.model.User;
 import secureauth.service.AuthService;
 
 /**
  * Controlador encargado de manejar la comunicación entre la UI
- * y la lógica de negocio (AuthService).
+ * y la lógica de negocio ({@link AuthService}).
  *
- * <p>
- * Esta clase pertenece a la capa Controller en la arquitectura MVC.
- * </p>
+ * <p>Pertenece a la capa Controller en la arquitectura MVC.</p>
+ *
+ * <pre>
+ * LoginFrame → AuthController → AuthService → UserRepository → UserDAO → DB
+ * </pre>
  *
  * @author Diego
- * @version 1.0
+ * @version 1.1 — Corrección DI: usa el AuthService inyectado en lugar de crear uno nuevo.
  */
 public class AuthController {
 
     private final AuthService authService;
 
     /**
-     * Constructor del controlador.
+     * Constructor con inyección de dependencias.
+     *
+     * @param authService servicio de autenticación ya construido en el bootstrap
+     * @throws NullPointerException si {@code authService} es null
      */
-    public AuthController(AuthService authService1) {
-        this.authService = new AuthService();
+    public AuthController(AuthService authService) {
+        // BUG CORREGIDO: la versión anterior ignoraba el parámetro e instanciaba
+        // new AuthService() internamente, rompiendo toda la cadena de DI configurada
+        // en MainApp y creando un segundo UserRepositoryImpl sin contexto.
+        this.authService = Objects.requireNonNull(authService, "AuthService requerido");
     }
 
     /**
-     * Maneja el proceso de login desde la UI.
+     * Delega el proceso de login al servicio de autenticación.
      *
-     * @param email correo del usuario
+     * @param email    correo del usuario (se normaliza en AuthService)
      * @param password contraseña en texto plano
-     * @return {@link User} si el login es exitoso, null si falla
-     * @throws SQLException error en base de datos
+     * @return {@link User} autenticado, o {@code null} si las credenciales no coinciden
+     * @throws SQLException             si ocurre un error de base de datos
+     * @throws IllegalArgumentException si email o password están vacíos
      */
     public User login(String email, String password) throws SQLException {
-
         return authService.login(email, password);
     }
 
     /**
-     * Maneja el registro de usuarios.
+     * Delega el registro de un nuevo usuario al servicio de autenticación.
      *
-     * @param user objeto {@link User}
-     * @return true si se registra correctamente
-     * @throws SQLException error en BD
+     * @param user objeto {@link User} con los datos del nuevo usuario
+     * @return {@code true} si el registro fue exitoso
+     * @throws SQLException             si ocurre un error de base de datos
+     * @throws IllegalArgumentException si algún campo obligatorio falta o es inválido
      */
     public boolean register(User user) throws SQLException {
-
         return authService.register(user);
     }
 }

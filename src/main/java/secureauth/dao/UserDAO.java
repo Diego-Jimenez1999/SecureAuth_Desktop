@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import secureauth.config.DatabaseConnection;
 import secureauth.model.User;
+import secureauth.shared.session.SessionManager;
 
 /**
  * DAO de acceso a datos para la entidad User.
@@ -27,6 +28,7 @@ import secureauth.model.User;
 public class UserDAO {
 
     private static final Logger LOGGER = Logger.getLogger(UserDAO.class.getName());
+    private final SessionManager sessionManager = SessionManager.getInstance();
 
     /**
      * DTO liviano para renderizar filas de trabajadores en tablas de gestión.
@@ -69,14 +71,16 @@ public class UserDAO {
      */
     public List<User> findAll() {
         List<User> lista = new ArrayList<>();
-        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users";
+        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users WHERE business_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            ResultSet rs = stmt.executeQuery()) {
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, sessionManager.getCurrentBusinessId());
+            try (ResultSet rs = stmt.executeQuery()) {
 
-            while (rs.next()) {
-                lista.add(mapResultSetToUser(rs));
+                while (rs.next()) {
+                    lista.add(mapResultSetToUser(rs));
+                }
             }
 
         } catch (SQLException e) {
@@ -95,18 +99,22 @@ public class UserDAO {
         List<User> lista = new ArrayList<>();
         String sql = """
                 SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users
-                WHERE nombre LIKE ?
+                WHERE business_id = ?
+                AND (
+                nombre LIKE ?
                 OR apellido LIKE ?
                 OR email LIKE ?
+                )
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             String filtro = "%" + texto + "%";
-            stmt.setString(1, filtro);
+            stmt.setInt(1, sessionManager.getCurrentBusinessId());
             stmt.setString(2, filtro);
             stmt.setString(3, filtro);
+            stmt.setString(4, filtro);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -127,12 +135,13 @@ public class UserDAO {
      * @return Objeto {@link User} o {@code null} si no existe.
      */
     public User findById(int id) {
-        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users WHERE id = ?";
+        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users WHERE id = ? AND business_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, id);
+            stmt.setInt(2, sessionManager.getCurrentBusinessId());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return mapResultSetToUser(rs);
@@ -152,7 +161,15 @@ public class UserDAO {
      * @return Objeto {@link User} o {@code null} si no se encuentra.
      */
     public User findByEmail(String email) {
-        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users WHERE email = ?";
+        String sql = """
+                SELECT u.id, u.email, u.password, u.nombre, u.apellido, 
+                       u.fecha_nacimiento, u.genero, u.rol_id, u.business_id, u.branch_id,
+                       r.nombre_rol
+                FROM users u
+                INNER JOIN roles r ON r.id = u.rol_id
+                WHERE u.email = ? AND u.activo = 1
+                LIMIT 1
+                """;
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -160,7 +177,10 @@ public class UserDAO {
             ps.setString(1, email.trim());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return mapResultSetToUser(rs);
+                    User user = mapResultSetToUser(rs);
+                    // Asumimos que el modelo User tiene un campo temporal para el nombre del rol
+                    // o lo manejamos vía SessionManager después.
+                    return user;
                 }
             }
 
@@ -185,22 +205,24 @@ public class UserDAO {
                     COALESCE(r.%s, 'Sin rol') AS rol
                 FROM users u
                 LEFT JOIN roles r ON r.id = u.rol_id
+                WHERE u.business_id = ?
                 """.formatted(roleNameColumn));
 
         boolean hasQuery = query != null && !query.trim().isEmpty();
         if (hasQuery) {
-            sql.append(" WHERE u.nombre LIKE ? OR u.apellido LIKE ? OR u.email LIKE ? ");
+            sql.append(" AND (u.nombre LIKE ? OR u.apellido LIKE ? OR u.email LIKE ?) ");
         }
         sql.append(" ORDER BY u.id ASC");
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
 
+            stmt.setInt(1, sessionManager.getCurrentBusinessId());
             if (hasQuery) {
                 String filter = "%" + query.trim() + "%";
-                stmt.setString(1, filter);
                 stmt.setString(2, filter);
                 stmt.setString(3, filter);
+                stmt.setString(4, filter);
             }
 
             try (ResultSet rs = stmt.executeQuery()) {
@@ -236,14 +258,18 @@ public class UserDAO {
     public int countNewThisMonth() {
         String sql = """
                 SELECT COUNT(*) FROM users
-                WHERE YEAR(created_at)  = YEAR(CURRENT_DATE())
+                WHERE business_id = ?
+                AND
+                YEAR(created_at)  = YEAR(CURRENT_DATE())
                 AND   MONTH(created_at) = MONTH(CURRENT_DATE())
                 """;
         try (Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()) {
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, sessionManager.getCurrentBusinessId());
+            try (ResultSet rs = ps.executeQuery()) {
 
-            return rs.next() ? rs.getInt(1) : 0;
+                return rs.next() ? rs.getInt(1) : 0;
+            }
 
         } catch (SQLException e) {
             LOGGER.log(Level.WARNING, "Error contando usuarios nuevos del mes", e);
@@ -263,19 +289,21 @@ public class UserDAO {
      */
     public boolean insert(User user) {
         Objects.requireNonNull(user, "El usuario no puede ser nulo para la inserción");
-        String sql = "INSERT INTO users (nombre, apellido, email, password, genero, fecha_nacimiento, rol_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO users (business_id, branch_id, nombre, apellido, email, password, genero, fecha_nacimiento, rol_id, activo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, user.getNombre());
-            ps.setString(2, user.getApellido());
-            ps.setString(3, user.getEmail());
-            ps.setString(4, user.getPassword());
-            ps.setString(5, user.getGenero());
-            ps.setDate(6, user.getFechaNacimiento() != null
+            ps.setInt(1, sessionManager.getCurrentBusinessId());
+            ps.setInt(2, sessionManager.getCurrentBranchId());
+            ps.setString(3, user.getNombre());
+            ps.setString(4, user.getApellido());
+            ps.setString(5, user.getEmail());
+            ps.setString(6, user.getPassword());
+            ps.setString(7, user.getGenero());
+            ps.setDate(8, user.getFechaNacimiento() != null
                     ? Date.valueOf(user.getFechaNacimiento()) : null);
-            ps.setInt(7, user.getRolId());
+            ps.setInt(9, user.getRolId());
 
             return ps.executeUpdate() > 0;
 
@@ -312,11 +340,12 @@ public class UserDAO {
      * @param id ID del usuario a eliminar.
      */
     public void delete(int id) {
-        String sql = "DELETE FROM users WHERE id = ?";
+        String sql = "DELETE FROM users WHERE id = ? AND business_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
+            ps.setInt(2, sessionManager.getCurrentBusinessId());
             ps.executeUpdate();
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error al eliminar usuario", e);
@@ -330,7 +359,7 @@ public class UserDAO {
      */
     public void update(User user) {
         Objects.requireNonNull(user, "El usuario no puede ser nulo para la actualización");
-        String sql = "UPDATE users SET nombre=?, apellido=?, email=?, password=?, genero=?, fecha_nacimiento=?, rol_id=? WHERE id=?";
+        String sql = "UPDATE users SET nombre=?, apellido=?, email=?, password=?, genero=?, fecha_nacimiento=?, rol_id=? WHERE id=? AND business_id=?";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -344,6 +373,7 @@ public class UserDAO {
                     ? Date.valueOf(user.getFechaNacimiento()) : null);
             ps.setInt(7, user.getRolId());
             ps.setInt(8, user.getId());
+            ps.setInt(9, sessionManager.getCurrentBusinessId());
 
             ps.executeUpdate();
 

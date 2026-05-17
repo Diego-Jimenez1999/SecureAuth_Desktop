@@ -6,9 +6,12 @@ import java.sql.SQLException;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 
+import secureauth.events.AppEventBus;
+import secureauth.events.InventoryUpdatedEvent;
 import secureauth.model.enterprise.InventoryItem;
 import secureauth.service.enterprise.InventoryService;
 import secureauth.ui.components.PanelInventory;
+import secureauth.ui.dialogs.InventoryImportWizardDialog;
 
 /** Controlador enterprise del inventario con importación CSV/XLSX. */
 public class InventoryController {
@@ -52,18 +55,12 @@ public class InventoryController {
 
         File file = chooser.getSelectedFile();
         try {
-            InventoryService.ImportPreview preview = service.previewImport(file);
-            if (!preview.errors().isEmpty()) {
-                JOptionPane.showMessageDialog(view, "Errores detectados:\n" + String.join("\n", preview.errors()));
-                return;
-            }
-            int confirm = JOptionPane.showConfirmDialog(view,
-                    "Se importarán " + preview.validRows().size() + " filas válidas.\n¿Deseas continuar?",
-                    "Preview importación", JOptionPane.YES_NO_OPTION);
-            if (confirm == JOptionPane.YES_OPTION) {
-                service.importRows(preview.validRows());
-                loadInventory();
-            }
+            java.awt.Window w = javax.swing.SwingUtilities.getWindowAncestor(view);
+            javax.swing.JFrame frame = w instanceof javax.swing.JFrame ? (javax.swing.JFrame) w : null;
+            InventoryImportWizardDialog dialog = new InventoryImportWizardDialog(frame, service, file);
+            dialog.setVisible(true);
+            loadInventory();
+            AppEventBus.getInstance().publish(new InventoryUpdatedEvent("import"));
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(view, "No se pudo importar: " + ex.getMessage());
         }
@@ -73,6 +70,7 @@ public class InventoryController {
         try {
             service.upsert(new InventoryItem(0, 1, 1, "SKU-DEMO", "Producto Demo", "General", 10, 3, "Proveedor", 1000, 1500, "ACTIVO"));
             loadInventory();
+            AppEventBus.getInstance().publish(new InventoryUpdatedEvent("manual"));
         } catch (SQLException ignored) { }
     }
 }

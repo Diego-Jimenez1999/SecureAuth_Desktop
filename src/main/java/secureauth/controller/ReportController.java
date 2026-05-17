@@ -9,6 +9,9 @@ import java.util.logging.Logger;
 import javax.swing.SwingWorker;
 
 import secureauth.dao.OwnerDAO;
+import secureauth.events.AppEventBus;
+import secureauth.events.InventoryUpdatedEvent;
+import secureauth.events.SaleCreatedEvent;
 import secureauth.service.enterprise.SalesTransactionService;
 import secureauth.ui.components.PanelReports;
 
@@ -45,6 +48,8 @@ public class ReportController {
     public ReportController(PanelReports view) {
         this.view = view;
         this.view.setOnRefresh(this::loadMetrics);
+        AppEventBus.getInstance().subscribe(SaleCreatedEvent.class, event -> loadMetrics());
+        AppEventBus.getInstance().subscribe(InventoryUpdatedEvent.class, event -> loadMetrics());
     }
 
     /**

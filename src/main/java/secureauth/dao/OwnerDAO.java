@@ -9,6 +9,7 @@ import java.util.List;
 
 import secureauth.config.DatabaseConnection;
 import secureauth.model.Owner;
+import secureauth.shared.session.SessionManager;
 
 /**
  * DAO (Data Access Object) para gestionar las consultas y operaciones
@@ -17,6 +18,7 @@ import secureauth.model.Owner;
  * @author Diego Alexander Gaviria Jimenez
  */
 public class OwnerDAO {
+    private final SessionManager sessionManager = SessionManager.getInstance();
 
     /**
      * Recupera todos los dueños registrados en la base de datos.
@@ -24,16 +26,18 @@ public class OwnerDAO {
      * @return Una lista con todos los objetos Owner, ordenada alfabéticamente por nombre.
      */
     public List<Owner> findAll() {
-        final String sql = "SELECT id, nombre_completo, telefono, correo, direccion FROM owners ORDER BY nombre_completo";
+        final String sql = "SELECT id, nombre_completo, telefono, correo, direccion FROM owners WHERE business_id = ? ORDER BY nombre_completo";
         List<Owner> owners = new ArrayList<>();
 
         // Usamos try-with-resources para que las conexiones se cierren solas
         try (Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()) {
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, sessionManager.getCurrentBusinessId());
+            try (ResultSet rs = ps.executeQuery()) {
             
-            while (rs.next()) {
-                owners.add(mapRow(rs));
+                while (rs.next()) {
+                    owners.add(mapRow(rs));
+                }
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error consultando la lista de dueños.", e);
@@ -48,11 +52,12 @@ public class OwnerDAO {
      * @return El objeto Owner si lo encuentra, o null si no existe.
      */
     public Owner findById(int id) {
-        final String sql = "SELECT id, nombre_completo, telefono, correo, direccion FROM owners WHERE id = ?";
+        final String sql = "SELECT id, nombre_completo, telefono, correo, direccion FROM owners WHERE id = ? AND business_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
             
             ps.setInt(1, id);
+            ps.setInt(2, sessionManager.getCurrentBusinessId());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return mapRow(rs);
@@ -70,14 +75,15 @@ public class OwnerDAO {
      * @param owner El objeto con los datos del cliente que queremos registrar.
      */
     public void insert(Owner owner) {
-        final String sql = "INSERT INTO owners (nombre_completo, telefono, correo, direccion) VALUES (?, ?, ?, ?)";
+        final String sql = "INSERT INTO owners (business_id, nombre_completo, telefono, correo, direccion) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
             
-            ps.setString(1, owner.getNombreCompleto());
-            ps.setString(2, owner.getTelefono());
-            ps.setString(3, owner.getCorreo());
-            ps.setString(4, owner.getDireccion());
+            ps.setInt(1, sessionManager.getCurrentBusinessId());
+            ps.setString(2, owner.getNombreCompleto());
+            ps.setString(3, owner.getTelefono());
+            ps.setString(4, owner.getCorreo());
+            ps.setString(5, owner.getDireccion());
             ps.executeUpdate(); // Ejecuta la inserción
         } catch (SQLException e) {
             throw new RuntimeException("Error al intentar guardar un nuevo dueño.", e);
@@ -94,14 +100,17 @@ public class OwnerDAO {
     public int countNewThisMonth() {
         final String sql = """
                 SELECT COUNT(*) FROM owners
-                WHERE YEAR(fecha_registro)  = YEAR(CURRENT_DATE())
-                AND   MONTH(fecha_registro) = MONTH(CURRENT_DATE())
+                WHERE business_id = ?
+                AND YEAR(created_at)  = YEAR(CURRENT_DATE())
+                AND MONTH(created_at) = MONTH(CURRENT_DATE())
                 """;
         try (Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()) {
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, sessionManager.getCurrentBusinessId());
+            try (ResultSet rs = ps.executeQuery()) {
 
-            return rs.next() ? rs.getInt(1) : 0;
+                return rs.next() ? rs.getInt(1) : 0;
+            }
 
         } catch (SQLException e) {
             // Se traga la excepción a propósito para que el dashboard no se caiga 

@@ -21,6 +21,8 @@ import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
 import secureauth.controller.SalesController;
+import secureauth.events.AppEventBus;
+import secureauth.events.SaleCreatedEvent;
 import secureauth.model.SaleItem;
 import secureauth.service.enterprise.SalesTransactionService;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
@@ -89,15 +91,19 @@ public class SalesPanel extends JPanel {
         JButton btnTabla = new JButton("Tabla de Servicios");
         JButton btnSizes = new JButton("Precios por Tamaño");
         JButton btnPos = new JButton("REALIZAR VENTA");
+        JButton btnCancel = new JButton("CANCELAR COMPRA");
         UiTheme.styleButton(btnTabla, UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT, 170, 34, 12, true, false, 8);
         UiTheme.styleButton(btnSizes, UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT, 170, 34, 12, true, false, 8);
         UiTheme.styleButton(btnPos, UiTheme.FOREST_GREEN, UiTheme.FOREST_GREEN_HOVER, UiTheme.TEXT_LIGHT, 170, 34, 12, true, false, 8);
+        UiTheme.styleButton(btnCancel, UiTheme.themePrimary(), UiTheme.themePrimaryHover(), UiTheme.themeSecondary(), 170, 34, 12, true, false, 8);
         btnTabla.addActionListener(e -> openGestionDialog());
         btnSizes.addActionListener(e -> openSizesDialog());
         btnPos.addActionListener(e -> registerSale());
+        btnCancel.addActionListener(e -> cancelSale());
         actions.add(btnTabla);
         actions.add(btnSizes);
         actions.add(btnPos);
+        actions.add(btnCancel);
 
         searchField = new JTextField();
         searchField.setFont(UiTheme.BODY_FONT);
@@ -244,6 +250,7 @@ public class SalesPanel extends JPanel {
         try {
             salesTransactionService.initializeSchema();
             salesTransactionService.registerSale(controller.getTotal(), gain, controller.getTax(), controller.getItems().size(), selected.toString());
+            AppEventBus.getInstance().publish(new SaleCreatedEvent(controller.getTotal(), gain, controller.getTax(), controller.getItems().size()));
             controller.clearSale();
             searchField.setText("");
             refreshCatalog();
@@ -258,5 +265,12 @@ public class SalesPanel extends JPanel {
         label.setHorizontalAlignment(SwingConstants.RIGHT);
         label.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
         return label;
+    }
+
+    private void cancelSale() {
+        controller.clearSale();
+        searchField.setText("");
+        refreshCatalog();
+        updateTotals();
     }
 }

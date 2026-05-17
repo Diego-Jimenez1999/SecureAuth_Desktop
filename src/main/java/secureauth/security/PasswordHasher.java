@@ -8,6 +8,8 @@ package secureauth.security;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.regex.Pattern;
+
 import org.mindrot.jbcrypt.BCrypt;
 
 /**
@@ -38,6 +40,11 @@ import org.mindrot.jbcrypt.BCrypt;
 public class PasswordHasher {
 
     private static final int BCRYPT_COST = 12;
+    
+    // Regex: Mínimo 8 caracteres, 1 Mayúscula, 1 Minúscula, 1 Número y 1 Símbolo Especial
+    private static final String PASSWORD_PATTERN = 
+        "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$";
+    private static final Pattern PATTERN = Pattern.compile(PASSWORD_PATTERN);
 
     /**
      * Genera el hash BCrypt de una contraseña.
@@ -50,6 +57,25 @@ public class PasswordHasher {
             throw new IllegalArgumentException("La contraseña no puede estar vacía");
         }
         return BCrypt.hashpw(password, BCrypt.gensalt(BCRYPT_COST));
+    }
+
+    /**
+     * Valida si la contraseña cumple con la política de seguridad empresarial.
+     * @param password Contraseña a validar.
+     * @return true si es fuerte.
+     */
+    public static boolean isStrongPassword(String password) {
+        if (password == null) return false;
+        return PATTERN.matcher(password).matches();
+    }
+
+    /**
+     * Retorna el mensaje descriptivo de la política de contraseñas.
+     * @return mensaje de política
+     */
+    public static String getPolicyMessage() {
+        return "La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula, " +
+                "una minúscula, un número y un carácter especial.";
     }
 
     /**
