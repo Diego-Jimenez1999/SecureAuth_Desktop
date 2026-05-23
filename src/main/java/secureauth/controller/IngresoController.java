@@ -135,7 +135,6 @@ public class IngresoController {
      */
     public void actualizarUsuario(User user) {
         userService.update(user);
-        cargarUsuarios();
     }
 
     /**
@@ -145,6 +144,5 @@ public class IngresoController {
      */
     public void eliminarUsuario(int userId) {
         userService.delete(userId);
-        cargarUsuarios();
     }
 }

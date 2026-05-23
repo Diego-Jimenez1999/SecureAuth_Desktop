@@ -41,6 +41,21 @@ public class SalesController {
     }
 
     /**
+     * Elimina un item por índice del carrito actual.
+     *
+     * @param index fila seleccionada en la lista de venta
+     * @return true si se eliminó un item
+     */
+    public boolean removeItemAt(int index) {
+        if (index < 0 || index >= saleItems.size()) {
+            return false;
+        }
+        saleItems.remove(index);
+        listModel.remove(index);
+        return true;
+    }
+
+    /**
      * @return modelo para pintar la lista en la vista
      */
     public DefaultListModel<String> getListModel() {

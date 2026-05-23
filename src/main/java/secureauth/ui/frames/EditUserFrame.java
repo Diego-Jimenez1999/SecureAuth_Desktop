@@ -35,6 +35,7 @@ import javax.swing.border.EmptyBorder;
 import secureauth.controller.IngresoController;
 import secureauth.model.User;
 import secureauth.security.PasswordHasher;
+import secureauth.ui.utils.UiTheme;
 
 /**
  * Diálogo encargado de permitir la edición de los datos
@@ -48,7 +49,7 @@ public final class EditUserFrame extends JDialog {
     private final User user;
     private final IngresoController controller;
 
-    private final Color COLOR_ACCENT = new Color(198, 40, 40);
+    private final Color COLOR_ACCENT = UiTheme.themePrimary();
     private final Color COLOR_DARK = new Color(30, 36, 48);
     private final Color COLOR_INPUT_BORDER = new Color(180, 180, 180);
     private final Color COLOR_BG = new Color(244, 246, 249);

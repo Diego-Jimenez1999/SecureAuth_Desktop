@@ -1,14 +1,22 @@
 package secureauth.controller;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.text.NumberFormat;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.SwingWorker;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 
-import secureauth.dao.OwnerDAO;
+import secureauth.service.OwnerService;
 import secureauth.service.enterprise.SalesTransactionService;
 import secureauth.ui.components.PanelReports;
 
@@ -34,8 +42,9 @@ public class ReportController {
 
     private final PanelReports view;
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
-    private final SalesTransactionService salesService = new SalesTransactionService();
-    private final OwnerDAO ownerDAO = new OwnerDAO();
+    private final SalesTransactionService salesService;
+    private final OwnerService ownerService;
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     /**
      * Construye el controlador y registra la acción de refresco en la vista.
@@ -43,8 +52,19 @@ public class ReportController {
      * @param view panel de reportes
      */
     public ReportController(PanelReports view) {
+        this(view, new SalesTransactionService(), new OwnerService(new secureauth.dao.OwnerDAO()));
+    }
+
+    public ReportController(PanelReports view, SalesTransactionService salesService) {
+        this(view, salesService, new OwnerService(new secureauth.dao.OwnerDAO()));
+    }
+
+    public ReportController(PanelReports view, SalesTransactionService salesService, OwnerService ownerService) {
         this.view = view;
+        this.salesService = salesService;
+        this.ownerService = ownerService;
         this.view.setOnRefresh(this::loadMetrics);
+        this.view.setOnExport(this::exportSalesCsv);
     }
 
     /**
@@ -59,13 +79,15 @@ public class ReportController {
                 var stats = salesService.loadStats();
 
                 // Métrica real de clientes — antes hardcodeada en "0"
-                int newClients = ownerDAO.countNewThisMonth();
+                int newClients = ownerService.countNewThisMonth();
+                List<Object[]> rows = buildReportRows(salesService.recentSales(100));
 
                 return new String[]{
                         currency.format(stats.salesToday()),
                         currency.format(stats.salesMonth()),
                         String.valueOf(stats.itemsMonth()),
-                        String.valueOf(newClients)
+                        String.valueOf(newClients),
+                        String.valueOf(rows.size())
                 };
             }
 
@@ -74,6 +96,7 @@ public class ReportController {
                 try {
                     String[] metrics = get();
                     view.updateMetrics(metrics[0], metrics[1], metrics[2], metrics[3]);
+                    refreshSalesTable();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     LOGGER.log(Level.WARNING, "Carga de métricas interrumpida", e);
@@ -84,5 +107,69 @@ public class ReportController {
                 }
             }
         }.execute();
+    }
+
+    private void refreshSalesTable() {
+        try {
+            view.renderSalesRows(buildReportRows(salesService.recentSales(100)));
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Error cargando tabla de ventas", ex);
+            view.renderSalesRows(List.of());
+        }
+    }
+
+    private List<Object[]> buildReportRows(List<secureauth.dao.enterprise.SalesTransactionDAO.SaleReportRow> rows) {
+        List<Object[]> out = new ArrayList<>();
+        for (var row : rows) {
+            out.add(new Object[]{
+                    row.createdAt().format(dateFormatter),
+                    emptyAs(row.userName(), "Sistema"),
+                    emptyAs(row.clientName(), "Mostrador"),
+                    currency.format(row.total()),
+                    emptyAs(row.itemsSummary(), row.itemsCount() + " item(s)"),
+                    row.paymentMethod()
+            });
+        }
+        return out;
+    }
+
+    private void exportSalesCsv() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Exportar ventas");
+        chooser.setSelectedFile(new File("reporte_ventas.csv"));
+        if (chooser.showSaveDialog(view) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".csv")) {
+            file = new File(file.getParentFile(), file.getName() + ".csv");
+        }
+        try {
+            List<String> lines = new ArrayList<>();
+            lines.add("fecha,usuario,cliente,total,productos,pago");
+            for (var row : salesService.recentSales(1000)) {
+                lines.add(String.join(",",
+                        csv(row.createdAt().format(dateFormatter)),
+                        csv(emptyAs(row.userName(), "Sistema")),
+                        csv(emptyAs(row.clientName(), "Mostrador")),
+                        String.valueOf(row.total()),
+                        csv(emptyAs(row.itemsSummary(), row.itemsCount() + " item(s)")),
+                        csv(row.paymentMethod())));
+            }
+            Files.write(file.toPath(), lines, StandardCharsets.UTF_8);
+            JOptionPane.showMessageDialog(view, "Reporte exportado:\n" + file.getAbsolutePath());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(view, "No se pudo exportar: " + ex.getMessage(), "Exportar",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private String emptyAs(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String csv(String value) {
+        String safe = value == null ? "" : value;
+        return "\"" + safe.replace("\"", "\"\"") + "\"";
     }
 }

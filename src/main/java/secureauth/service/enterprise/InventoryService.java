@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -49,6 +50,34 @@ public class InventoryService {
                     parseDouble(row[7]), row.length > 8 ? row[8] : "ACTIVO");
             dao.upsert(item);
         }
+    }
+
+    public void exportCsv(Path target, String query) throws IOException, SQLException {
+        List<InventoryItem> items = findAll(query);
+        List<String> lines = new ArrayList<>();
+        lines.add("sku,producto,categoria,stock,min_stock,proveedor,costo,precio,estado,stock_bajo,valor_total");
+        for (InventoryItem item : items) {
+            boolean lowStock = item.stock() <= item.minStock();
+            double value = item.stock() * item.price();
+            lines.add(String.join(",",
+                    csv(item.sku()),
+                    csv(item.name()),
+                    csv(item.category()),
+                    String.valueOf(item.stock()),
+                    String.valueOf(item.minStock()),
+                    csv(item.supplier()),
+                    String.valueOf(item.cost()),
+                    String.valueOf(item.price()),
+                    csv(item.status()),
+                    lowStock ? "SI" : "NO",
+                    String.valueOf(value)));
+        }
+        Files.write(target, lines, StandardCharsets.UTF_8);
+    }
+
+    private String csv(String value) {
+        String safe = value == null ? "" : value;
+        return "\"" + safe.replace("\"", "\"\"") + "\"";
     }
 
     private ImportPreview validateRows(List<String[]> rows) {

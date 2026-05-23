@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 import secureauth.config.DatabaseConnection;
 
@@ -36,6 +38,15 @@ public class SalesTransactionDAO {
             if (!columnExists(conn, "sales_tx", "branch_id")) {
                 st.execute("ALTER TABLE sales_tx ADD COLUMN branch_id INT NOT NULL DEFAULT 1");
             }
+            if (!columnExists(conn, "sales_tx", "items_summary")) {
+                st.execute("ALTER TABLE sales_tx ADD COLUMN items_summary VARCHAR(600) NULL");
+            }
+            if (!columnExists(conn, "sales_tx", "client_name")) {
+                st.execute("ALTER TABLE sales_tx ADD COLUMN client_name VARCHAR(180) NULL");
+            }
+            if (!columnExists(conn, "sales_tx", "user_name")) {
+                st.execute("ALTER TABLE sales_tx ADD COLUMN user_name VARCHAR(180) NULL");
+            }
 
         } catch (SQLException e) {
             // Log as SEVERE as schema initialization is critical
@@ -52,7 +63,12 @@ public class SalesTransactionDAO {
     }
 
     public void insertTx(int businessId, int branchId, double total, double gain, double tax, int items, String paymentMethod) throws SQLException {
-        String sql = "INSERT INTO sales_tx(business_id, branch_id, total, gain, tax, items_count, payment_method) VALUES(?,?,?,?,?,?,?)";
+        insertTx(businessId, branchId, total, gain, tax, items, paymentMethod, null, null, null);
+    }
+
+    public void insertTx(int businessId, int branchId, double total, double gain, double tax, int items,
+            String paymentMethod, String itemsSummary, String clientName, String userName) throws SQLException {
+        String sql = "INSERT INTO sales_tx(business_id, branch_id, total, gain, tax, items_count, payment_method, items_summary, client_name, user_name) VALUES(?,?,?,?,?,?,?,?,?,?)";
         try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, businessId);
             ps.setInt(2, branchId);
@@ -61,8 +77,35 @@ public class SalesTransactionDAO {
             ps.setDouble(5, tax);
             ps.setInt(6, items);
             ps.setString(7, paymentMethod);
+            ps.setString(8, itemsSummary);
+            ps.setString(9, clientName);
+            ps.setString(10, userName);
             ps.executeUpdate();
         }
+    }
+
+    public List<SaleReportRow> recentSales(int businessId, int branchId, int limit) throws SQLException {
+        String sql = """
+                SELECT id, created_at, COALESCE(user_name,''), COALESCE(client_name,''), total,
+                       COALESCE(items_summary,''), items_count, payment_method
+                FROM sales_tx
+                WHERE business_id=? AND branch_id=?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """;
+        List<SaleReportRow> rows = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, businessId);
+            ps.setInt(2, branchId);
+            ps.setInt(3, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(new SaleReportRow(rs.getInt(1), rs.getTimestamp(2).toLocalDateTime(), rs.getString(3),
+                            rs.getString(4), rs.getDouble(5), rs.getString(6), rs.getInt(7), rs.getString(8)));
+                }
+            }
+        }
+        return rows;
     }
 
     public double salesToday(int businessId, int branchId) throws SQLException {
@@ -90,4 +133,7 @@ public class SalesTransactionDAO {
             }
         }
     }
+
+    public record SaleReportRow(int id, java.time.LocalDateTime createdAt, String userName, String clientName,
+                                double total, String itemsSummary, int itemsCount, String paymentMethod) { }
 }

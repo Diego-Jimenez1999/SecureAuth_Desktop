@@ -94,4 +94,13 @@ public class UserService {
     public List<UserDAO.WorkerRow> findAllWorkersWithRoleName() {
         return userDAO.findAllWithRoleName();
     }
+
+    /**
+     * Cuenta usuarios registrados durante el mes actual.
+     *
+     * @return total de usuarios nuevos del mes
+     */
+    public int countNewThisMonth() {
+        return userDAO.countNewThisMonth();
+    }
 }

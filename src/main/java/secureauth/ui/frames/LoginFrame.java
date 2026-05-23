@@ -371,13 +371,13 @@ public class LoginFrame extends JFrame {
     }
 
     private void styleTextComponent(JTextField field, Dimension size) {
-        ComponentUtils.styleTextField(field, size, UiTheme.BODY_FONT, UiTheme.FOREST_GREEN);
+        ComponentUtils.styleTextField(field, size, UiTheme.BODY_FONT, UiTheme.themePrimary());
     }
 
     private void styleHeaderButton(JButton button) {
         button.setFont(new Font("Segoe UI", Font.BOLD, 13));
         button.setForeground(Color.WHITE);
-        button.setBackground(UiTheme.DARK_SIDEBAR);
+        button.setBackground(UiTheme.themePrimary());
         button.setFocusPainted(false);
         button.setBorderPainted(false);
         button.setOpaque(true);
@@ -388,7 +388,7 @@ public class LoginFrame extends JFrame {
     private void styleRegisterButton(JButton button) {
         button.setFont(new Font("Segoe UI", Font.BOLD, 16));
         button.setForeground(Color.WHITE);
-        button.setBackground(UiTheme.FOREST_GREEN);
+        button.setBackground(UiTheme.themePrimary());
         button.setFocusPainted(false);
         button.setBorderPainted(false);
         button.setOpaque(true);
@@ -398,12 +398,12 @@ public class LoginFrame extends JFrame {
         button.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                button.setBackground(UiTheme.FOREST_GREEN_HOVER);
+                button.setBackground(UiTheme.themeSecondary());
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                button.setBackground(UiTheme.FOREST_GREEN);
+                button.setBackground(UiTheme.themePrimary());
             }
         });
     }
@@ -425,7 +425,7 @@ public class LoginFrame extends JFrame {
     }
 
     private void setupFrame() {
-        setTitle("SecureAuth - Registro de Usuarios");
+        setTitle(UiTheme.loginTitle() + " - " + UiTheme.loginSubtitle());
         setMinimumSize(new Dimension(UiTheme.SIDEBAR_WIDTH * 5, 760));
         setSize(1180, 760);
         setDefaultCloseOperation(EXIT_ON_CLOSE);

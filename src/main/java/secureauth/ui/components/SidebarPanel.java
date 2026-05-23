@@ -125,7 +125,7 @@ public class SidebarPanel extends JPanel {
         lblTitle.setFont(UiTheme.bold(18));
         lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblSubtitle = new JLabel(UiTheme.APP_SUBTITLE.toUpperCase());
+        JLabel lblSubtitle = new JLabel(UiTheme.appSlogan().toUpperCase());
         lblSubtitle.setForeground(UiTheme.TEXT_MUTED);
         lblSubtitle.setFont(UiTheme.SMALL_FONT);
         lblSubtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -261,7 +261,7 @@ public class SidebarPanel extends JPanel {
                 btn,
                 UiTheme.DARK_SIDEBAR,
                 UiTheme.DARK_HOVER,
-                UiTheme.ACCENT_RED,
+                UiTheme.themePrimary(),
                 220,
                 45,
                 14,
@@ -274,7 +274,7 @@ public class SidebarPanel extends JPanel {
         btn.setOpaque(isActive);
 
         if (isActive) {
-            btn.setBackground(UiTheme.ACCENT_RED);
+            btn.setBackground(UiTheme.themePrimary());
             btn.setForeground(UiTheme.TEXT_LIGHT);
         } else {
             btn.setForeground(UiTheme.TEXT_MUTED);
@@ -304,7 +304,7 @@ public class SidebarPanel extends JPanel {
             public void focusGained(FocusEvent e) {
                 if (btn != botonActivo) {
                     btn.setOpaque(true);
-                    btn.setBackground(UiTheme.ACCENT_RED);
+                    btn.setBackground(UiTheme.themePrimary());
                     btn.setForeground(UiTheme.TEXT_LIGHT);
                 }
             }
@@ -333,7 +333,7 @@ public class SidebarPanel extends JPanel {
             botonActivo.setOpaque(false);
         }
 
-        nuevoBoton.setBackground(UiTheme.ACCENT_RED);
+        nuevoBoton.setBackground(UiTheme.themePrimary());
         nuevoBoton.setForeground(UiTheme.TEXT_LIGHT);
         nuevoBoton.setOpaque(true);
         botonActivo = nuevoBoton;

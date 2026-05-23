@@ -9,6 +9,9 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.text.NumberFormat;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
@@ -24,9 +27,10 @@ import javax.swing.SwingWorker;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 
-import secureauth.dao.OwnerDAO;
-import secureauth.dao.UserDAO;
 import secureauth.model.User;
+import secureauth.service.OwnerService;
+import secureauth.service.UserService;
+import secureauth.service.enterprise.InventoryService;
 import secureauth.service.enterprise.SalesTransactionService;
 
 /**
@@ -56,17 +60,22 @@ public final class HomeDashboardPanel extends JPanel {
     private final JLabel newClientsLabel   = new JLabel("Cargando...");
     private final JLabel welcomeLabel      = new JLabel("¡Bienvenido!");
 
-    private final SalesTransactionService salesService = new SalesTransactionService();
-    private final OwnerDAO ownerDAO   = new OwnerDAO();
-    private final UserDAO  userDAO    = new UserDAO();
+    private final SalesTransactionService salesService;
+    private final OwnerService ownerService;
+    private final UserService userService;
+    private final InventoryService inventoryService = new InventoryService();
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm");
+    private DefaultTableModel activityModel;
+    private DefaultTableModel movementsModel;
+    private JLabel lowStockText;
 
     /**
      * Constructor sin usuario (compatibilidad con código existente en IngresoFrame).
      * El saludo usará un texto genérico hasta que se llame a {@link #setCurrentUser(User)}.
      */
     public HomeDashboardPanel() {
-        build();
+        this(null, new SalesTransactionService(), new OwnerService(new secureauth.dao.OwnerDAO()), new UserService());
     }
 
     /**
@@ -75,6 +84,22 @@ public final class HomeDashboardPanel extends JPanel {
      * @param currentUser usuario que inició sesión
      */
     public HomeDashboardPanel(User currentUser) {
+        this(currentUser, new SalesTransactionService(), new OwnerService(new secureauth.dao.OwnerDAO()), new UserService());
+    }
+
+    /**
+     * Constructor principal con servicios inyectados desde el bootstrap.
+     *
+     * @param currentUser usuario que inició sesión
+     * @param salesService servicio de métricas de ventas
+     * @param ownerService servicio de dueños/clientes
+     * @param userService servicio de usuarios
+     */
+    public HomeDashboardPanel(User currentUser, SalesTransactionService salesService, OwnerService ownerService,
+            UserService userService) {
+        this.salesService = salesService;
+        this.ownerService = ownerService;
+        this.userService = userService;
         setCurrentUser(currentUser);
         build();
     }
@@ -101,31 +126,49 @@ public final class HomeDashboardPanel extends JPanel {
         itemsMonthLabel.setText("...");
         newClientsLabel.setText("...");
 
-        new SwingWorker<long[], Void>() {
+        new SwingWorker<DashboardData, Void>() {
             @Override
-            protected long[] doInBackground() throws Exception {
+            protected DashboardData doInBackground() throws Exception {
                 salesService.initializeSchema();
+                inventoryService.initializeSchema();
                 var stats = salesService.loadStats();
-                int newClients = ownerDAO.countNewThisMonth();
-                int newUsers   = userDAO.countNewThisMonth();
-                // [salesToday * 100, salesMonth * 100, itemsMonth, newClients, newUsers]
-                return new long[]{
+                int newClients = ownerService.countNewThisMonth();
+                int newUsers = userService.countNewThisMonth();
+                List<Object[]> movements = new ArrayList<>();
+                for (var sale : salesService.recentSales(8)) {
+                    movements.add(new Object[]{
+                            emptyAs(sale.itemsSummary(), sale.itemsCount() + " item(s)"),
+                            sale.itemsCount(),
+                            currency.format(sale.total()),
+                            sale.createdAt().format(dateFormatter),
+                            emptyAs(sale.userName(), "Sistema")
+                    });
+                }
+                long lowStock = inventoryService.findAll("").stream().filter(i -> i.stock() <= i.minStock()).count();
+                return new DashboardData(new long[]{
                         (long)(stats.salesToday()  * 100),
                         (long)(stats.salesMonth()  * 100),
                         stats.itemsMonth(),
                         newClients,
                         newUsers
-                };
+                }, movements, lowStock);
             }
 
             @Override
             protected void done() {
                 try {
-                    long[] d = get();
+                    DashboardData data = get();
+                    long[] d = data.metrics();
                     salesTodayLabel.setText(currency.format(d[0] / 100.0));
                     salesMonthLabel.setText(currency.format(d[1] / 100.0));
                     itemsMonthLabel.setText(String.valueOf(d[2]));
                     newClientsLabel.setText(String.valueOf(d[3]));
+                    renderMovements(data.movements());
+                    if (lowStockText != null) {
+                        lowStockText.setText(data.lowStockCount() == 0
+                                ? "Inventario sin alertas de stock bajo"
+                                : data.lowStockCount() + " producto(s) requieren reposición");
+                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     setAllLabelsError();
@@ -167,13 +210,11 @@ public final class HomeDashboardPanel extends JPanel {
 
         // Fila 2: Tablas de actividad y alertas
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 0.6; gbc.weighty = 0.7;
-        centerContent.add(createTableCard("Actividad Reciente",
-                new String[]{"Módulo", "Detalle", "Hora"}), gbc);
+        centerContent.add(createActivityCard(), gbc);
 
         JPanel rightColumn = new JPanel(new BorderLayout(0, 20));
         rightColumn.setOpaque(false);
-        rightColumn.add(createTableCard("Últimos Movimientos",
-                new String[]{"Producto", "Acción", "Cant"}), BorderLayout.CENTER);
+        rightColumn.add(createMovementsCard(), BorderLayout.CENTER);
         rightColumn.add(createAlertCard(), BorderLayout.SOUTH);
 
         gbc.gridx = 2; gbc.gridy = 1; gbc.gridwidth = 1; gbc.weightx = 0.4;
@@ -231,26 +272,33 @@ public final class HomeDashboardPanel extends JPanel {
         return item;
     }
 
-    private JPanel createTableCard(String title, String[] columns) {
+    private JPanel createActivityCard() {
         JPanel panel = card();
         panel.setLayout(new BorderLayout(0, 10));
-
-        JLabel lbl = new JLabel(title);
+        JLabel lbl = new JLabel("Actividad Reciente");
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
         panel.add(lbl, BorderLayout.NORTH);
-
-        DefaultTableModel mdl = new DefaultTableModel(columns, 5) {
+        activityModel = new DefaultTableModel(new String[]{"Mascota", "Dueño", "Servicio", "Hora servicio", "Recogida", "Estado"}, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
-        JTable table = new JTable(mdl);
-        table.setRowHeight(32);
-        table.setShowVerticalLines(false);
-        table.setGridColor(new Color(240, 240, 240));
+        JTable table = new JTable(activityModel);
+        table.setRowHeight(30);
+        panel.add(new JScrollPane(table), BorderLayout.CENTER);
+        return panel;
+    }
 
-        JScrollPane scroll = new JScrollPane(table);
-        scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.getViewport().setBackground(Color.WHITE);
-        panel.add(scroll, BorderLayout.CENTER);
+    private JPanel createMovementsCard() {
+        JPanel panel = card();
+        panel.setLayout(new BorderLayout(0, 10));
+        JLabel lbl = new JLabel("Últimos Movimientos");
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        panel.add(lbl, BorderLayout.NORTH);
+        movementsModel = new DefaultTableModel(new String[]{"Producto", "Cantidad", "Valor pago", "Fecha", "Usuario"}, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable table = new JTable(movementsModel);
+        table.setRowHeight(30);
+        panel.add(new JScrollPane(table), BorderLayout.CENTER);
         return panel;
     }
 
@@ -262,12 +310,29 @@ public final class HomeDashboardPanel extends JPanel {
         JLabel icon = new JLabel("⚠");
         icon.setForeground(new Color(200, 60, 60));
         icon.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        JLabel text = new JLabel("Revisa el inventario con stock bajo");
-        text.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lowStockText = new JLabel("Revisa el inventario con stock bajo");
+        lowStockText.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
         panel.add(icon);
-        panel.add(text);
+        panel.add(lowStockText);
         return panel;
+    }
+
+    private void renderMovements(List<Object[]> rows) {
+        if (movementsModel == null) {
+            return;
+        }
+        movementsModel.setRowCount(0);
+        for (Object[] row : rows) {
+            movementsModel.addRow(row);
+        }
+        if (activityModel != null && activityModel.getRowCount() == 0) {
+            activityModel.addRow(new Object[]{"-", "-", "Agendamiento pendiente", "-", "-", "Sin citas"});
+        }
+    }
+
+    private String emptyAs(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private JPanel card() {
@@ -286,4 +351,6 @@ public final class HomeDashboardPanel extends JPanel {
         itemsMonthLabel.setText("--");
         newClientsLabel.setText("--");
     }
+
+    private record DashboardData(long[] metrics, List<Object[]> movements, long lowStockCount) { }
 }

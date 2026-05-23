@@ -8,17 +8,13 @@ import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 
+import secureauth.config.AppContext;
 import secureauth.controller.IngresoController;
 import secureauth.controller.InventoryController;
 import secureauth.controller.PetController;
 import secureauth.controller.ReportController;
 import secureauth.controller.SalesController;
-import secureauth.dao.OwnerDAO;
-import secureauth.dao.PetDAO;
 import secureauth.model.User;
-import secureauth.service.OwnerService;
-import secureauth.service.PetService;
-import secureauth.service.UserService;
 import secureauth.ui.components.HomeDashboardPanel;
 import secureauth.ui.components.PanelConfig;
 import secureauth.ui.components.PanelInventory;
@@ -44,6 +40,15 @@ import secureauth.ui.enterprise.ClientsPanel;
  */
 public class IngresoFrame extends javax.swing.JFrame {
 
+    private static final String PANEL_HOME = "home";
+    private static final String PANEL_CLIENTES = "clientes";
+    private static final String PANEL_USUARIOS = "usuarios";
+    private static final String PANEL_MASCOTAS = "mascotas";
+    private static final String PANEL_VENTAS = "ventas";
+    private static final String PANEL_CONFIGURACION = "configuracion";
+    private static final String PANEL_INVENTARIO = "inventario";
+    private static final String PANEL_REPORTES = "reportes";
+
     /** Color de fondo corporativo para los paneles principales. */
     private final Color COLOR_BG = new Color(244, 246, 249);
 
@@ -61,6 +66,9 @@ public class IngresoFrame extends javax.swing.JFrame {
     private final PanelConfig configPanel;
     private final PanelInventory inventoryPanel;
     private final PanelReports panelReports;
+    private final PetController petController;
+    private final InventoryController inventoryController;
+    private final ReportController reportController;
     
     /** Gestor de capas para el intercambio dinámico de vistas. */
     private final CardLayout contentLayout;
@@ -75,27 +83,41 @@ public class IngresoFrame extends javax.swing.JFrame {
      * @param subServiceSelector diálogo para selección de subservicios en ventas
      */
     public IngresoFrame(IngresoController controller, User usuario, SubServiceSelector subServiceSelector) {
+        this(controller, usuario, subServiceSelector, new AppContext());
+    }
+
+    /**
+     * Constructor principal con dependencias centralizadas por la aplicación.
+     *
+     * @param controller controlador de sesión y usuarios
+     * @param usuario usuario autenticado
+     * @param subServiceSelector diálogo para selección de subservicios en ventas
+     * @param appContext contenedor de servicios compartidos
+     */
+    public IngresoFrame(IngresoController controller, User usuario, SubServiceSelector subServiceSelector,
+            AppContext appContext) {
         this.controller = controller;
         this.usuarioActual = usuario;
-        this.userPanel = new UserPanel(this, controller);
-        this.homePanel = new HomeDashboardPanel();
+        this.homePanel = new HomeDashboardPanel(usuario, appContext.getSalesTransactionService(),
+                appContext.getOwnerService(), appContext.getUserService());
         this.clientsPanel = new ClientsPanel();
         this.mascotaRegistroPanel = new RegMascotaPanel();
-        new PetController(mascotaRegistroPanel, new PetService(new PetDAO()), new OwnerService(new OwnerDAO())); // Instanciación sin guardar referencia
-        this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector);
-        this.configPanel = new PanelConfig(new UserService(), this.controller); // Pasa el IngresoController
+        this.petController = new PetController(mascotaRegistroPanel, appContext.getPetService(), appContext.getOwnerService());
+        this.userPanel = new UserPanel(this, appContext.getOwnerService(), this.petController::reloadOwners);
+        this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector, appContext.getSalesTransactionService());
+        this.configPanel = new PanelConfig(appContext.getUserService(), this.controller);
         this.inventoryPanel = new PanelInventory();
         this.panelReports = new PanelReports();
-        new InventoryController(this.inventoryPanel);
-        ReportController reportController = new ReportController(this.panelReports);
-        reportController.loadMetrics();
+        this.inventoryController = new InventoryController(this.inventoryPanel, appContext.getInventoryService());
+        this.reportController = new ReportController(this.panelReports,
+                appContext.getSalesTransactionService(), appContext.getOwnerService());
+        this.reportController.loadMetrics();
         this.contentLayout = new CardLayout();
         this.contentPanel = new JPanel(contentLayout);
 
         initComponents();
         setupFrame();
         this.controller.bindView(this, usuario);
-        this.controller.cargarUsuarios();
     }
 
     /**
@@ -121,15 +143,15 @@ public class IngresoFrame extends javax.swing.JFrame {
         panel.setBorder(new EmptyBorder(20, 25, 20, 25));
 
         contentPanel.setOpaque(false);
-        contentPanel.add(homePanel, "home");
-        contentPanel.add(clientsPanel, "clientes");
-        contentPanel.add(userPanel, "usuarios");
-        contentPanel.add(mascotaRegistroPanel, "mascotas");
-        contentPanel.add(salesPanel, "ventas");
-        contentPanel.add(configPanel, "configuracion");
-        contentPanel.add(inventoryPanel, "inventario");
-        contentPanel.add(panelReports, "reportes");
-        contentLayout.show(contentPanel, "home");
+        contentPanel.add(homePanel, PANEL_HOME);
+        contentPanel.add(clientsPanel, PANEL_CLIENTES);
+        contentPanel.add(userPanel, PANEL_USUARIOS);
+        contentPanel.add(mascotaRegistroPanel, PANEL_MASCOTAS);
+        contentPanel.add(salesPanel, PANEL_VENTAS);
+        contentPanel.add(configPanel, PANEL_CONFIGURACION);
+        contentPanel.add(inventoryPanel, PANEL_INVENTARIO);
+        contentPanel.add(panelReports, PANEL_REPORTES);
+        contentLayout.show(contentPanel, PANEL_HOME);
         panel.add(contentPanel, BorderLayout.CENTER);
         return panel;
     }
@@ -174,17 +196,17 @@ public class IngresoFrame extends javax.swing.JFrame {
 
     public void mostrarHome() {
         homePanel.refresh();
-        contentLayout.show(contentPanel, "home");
+        contentLayout.show(contentPanel, PANEL_HOME);
     }
 
     /** Muestra el módulo de gestión de usuarios. */
     public void mostrarUsuarios() {
-        contentLayout.show(contentPanel, "clientes");
+        contentLayout.show(contentPanel, PANEL_USUARIOS);
     }
 
     /** Muestra el módulo de registro de mascotas. */
     public void mostrarMascotas() {
-        contentLayout.show(contentPanel, "mascotas");
+        contentLayout.show(contentPanel, PANEL_MASCOTAS);
     }
 
     /**
@@ -192,7 +214,7 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     public void mostrarInventario() {
         System.out.println("[DEBUG] Navegando al módulo de Inventario");
-        contentLayout.show(contentPanel, "inventario");
+        contentLayout.show(contentPanel, PANEL_INVENTARIO);
     }
 
     /**
@@ -200,7 +222,7 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     public void mostrarVentas() {
         System.out.println("[DEBUG] Navegando al módulo de Ventas desde IngresoFrame");
-        contentLayout.show(contentPanel, "ventas");
+        contentLayout.show(contentPanel, PANEL_VENTAS);
     }
 
     /**
@@ -208,13 +230,13 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     public void mostrarConfiguracion() {
         System.out.println("[DEBUG] Navegando a Panel de Configuración desde IngresoFrame");
-        contentLayout.show(contentPanel, "configuracion");
+        contentLayout.show(contentPanel, PANEL_CONFIGURACION);
     }
 
     /**
      * Cambia la vista al módulo de reportes.
      */
     public void mostrarReportes() {
-        contentLayout.show(contentPanel, "reportes");
+        contentLayout.show(contentPanel, PANEL_REPORTES);
     }
 }

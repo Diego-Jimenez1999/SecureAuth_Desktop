@@ -29,8 +29,8 @@ public class AuthController {
     /**
      * Constructor del controlador.
      */
-    public AuthController(AuthService authService1) {
-        this.authService = new AuthService();
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
     /**

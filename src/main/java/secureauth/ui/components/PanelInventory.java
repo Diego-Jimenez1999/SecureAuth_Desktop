@@ -34,6 +34,7 @@ public class PanelInventory extends JPanel {
     private final JTextField txtSearch;
     private final JButton btnConsultar;
     private final JButton btnExport;
+    private final JButton btnReport;
 
     private final JLabel lblTotalProducts;
     private final JLabel lblLowStock;
@@ -82,12 +83,14 @@ public class PanelInventory extends JPanel {
                 new EmptyBorder(0, 12, 0, 12)
         ));
 
-        btnConsultar = createButton("Generar Reporte", true);
-        btnExport = createButton("Exportar", false);
+        btnConsultar = createButton("Consultar", true);
+        btnExport = createButton("Importar CSV/XLSX", false);
+        btnReport = createButton("Generar Reporte", false);
 
         actionsPanel.add(txtSearch);
         actionsPanel.add(btnConsultar);
         actionsPanel.add(btnExport);
+        actionsPanel.add(btnReport);
 
         header.add(titlePanel, BorderLayout.WEST);
         header.add(actionsPanel, BorderLayout.EAST);
@@ -340,6 +343,10 @@ public class PanelInventory extends JPanel {
 
     public void setImportAction(ActionListener listener) {
         btnExport.addActionListener(listener);
+    }
+
+    public void setReportAction(ActionListener listener) {
+        btnReport.addActionListener(listener);
     }
 
     public String getSearchText() {

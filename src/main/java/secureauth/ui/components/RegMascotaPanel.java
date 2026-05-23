@@ -221,6 +221,7 @@ public class RegMascotaPanel extends JPanel {
         ComponentUtils.styleTextField(txtTelefonoDueno, FIELD_SIZE, BASE_FONT, UiTheme.FOREST_GREEN);
         ComponentUtils.styleTextField(txtCorreoDueno, FIELD_SIZE, BASE_FONT, UiTheme.FOREST_GREEN);
         ComponentUtils.styleTextField(txtDireccionDueno, FIELD_SIZE, BASE_FONT, UiTheme.FOREST_GREEN);
+        setOwnerFieldsEditable(false);
 
         ComponentUtils.styleComboBox(cbOwner, FIELD_SIZE, BASE_FONT);
         ComponentUtils.styleComboBox(cbTipoMascota, FIELD_SIZE, BASE_FONT);
@@ -255,10 +256,10 @@ public class RegMascotaPanel extends JPanel {
         grid.add(field("Tipo de alimento", txtTipoAlimento));
         grid.add(field("Estado de salud *", cbEstadoSalud));
         grid.add(field("Vacunas", txtVacunas));
-        grid.add(field("Nombre del dueno *", txtNombreDueno));
-        grid.add(field("Telefono del dueno *", txtTelefonoDueno));
-        grid.add(field("Correo electronico *", txtCorreoDueno));
-        grid.add(field("Direccion *", txtDireccionDueno));
+        grid.add(field("Nombre del dueño", txtNombreDueno));
+        grid.add(field("Teléfono del dueño", txtTelefonoDueno));
+        grid.add(field("Correo electrónico", txtCorreoDueno));
+        grid.add(field("Dirección", txtDireccionDueno));
         JScrollPane cuidadosScroll = new JScrollPane(taCuidados);
         cuidadosScroll.setPreferredSize(new Dimension(0, 90));
         grid.add(field("Cuidados especiales", cuidadosScroll));
@@ -283,7 +284,7 @@ public class RegMascotaPanel extends JPanel {
         JButton btnLimpiar = new JButton("Limpiar formulario");
         btnLimpiar.addActionListener(e -> limpiarFormulario());
         btnGuardar = new JButton("Guardar mascota");
-        btnGuardar.setBackground(new Color(205, 42, 42));
+        btnGuardar.setBackground(UiTheme.themePrimary());
         btnGuardar.setForeground(Color.WHITE);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 0));
@@ -354,6 +355,33 @@ public class RegMascotaPanel extends JPanel {
         txtDireccionDueno.setText("");
         rutaImagenSeleccionada = null;
         setDefaultImage();
+    }
+
+    public void setOwnerDetails(Owner owner) {
+        if (owner == null) {
+            txtNombreDueno.setText("");
+            txtTelefonoDueno.setText("");
+            txtCorreoDueno.setText("");
+            txtDireccionDueno.setText("");
+            return;
+        }
+        txtNombreDueno.setText(owner.getNombreCompleto());
+        txtTelefonoDueno.setText(owner.getTelefono());
+        txtCorreoDueno.setText(owner.getCorreo());
+        txtDireccionDueno.setText(owner.getDireccion());
+    }
+
+    private void setOwnerFieldsEditable(boolean editable) {
+        txtNombreDueno.setEditable(editable);
+        txtTelefonoDueno.setEditable(editable);
+        txtCorreoDueno.setEditable(editable);
+        txtDireccionDueno.setEditable(editable);
+
+        Color background = editable ? Color.WHITE : new Color(248, 250, 252);
+        txtNombreDueno.setBackground(background);
+        txtTelefonoDueno.setBackground(background);
+        txtCorreoDueno.setBackground(background);
+        txtDireccionDueno.setBackground(background);
     }
 
     public void showError(String msg) { JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE); }

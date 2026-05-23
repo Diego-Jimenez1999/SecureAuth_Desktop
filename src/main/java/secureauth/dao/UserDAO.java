@@ -152,12 +152,12 @@ public class UserDAO {
      * @return Objeto {@link User} o {@code null} si no se encuentra.
      */
     public User findByEmail(String email) {
-        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users WHERE email = ?";
+        String sql = "SELECT id, email, password, nombre, apellido, fecha_nacimiento, genero, rol_id FROM users WHERE LOWER(TRIM(email)) = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, email.trim());
+            ps.setString(1, email.trim().toLowerCase(java.util.Locale.ROOT));
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return mapResultSetToUser(rs);
@@ -369,7 +369,8 @@ public class UserDAO {
         user.setNombre(rs.getString("nombre"));
         user.setApellido(rs.getString("apellido"));
         user.setEmail(rs.getString("email"));
-        user.setPassword(rs.getString("password"));
+        String storedPassword = rs.getString("password");
+        user.setPassword(storedPassword == null ? null : storedPassword.trim());
         user.setGenero(rs.getString("genero"));
         user.setFechaNacimiento(fechaNacimiento);
         user.setRolId(rs.getInt("rol_id"));

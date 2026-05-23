@@ -8,6 +8,8 @@ import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
 
+import secureauth.ui.utils.UiTheme;
+
 /**
  * Renderer de la columna de acciones (editar/eliminar) en la tabla de usuarios.
  *
@@ -28,7 +30,7 @@ public class ActionCellRenderer extends JPanel implements TableCellRenderer {
         btnEditar.setBackground(new Color(33, 150, 243));
         btnEditar.setForeground(Color.WHITE);
 
-        btnEliminar.setBackground(new Color(198, 40, 40));
+        btnEliminar.setBackground(UiTheme.themeTertiary());
         btnEliminar.setForeground(Color.WHITE);
 
         add(btnEditar);

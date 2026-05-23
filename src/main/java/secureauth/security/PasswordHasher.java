@@ -64,12 +64,24 @@ public class PasswordHasher {
             return false;
         }
 
-        if (isBcryptHash(storedHash)) {
-            return BCrypt.checkpw(password, storedHash);
+        String normalizedHash = storedHash.trim();
+
+        if (isBcryptHash(normalizedHash)) {
+            try {
+                return BCrypt.checkpw(password, normalizeBcryptRevision(normalizedHash));
+            } catch (IllegalArgumentException ex) {
+                return false;
+            }
         }
 
         // Compatibilidad para usuarios antiguos almacenados con SHA-256.
-        return sha256Hex(password).equals(storedHash);
+        if (isSha256Hash(normalizedHash)) {
+            return sha256Hex(password).equalsIgnoreCase(normalizedHash);
+        }
+
+        // Compatibilidad controlada para usuarios creados manualmente en BD.
+        // Si coincide, AuthService rehará el hash a BCrypt inmediatamente.
+        return password.equals(normalizedHash);
     }
 
     /**
@@ -82,7 +94,12 @@ public class PasswordHasher {
         if (!isBcryptHash(storedHash)) {
             return true;
         }
-        return extractCost(storedHash) < BCRYPT_COST;
+        try {
+            return extractCost(storedHash.trim()) < BCRYPT_COST
+                    || !storedHash.trim().startsWith("$2a$");
+        } catch (IllegalArgumentException ex) {
+            return true;
+        }
     }
 
     /**
@@ -92,7 +109,23 @@ public class PasswordHasher {
      * @return true si parece hash BCrypt
      */
     public static boolean isBcryptHash(String hash) {
-        return hash != null && (hash.startsWith("$2a$") || hash.startsWith("$2b$") || hash.startsWith("$2y$"));
+        if (hash == null) {
+            return false;
+        }
+        String value = hash.trim();
+        return value.length() >= 60
+                && (value.startsWith("$2a$") || value.startsWith("$2b$") || value.startsWith("$2y$"));
+    }
+
+    private static String normalizeBcryptRevision(String hash) {
+        if (hash.startsWith("$2b$") || hash.startsWith("$2y$")) {
+            return "$2a$" + hash.substring(4);
+        }
+        return hash;
+    }
+
+    private static boolean isSha256Hash(String hash) {
+        return hash != null && hash.matches("(?i)^[0-9a-f]{64}$");
     }
 
     private static int extractCost(String hash) {

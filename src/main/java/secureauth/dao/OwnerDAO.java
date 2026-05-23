@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,22 +66,106 @@ public class OwnerDAO {
     }
 
     /**
+     * Busca dueños por nombre, teléfono, correo o dirección.
+     *
+     * @param query texto de búsqueda
+     * @return lista filtrada
+     */
+    public List<Owner> search(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return findAll();
+        }
+
+        final String sql = """
+                SELECT id, nombre_completo, telefono, correo, direccion
+                FROM owners
+                WHERE nombre_completo LIKE ?
+                   OR telefono LIKE ?
+                   OR correo LIKE ?
+                   OR direccion LIKE ?
+                ORDER BY nombre_completo
+                """;
+        List<Owner> owners = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            String filter = "%" + query.trim() + "%";
+            ps.setString(1, filter);
+            ps.setString(2, filter);
+            ps.setString(3, filter);
+            ps.setString(4, filter);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    owners.add(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error buscando dueños.", e);
+        }
+        return owners;
+    }
+
+    /**
      * Guarda un nuevo dueño/cliente en la base de datos.
      *
      * @param owner El objeto con los datos del cliente que queremos registrar.
      */
-    public void insert(Owner owner) {
+    public Owner insert(Owner owner) {
         final String sql = "INSERT INTO owners (nombre_completo, telefono, correo, direccion) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+            PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             
             ps.setString(1, owner.getNombreCompleto());
             ps.setString(2, owner.getTelefono());
             ps.setString(3, owner.getCorreo());
             ps.setString(4, owner.getDireccion());
             ps.executeUpdate(); // Ejecuta la inserción
+
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) {
+                    owner.setId(keys.getInt(1));
+                }
+            }
+            return owner;
         } catch (SQLException e) {
             throw new RuntimeException("Error al intentar guardar un nuevo dueño.", e);
+        }
+    }
+
+    /**
+     * Actualiza un dueño existente.
+     *
+     * @param owner datos actualizados
+     */
+    public void update(Owner owner) {
+        final String sql = "UPDATE owners SET nombre_completo=?, telefono=?, correo=?, direccion=? WHERE id=?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, owner.getNombreCompleto());
+            ps.setString(2, owner.getTelefono());
+            ps.setString(3, owner.getCorreo());
+            ps.setString(4, owner.getDireccion());
+            ps.setInt(5, owner.getId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error actualizando dueño.", e);
+        }
+    }
+
+    /**
+     * Elimina un dueño si no tiene registros dependientes bloqueantes.
+     *
+     * @param id identificador del dueño
+     */
+    public void delete(int id) {
+        final String sql = "DELETE FROM owners WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error eliminando dueño. Verifica si tiene mascotas asociadas.", e);
         }
     }
 

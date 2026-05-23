@@ -1,15 +1,12 @@
 package secureauth.ui;
 
+import java.awt.Dimension;
+
 import javax.swing.SwingUtilities;
 
-import secureauth.controller.AuthController;
+import secureauth.config.AppContext;
 import secureauth.controller.IngresoController;
 import secureauth.model.User;
-import secureauth.repository.UserRepository;
-import secureauth.repository.UserRepositoryImpl;
-import secureauth.service.AuthService;
-import secureauth.service.UserService;
-import secureauth.service.enterprise.EnterpriseBootstrapService;
 import secureauth.ui.dialogs.EditUserDialogFactory;
 import secureauth.ui.dialogs.SubServiceDialog;
 import secureauth.ui.dialogs.SubServiceSelector;
@@ -33,13 +30,9 @@ import secureauth.ui.frames.LoginFrame;
  */
 public final class MainApp {
 
-    private final UserRepository userRepository; // Repositorio compartido para toda la app
-    private final AuthService authService; // Servicio de autenticación
-    private final UserService userService; // Servicio de gestión de usuarios
-    private final AuthController authController; // Controlador de autenticación
+    private final AppContext appContext;
     private final EditUserDialogFactory editUserDialogFactory;
     private final SubServiceSelector subServiceSelector;
-    private final EnterpriseBootstrapService enterpriseBootstrapService;
 
     /**
      * Constructor del bootstrap principal.
@@ -50,10 +43,7 @@ public final class MainApp {
      */
     public MainApp() {
 
-        this.userRepository = new UserRepositoryImpl();// Implementación concreta del repositorio de usuarios
-        this.authService = new AuthService(userRepository);// Servicio de autenticación que depende del repositorio
-        this.userService = new UserService(userRepository);// Servicio de gestión de usuarios que también depende del repositorio
-        this.authController = new AuthController(authService);// Controlador de autenticación que depende del servicio de autenticación
+        this.appContext = new AppContext();
         
         this.editUserDialogFactory = (parent, user, controller) -> new secureauth.ui.frames.EditUserFrame(parent, user,
                 controller).setVisible(true);
@@ -62,8 +52,7 @@ public final class MainApp {
             dialog.setVisible(true);
             return dialog.getSelectedItem();
         };
-        this.enterpriseBootstrapService = new EnterpriseBootstrapService();
-        this.enterpriseBootstrapService.initialize();
+        this.appContext.initialize();
     }
 
     /**
@@ -80,19 +69,24 @@ public final class MainApp {
      * Muestra la pantalla de login inyectando controlador y callback de éxito.
      */
     private void showLoginFrame() {
-        LoginFrame loginFrame = new LoginFrame(authController, this::showDashboard);
+        final LoginFrame[] holder = new LoginFrame[1];
+        LoginFrame loginFrame = new LoginFrame(appContext.getAuthController(), user -> showDashboard(user, loginFrameSize(holder[0])));
+        holder[0] = loginFrame;
         loginFrame.setVisible(true);
     }
 
-    /**
-     * Muestra dashboard para el usuario autenticado.
-     *
-     * @param user usuario autenticado
-     */
-    private void showDashboard(User user) {
-        IngresoController ingresoController = new IngresoController(userService, this::showLoginFrame,
+    private Dimension loginFrameSize(LoginFrame loginFrame) {
+        return loginFrame.getSize();
+    }
+
+    private void showDashboard(User user, Dimension preferredSize) {
+        IngresoController ingresoController = new IngresoController(appContext.getUserService(), this::showLoginFrame,
                 editUserDialogFactory);
-        IngresoFrame ingresoFrame = new IngresoFrame(ingresoController, user, subServiceSelector);
+        IngresoFrame ingresoFrame = new IngresoFrame(ingresoController, user, subServiceSelector, appContext);
+        if (preferredSize != null && preferredSize.width > 0 && preferredSize.height > 0) {
+            ingresoFrame.setSize(preferredSize);
+            ingresoFrame.setLocationRelativeTo(null);
+        }
         ingresoFrame.setVisible(true);
     }
 }

@@ -6,10 +6,13 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridLayout;
+import java.util.List;
 
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -17,113 +20,232 @@ import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 
-import secureauth.controller.IngresoController;
+import secureauth.model.Owner;
 import secureauth.model.User;
-import secureauth.ui.components.table.ActionCellEditor;
-import secureauth.ui.components.table.ActionCellRenderer;
+import secureauth.service.OwnerService;
 import secureauth.ui.utils.JpanelR;
+import secureauth.ui.utils.UiTheme;
 
 /**
- * Panel dinámico de usuarios para renderizarse dentro del CardLayout principal.
+ * Panel de gestión de dueños/clientes.
+ *
+ * <p>Conserva el nombre histórico {@code UserPanel} porque el dashboard lo usa
+ * como módulo "Usuarios", pero la responsabilidad actual es administrar dueños
+ * de mascotas en la tabla {@code owners}.</p>
  */
 public class UserPanel extends JPanel {
 
-    private final IngresoController controller;
+    private final OwnerService ownerService;
+    private final Runnable onOwnersChanged;
+
     private JTable table;
     private JTextField txtBuscar;
 
-    public UserPanel(javax.swing.JFrame parentFrame, IngresoController controller) {
-        this.controller = controller;
-        setLayout(new BorderLayout(0, 20));
+    public UserPanel(javax.swing.JFrame parentFrame, OwnerService ownerService, Runnable onOwnersChanged) {
+        this.ownerService = ownerService;
+        this.onOwnersChanged = onOwnersChanged == null ? () -> { } : onOwnersChanged;
+
+        setLayout(new BorderLayout(0, 18));
         setOpaque(false);
         setBorder(new EmptyBorder(8, 0, 0, 0));
 
         add(buildHeader(), BorderLayout.NORTH);
-        add(buildTableCard(parentFrame), BorderLayout.CENTER);
-        add(buildQuickSearchPanel(), BorderLayout.SOUTH);
+        add(buildTableCard(), BorderLayout.CENTER);
+        loadOwners(null);
     }
 
     private JPanel buildHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(12, 0));
         header.setOpaque(false);
 
-        JLabel title = new JLabel("Registro de Usuarios");
-        title.setFont(new Font("SansSerif", Font.BOLD, 24));
+        JPanel titleBox = new JPanel(new GridLayout(2, 1, 0, 2));
+        titleBox.setOpaque(false);
 
-        JPanel searchBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        searchBox.setOpaque(false);
+        JLabel title = new JLabel("Gestión de Dueños");
+        title.setFont(UiTheme.TITLE_FONT_SECTION);
+        title.setForeground(UiTheme.TEXT_PRIMARY);
+
+        JLabel subtitle = new JLabel("Agrega, edita, elimina y busca clientes para asociarlos a mascotas.");
+        subtitle.setFont(UiTheme.BODY_FONT);
+        subtitle.setForeground(UiTheme.TEXT_SECONDARY);
+
+        titleBox.add(title);
+        titleBox.add(subtitle);
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.setOpaque(false);
 
         txtBuscar = new JTextField();
-        txtBuscar.setPreferredSize(new Dimension(220, 34));
-        txtBuscar.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        txtBuscar.addActionListener(e -> controller.buscarUsuarios());
+        txtBuscar.setPreferredSize(new Dimension(240, 36));
+        txtBuscar.setFont(UiTheme.BODY_FONT);
+        txtBuscar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(UiTheme.BORDER_COLOR),
+                new EmptyBorder(6, 10, 6, 10)));
+        txtBuscar.addActionListener(e -> loadOwners(txtBuscar.getText()));
 
-        JButton btnRefresh = new JButton(" ⟳ ");
-        btnRefresh.setBackground(new Color(30, 36, 48));
-        btnRefresh.setForeground(Color.WHITE);
-        btnRefresh.setFocusPainted(false);
-        btnRefresh.setPreferredSize(new Dimension(55, 34));
-        btnRefresh.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnRefresh.addActionListener(e -> controller.cargarUsuarios());
+        JButton btnBuscar = button("Buscar", 110, UiTheme.BTN_DARK);
+        JButton btnNuevo = button("Nuevo dueño", 140, UiTheme.themePrimary());
+        JButton btnEditar = button("Editar", 100, UiTheme.BTN_DARK);
+        JButton btnEliminar = button("Eliminar", 110, new Color(220, 38, 38));
 
-        searchBox.add(new JLabel("Buscar:"));
-        searchBox.add(txtBuscar);
-        searchBox.add(btnRefresh);
+        btnBuscar.addActionListener(e -> loadOwners(txtBuscar.getText()));
+        btnNuevo.addActionListener(e -> openOwnerDialog(null));
+        btnEditar.addActionListener(e -> editSelectedOwner());
+        btnEliminar.addActionListener(e -> deleteSelectedOwner());
 
-        header.add(title, BorderLayout.WEST);
-        header.add(searchBox, BorderLayout.EAST);
+        actions.add(new JLabel("Buscar:"));
+        actions.add(txtBuscar);
+        actions.add(btnBuscar);
+        actions.add(btnNuevo);
+        actions.add(btnEditar);
+        actions.add(btnEliminar);
+
+        header.add(titleBox, BorderLayout.WEST);
+        header.add(actions, BorderLayout.EAST);
         return header;
     }
 
-    private JPanel buildTableCard(javax.swing.JFrame parentFrame) {
+    private JPanel buildTableCard() {
         JpanelR tablePanel = new JpanelR();
         tablePanel.setBackgroundColor(Color.WHITE);
         tablePanel.setLayout(new BorderLayout());
-        tablePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        tablePanel.setBorder(new EmptyBorder(12, 12, 12, 12));
 
-        String[] columns = {"ID", "Nombre", "Email", "Género", "Acción"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0);
+        String[] columns = {"ID", "Nombre", "Teléfono", "Correo", "Dirección"};
+        DefaultTableModel model = new DefaultTableModel(columns, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
 
         table = new JTable(model);
-        table.setRowHeight(45);
-        table.setSelectionBackground(new Color(240, 240, 240));
+        table.setRowHeight(40);
+        table.setFont(UiTheme.BODY_FONT);
+        table.setSelectionBackground(new Color(239, 246, 255));
         table.setShowVerticalLines(false);
-        table.setGridColor(new Color(230, 230, 230));
+        table.setGridColor(UiTheme.BORDER_COLOR);
         table.getTableHeader().setBackground(Color.WHITE);
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 12));
-        table.getTableHeader().setForeground(Color.GRAY);
-        table.getColumn("Acción").setCellRenderer(new ActionCellRenderer());
-        table.getColumn("Acción").setCellEditor(new ActionCellEditor(new JCheckBox(), parentFrame, controller, table));
+        table.getTableHeader().setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+        table.getTableHeader().setForeground(UiTheme.TEXT_SECONDARY);
 
         JScrollPane scroll = new JScrollPane(table);
-        scroll.setBorder(javax.swing.BorderFactory.createEmptyBorder());
+        scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getViewport().setBackground(Color.WHITE);
         tablePanel.add(scroll, BorderLayout.CENTER);
         return tablePanel;
     }
 
-    private JPanel buildQuickSearchPanel() {
-        return new SearchPanel(texto -> {
-            setTextoBusqueda(texto);
-            controller.buscarUsuarios();
-        });
+    private JButton button(String text, int width, Color background) {
+        JButton button = new JButton(text);
+        button.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+        button.setBackground(background);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(width, 36));
+        return button;
     }
 
-    /**
-     * Carga los usuarios en la tabla. Este método permite reutilizar el panel sin recrearlo.
-     */
-    public void loadUsers(java.util.List<User> users) {
+    public void loadOwners(String query) {
         DefaultTableModel model = (DefaultTableModel) table.getModel();
         model.setRowCount(0);
-        for (User u : users) {
+
+        List<Owner> owners = ownerService.searchOwners(query);
+        for (Owner owner : owners) {
             model.addRow(new Object[]{
-                    u.getId(),
-                    u.getNombre() + " " + u.getApellido(),
-                    u.getEmail(),
-                    u.getGenero(),
-                    "Editar | Eliminar"
+                    owner.getId(),
+                    safe(owner.getNombreCompleto()),
+                    safe(owner.getTelefono()),
+                    safe(owner.getCorreo()),
+                    safe(owner.getDireccion())
             });
         }
+    }
+
+    private void openOwnerDialog(Owner owner) {
+        boolean editing = owner != null;
+
+        JTextField name = new JTextField(editing ? safe(owner.getNombreCompleto()) : "");
+        JTextField phone = new JTextField(editing ? safe(owner.getTelefono()) : "");
+        JTextField email = new JTextField(editing ? safe(owner.getCorreo()) : "");
+        JTextField address = new JTextField(editing ? safe(owner.getDireccion()) : "");
+
+        Object[] fields = {
+                "Nombre completo *", name,
+                "Teléfono *", phone,
+                "Correo", email,
+                "Dirección", address
+        };
+
+        int result = JOptionPane.showConfirmDialog(this, fields,
+                editing ? "Editar dueño" : "Nuevo dueño", JOptionPane.OK_CANCEL_OPTION);
+        if (result != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        try {
+            Owner data = editing ? owner : new Owner();
+            data.setNombreCompleto(name.getText().trim());
+            data.setTelefono(phone.getText().trim());
+            data.setCorreo(email.getText().trim());
+            data.setDireccion(address.getText().trim());
+
+            if (editing) {
+                ownerService.updateOwner(data);
+            } else {
+                ownerService.createOwner(data);
+            }
+
+            loadOwners(txtBuscar.getText());
+            onOwnersChanged.run();
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Dueños", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private void editSelectedOwner() {
+        Owner owner = selectedOwner();
+        if (owner == null) {
+            JOptionPane.showMessageDialog(this, "Selecciona un dueño para editar.");
+            return;
+        }
+        openOwnerDialog(owner);
+    }
+
+    private void deleteSelectedOwner() {
+        Owner owner = selectedOwner();
+        if (owner == null) {
+            JOptionPane.showMessageDialog(this, "Selecciona un dueño para eliminar.");
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "¿Eliminar a " + owner.getNombreCompleto() + "?",
+                "Eliminar dueño", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            ownerService.deleteOwner(owner.getId());
+            loadOwners(txtBuscar.getText());
+            onOwnersChanged.run();
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Dueños", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private Owner selectedOwner() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            return null;
+        }
+        int modelRow = table.convertRowIndexToModel(row);
+        int id = Integer.parseInt(String.valueOf(table.getModel().getValueAt(modelRow, 0)));
+        return ownerService.findOwnerById(id);
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 
     public JTable getTable() {
@@ -136,5 +258,12 @@ public class UserPanel extends JPanel {
 
     public void setTextoBusqueda(String texto) {
         txtBuscar.setText(texto == null ? "" : texto);
+    }
+
+    /**
+     * Compatibilidad con código legado que llamaba loadUsers().
+     */
+    public void loadUsers(List<User> ignored) {
+        loadOwners(getTextoBusqueda());
     }
 }

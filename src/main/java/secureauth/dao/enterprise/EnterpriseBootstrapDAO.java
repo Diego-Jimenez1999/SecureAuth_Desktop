@@ -1,6 +1,7 @@
 package secureauth.dao.enterprise;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -56,6 +57,48 @@ public class EnterpriseBootstrapDAO {
                   CONSTRAINT fk_branch_business FOREIGN KEY (business_id) REFERENCES business(id)
                 )
                 """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS roles (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  nombre_rol VARCHAR(80) NOT NULL UNIQUE
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  email VARCHAR(160) NOT NULL UNIQUE,
+                  password VARCHAR(100) NOT NULL,
+                  nombre VARCHAR(120) NOT NULL,
+                  apellido VARCHAR(120) NOT NULL,
+                  fecha_nacimiento DATE NULL,
+                  genero VARCHAR(20),
+                  rol_id INT NOT NULL DEFAULT 3,
+                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_users_roles FOREIGN KEY (rol_id) REFERENCES roles(id)
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS owners (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  nombre_completo VARCHAR(180) NOT NULL,
+                  telefono VARCHAR(60),
+                  correo VARCHAR(160),
+                  direccion VARCHAR(220),
+                  fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+
+            if (!columnExists(conn, "users", "created_at")) {
+                st.execute("ALTER TABLE users ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+            st.execute("ALTER TABLE users MODIFY COLUMN password VARCHAR(100) NOT NULL");
+            if (!columnExists(conn, "owners", "fecha_registro")) {
+                st.execute("ALTER TABLE owners ADD COLUMN fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+
         }
     }
 
@@ -71,6 +114,12 @@ public class EnterpriseBootstrapDAO {
                 ps.addBatch();
             }
             ps.executeBatch();
+        }
+
+        try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
+            st.execute("INSERT INTO roles(id, nombre_rol) VALUES (1,'Administrador') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
+            st.execute("INSERT INTO roles(id, nombre_rol) VALUES (2,'Supervisor') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
+            st.execute("INSERT INTO roles(id, nombre_rol) VALUES (3,'Recepcionista') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
         }
     }
 
@@ -167,6 +216,13 @@ public class EnterpriseBootstrapDAO {
             ps.setInt(1, businessId);
             ps.setString(2, name);
             try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : -1; }
+        }
+    }
+
+    private boolean columnExists(Connection conn, String tableName, String columnName) throws SQLException {
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getColumns(null, null, tableName, columnName)) {
+            return rs.next();
         }
     }
 }

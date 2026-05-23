@@ -5,6 +5,7 @@ import java.sql.SQLException;
 
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import secureauth.model.enterprise.InventoryItem;
 import secureauth.service.enterprise.InventoryService;
@@ -17,8 +18,12 @@ public class InventoryController {
     private final InventoryService service;
 
     public InventoryController(PanelInventory view) {
+        this(view, new InventoryService());
+    }
+
+    public InventoryController(PanelInventory view, InventoryService service) {
         this.view = view;
-        this.service = new InventoryService();
+        this.service = service;
         bindActions();
         initialize();
     }
@@ -35,6 +40,7 @@ public class InventoryController {
     private void bindActions() {
         view.setSearchAction(e -> loadInventory());
         view.setImportAction(e -> importFile());
+        view.setReportAction(e -> exportReport());
     }
 
     private void loadInventory() {
@@ -47,6 +53,7 @@ public class InventoryController {
 
     private void importFile() {
         JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("Inventario CSV/XLSX", "csv", "xlsx"));
         int result = chooser.showOpenDialog(view);
         if (result != JFileChooser.APPROVE_OPTION) return;
 
@@ -66,6 +73,26 @@ public class InventoryController {
             }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(view, "No se pudo importar: " + ex.getMessage());
+        }
+    }
+
+    private void exportReport() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Guardar reporte de inventario");
+        chooser.setSelectedFile(new File("reporte_inventario.csv"));
+        int result = chooser.showSaveDialog(view);
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".csv")) {
+            file = new File(file.getParentFile(), file.getName() + ".csv");
+        }
+        try {
+            service.exportCsv(file.toPath(), view.getSearchText());
+            JOptionPane.showMessageDialog(view, "Reporte generado:\n" + file.getAbsolutePath());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(view, "No se pudo generar reporte: " + ex.getMessage());
         }
     }
 

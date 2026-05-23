@@ -11,6 +11,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import secureauth.controller.IngresoController;
+import secureauth.ui.utils.UiTheme;
 
 /**
  * Editor de la columna de acciones (editar/eliminar) en la tabla de usuarios.
@@ -52,7 +53,7 @@ public class ActionCellEditor extends DefaultCellEditor {
         btnEditar.setBackground(new Color(33, 150, 243));
         btnEditar.setForeground(Color.WHITE);
 
-        btnEliminar.setBackground(new Color(198, 40, 40));
+        btnEliminar.setBackground(UiTheme.themeTertiary());
         btnEliminar.setForeground(Color.WHITE);
 
         btnEditar.addActionListener(e -> editarUsuario());

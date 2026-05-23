@@ -42,13 +42,19 @@ public class SalesPanel extends JPanel {
     private JLabel totalValueLabel;
     private JPanel gridPanel;
     private JTextField searchField;
+    private JList<String> itemList;
     private final SalesTransactionService salesTransactionService;
 
     public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector) {
+        this(controller, subServiceSelector, new SalesTransactionService());
+    }
+
+    public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector,
+            SalesTransactionService salesTransactionService) {
         this.controller = controller;
         this.currency = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
         this.catalog = SalesServiceCatalog.getInstance();
-        this.salesTransactionService = new SalesTransactionService();
+        this.salesTransactionService = salesTransactionService;
 
         setLayout(new BorderLayout(16, 0));
         setBackground(UiTheme.BG_PAGE);
@@ -142,7 +148,7 @@ public class SalesPanel extends JPanel {
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
         body.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        JList<String> itemList = new JList<>(controller.getListModel());
+        itemList = new JList<>(controller.getListModel());
         itemList.setFont(UiTheme.BODY_FONT);
         JScrollPane listScroll = new JScrollPane(itemList);
         listScroll.setPreferredSize(new Dimension(280, 280));
@@ -162,10 +168,28 @@ public class SalesPanel extends JPanel {
 
         body.add(listScroll);
         body.add(Box.createVerticalStrut(12));
+        body.add(buildCartActions());
+        body.add(Box.createVerticalStrut(12));
         body.add(totalsPanel);
 
         summary.add(body, BorderLayout.CENTER);
         return summary;
+    }
+
+    private JPanel buildCartActions() {
+        JPanel actions = new JPanel(new GridLayout(1, 2, 8, 0));
+        actions.setOpaque(false);
+
+        JButton remove = new JButton("Eliminar");
+        JButton cancel = new JButton("Cancelar compra");
+        UiTheme.styleButton(remove, UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT, 120, 34, 12, true, false, 8);
+        UiTheme.styleButton(cancel, new java.awt.Color(220, 38, 38), new java.awt.Color(185, 28, 28), UiTheme.TEXT_LIGHT, 150, 34, 12, true, false, 8);
+
+        remove.addActionListener(e -> removeSelectedCartItem());
+        cancel.addActionListener(e -> cancelSale());
+        actions.add(remove);
+        actions.add(cancel);
+        return actions;
     }
 
     private void refreshCatalog() {
@@ -224,6 +248,27 @@ public class SalesPanel extends JPanel {
         totalValueLabel.setText(currency.format(controller.getTotal()));
     }
 
+    private void removeSelectedCartItem() {
+        int index = itemList.getSelectedIndex();
+        if (!controller.removeItemAt(index)) {
+            JOptionPane.showMessageDialog(this, "Selecciona un producto del carrito para eliminar.");
+            return;
+        }
+        updateTotals();
+    }
+
+    private void cancelSale() {
+        if (controller.getItems().isEmpty()) {
+            return;
+        }
+        int confirm = JOptionPane.showConfirmDialog(this, "¿Cancelar toda la compra actual?", "Cancelar compra",
+                JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            controller.clearSale();
+            updateTotals();
+        }
+    }
+
     private void registerSale() {
         if (controller.getItems().isEmpty()) {
             JOptionPane.showMessageDialog(this, "No hay items en el carrito.");
@@ -243,7 +288,8 @@ public class SalesPanel extends JPanel {
         }
         try {
             salesTransactionService.initializeSchema();
-            salesTransactionService.registerSale(controller.getTotal(), gain, controller.getTax(), controller.getItems().size(), selected.toString());
+            String itemsSummary = controller.getItems().stream().map(SaleItem::getName).collect(java.util.stream.Collectors.joining(", "));
+            salesTransactionService.registerSale(controller.getTotal(), gain, controller.getTax(), controller.getItems().size(), selected.toString(), itemsSummary, "Mostrador", "");
             controller.clearSale();
             searchField.setText("");
             refreshCatalog();

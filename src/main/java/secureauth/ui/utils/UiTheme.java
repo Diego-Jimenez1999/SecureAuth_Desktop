@@ -15,6 +15,8 @@ import javax.swing.JButton;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
+import secureauth.ui.config.ApplicationVisualSettings;
+
 /**
  * =========================================================
  * CLASE: UiTheme
@@ -55,7 +57,7 @@ import javax.swing.border.EmptyBorder;
  *      "Dashboard",
  *      UiTheme.DARK_PRIMARY,
  *      UiTheme.DARK_HOVER,
- *      UiTheme.ACCENT_RED,
+ *      UiTheme.themePrimary(),
  *      220,
  *      50
  * );
@@ -90,12 +92,6 @@ public final class UiTheme {
     public static final String APP_NAME =
             "SecureAuth";
 
-    /**
-     * Subtítulo del sistema.
-     */
-    public static final String APP_SUBTITLE =
-            "Sistema Inteligente de Gestión";
-
     /* =========================================================
      * RUTAS DE IMÁGENES
      * =========================================================
@@ -117,12 +113,6 @@ public final class UiTheme {
      * COLORES PRINCIPALES
      * =========================================================
      */
-
-   /**
-     * Color rojo de acento.
-     */
-    public static final Color ACCENT_RED =
-            new Color(198, 40, 40);
 
     /**
      * Color principal oscuro.
@@ -239,6 +229,55 @@ public final class UiTheme {
      */
     public static final Color SUCCESS_COLOR =
             new Color(46, 125, 50);
+
+    public static Color PRIMARY_BLUE =
+            ApplicationVisualSettings.parseColor(ApplicationVisualSettings.load().getPrimaryColor(), DARK_PRIMARY);
+
+    public static Color SECONDARY_COLOR =
+            ApplicationVisualSettings.parseColor(ApplicationVisualSettings.load().getSecondaryColor(), ACCENT_BLUE);
+
+    public static Color TERTIARY_COLOR =
+            ApplicationVisualSettings.parseColor(ApplicationVisualSettings.load().getTertiaryColor(), ACCENT_PURPLE);
+
+    public static Color themePrimary() {
+        return PRIMARY_BLUE;
+    }
+
+    public static Color themeSecondary() {
+        return SECONDARY_COLOR;
+    }
+
+    public static Color themeTertiary() {
+        return TERTIARY_COLOR;
+    }
+
+    public static void reloadThemeFromSettings() {
+        ApplicationVisualSettings settings = ApplicationVisualSettings.load();
+        PRIMARY_BLUE = ApplicationVisualSettings.parseColor(settings.getPrimaryColor(), DARK_PRIMARY);
+        SECONDARY_COLOR = ApplicationVisualSettings.parseColor(settings.getSecondaryColor(), ACCENT_BLUE);
+        TERTIARY_COLOR = ApplicationVisualSettings.parseColor(settings.getTertiaryColor(), ACCENT_PURPLE);
+    }
+
+    public static void restoreDefaultTheme() {
+        PRIMARY_BLUE = DARK_PRIMARY;
+        SECONDARY_COLOR = ACCENT_BLUE;
+        TERTIARY_COLOR = ACCENT_PURPLE;
+    }
+
+    public static String appSlogan() {
+        return ApplicationVisualSettings.text(ApplicationVisualSettings.load().getSlogan(),
+                ApplicationVisualSettings.DEFAULT_SLOGAN);
+    }
+
+    public static String loginTitle() {
+        return ApplicationVisualSettings.text(ApplicationVisualSettings.load().getLoginTitle(),
+                ApplicationVisualSettings.DEFAULT_LOGIN_TITLE);
+    }
+
+    public static String loginSubtitle() {
+        return ApplicationVisualSettings.text(ApplicationVisualSettings.load().getLoginSubtitle(),
+                ApplicationVisualSettings.DEFAULT_LOGIN_SUBTITLE);
+    }
 
     /* =========================================================
      * TIPOGRAFÍAS

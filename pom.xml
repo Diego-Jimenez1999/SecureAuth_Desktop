@@ -10,8 +10,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
-        <exec.mainClass>secureauth.MainApp</exec.mainClass>
+        <exec.mainClass>secureauth.ui.MainApp</exec.mainClass>
         <mysql.version>8.3.0</mysql.version>
+        <hikaricp.version>7.0.2</hikaricp.version>
         <jbcrypt.version>0.4</jbcrypt.version>
         <junit.jupiter.version>5.12.2</junit.jupiter.version>
         <mockito.version>5.14.2</mockito.version>
@@ -22,6 +23,11 @@
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <version>${mysql.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikaricp.version}</version>
         </dependency>
         <dependency>
             <groupId>org.mindrot</groupId>

@@ -11,7 +11,6 @@ import java.util.regex.Pattern;
 
 import secureauth.model.User;
 import secureauth.repository.UserRepository;
-import secureauth.repository.UserRepositoryImpl;
 import secureauth.security.PasswordHasher;
 
 /**
@@ -36,13 +35,6 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
-
-    /**
-     * Constructor del servicio.
-     */
-    public AuthService() {
-        this(new UserRepositoryImpl());
-    }
 
     /**
      * Constructor para inyección de dependencias.

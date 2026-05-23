@@ -2,6 +2,7 @@ package secureauth.ui.dialogs;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -23,6 +24,7 @@ import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -88,15 +90,15 @@ import secureauth.ui.utils.UiTheme;
  */
 public class RegistroTrabajadores extends JDialog {
 
-    /* =========================================================
-     * CONSTANTES VISUALES
-     * ========================================================= */
+/* =========================================================
+* CONSTANTES VISUALES
+* ========================================================= */
 
-    /**
+     /**
      * Fuente base utilizada en todo el formulario.
      */
-    private static final Font BASE_FONT =
-            new Font("Segoe UI", Font.PLAIN, 14);
+      private static final Font BASE_FONT =
+                new Font("Segoe UI", Font.PLAIN, 14);
 
     /**
      * Tamaño estándar para TODOS los campos del formulario.
@@ -107,13 +109,13 @@ public class RegistroTrabajadores extends JDialog {
      * - campos desalineados
      */
     private static final Dimension FIELD_SIZE =
-            new Dimension(320, 44);
+                new Dimension(320, 44);
 
     /**
      * Tamaño estándar del botón principal.
      */
     private static final Dimension BUTTON_SIZE =
-            new Dimension(250, 48);
+                new Dimension(250, 48);
 
     /* =========================================================
      * CONTROLADOR
@@ -182,7 +184,7 @@ public class RegistroTrabajadores extends JDialog {
      * Lista de placeholders flotantes.
      */
     private final List<FloatingPlaceholder> placeholders =
-            new ArrayList<>();
+                new ArrayList<>();
 
     /* =========================================================
      * CONSTRUCTOR
@@ -194,13 +196,9 @@ public class RegistroTrabajadores extends JDialog {
      * @param parent     ventana padre
      * @param controller controlador de autenticación
      */
-    public RegistroTrabajadores(
-            java.awt.Frame parent,
-            AuthController controller
-    ) {
+    public RegistroTrabajadores( java.awt.Frame parent,AuthController controller) {
 
         super(parent, "Editar Usuario", true);
-
         this.controller = controller;
 
         setupFrame();
@@ -358,7 +356,7 @@ public class RegistroTrabajadores extends JDialog {
     /**
      * Aplica estilos a todos los campos de texto.
      */
-    private void styleTextFields() {
+        private void styleTextFields() {
 
         ComponentUtils.styleTextField(
                 txtEmail,
@@ -388,12 +386,12 @@ public class RegistroTrabajadores extends JDialog {
                 UiTheme.FOREST_GREEN
         );
 
-    }
+        }
 
-    /**
-     * Aplica estilos a los ComboBox.
-     */
-    private void styleComboBoxes() {
+        /**
+             * Aplica estilos a los ComboBox.
+        */
+        private void styleComboBoxes() {
 
         ComponentUtils.styleComboBox(
                 cbDia,
@@ -525,7 +523,7 @@ public class RegistroTrabajadores extends JDialog {
         GridBagConstraints gbc =
                 new GridBagConstraints();
 
-        gbc.insets = new Insets(12, 18, 12, 18);
+        gbc.insets = new Insets(7, 14, 7, 14);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
 
@@ -577,49 +575,24 @@ public class RegistroTrabajadores extends JDialog {
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(10, 10, 45, 10);
+        gbc.insets = new Insets(8, 10, 28, 10);
 
         panel.add(title, gbc);
 
     }
 
-    /**
-     * Agrega sección email/password.
-     */
-    private void addEmailAndPassword(
-            JPanel panel,
-            GridBagConstraints gbc
-    ) {
+        /**
+              * Agrega sección email/password.
+        */
+        private void addEmailAndPassword(JPanel panel,GridBagConstraints gbc) {
 
         gbc.gridwidth = 1;
-
         gbc.gridy = 1;
-
         gbc.gridx = 0;
-        panel.add(
-                createLabelWithIndicator(
-                        "Correo electrónico",
-                        errEmailReg
-                ),
-                gbc
-        );
+        panel.add(createFormField("Correo electrónico", txtEmail, errEmailReg), gbc);
 
         gbc.gridx = 1;
-        panel.add(
-                createLabelWithIndicator(
-                        "Contraseña",
-                        errPasswordReg
-                ),
-                gbc
-        );
-
-        gbc.gridy = 2;
-
-        gbc.gridx = 0;
-        panel.add(txtEmail, gbc);
-
-        gbc.gridx = 1;
-        panel.add(txtPassword, gbc);
+        panel.add(createFormField("Contraseña", txtPassword, errPasswordReg), gbc);
 
     }
 
@@ -631,33 +604,13 @@ public class RegistroTrabajadores extends JDialog {
             GridBagConstraints gbc
     ) {
 
-        gbc.gridy = 3;
+        gbc.gridy = 2;
 
         gbc.gridx = 0;
-        panel.add(
-                createLabelWithIndicator(
-                        "Nombre",
-                        errNombreReg
-                ),
-                gbc
-        );
+        panel.add(createFormField("Nombre", txtNombre, errNombreReg), gbc);
 
         gbc.gridx = 1;
-        panel.add(
-                createLabelWithIndicator(
-                        "Apellido",
-                        errApellidoReg
-                ),
-                gbc
-        );
-
-        gbc.gridy = 4;
-
-        gbc.gridx = 0;
-        panel.add(txtNombre, gbc);
-
-        gbc.gridx = 1;
-        panel.add(txtApellido, gbc);
+        panel.add(createFormField("Apellido", txtApellido, errApellidoReg), gbc);
 
     }
 
@@ -669,33 +622,13 @@ public class RegistroTrabajadores extends JDialog {
             GridBagConstraints gbc
     ) {
 
-        gbc.gridy = 5;
+        gbc.gridy = 3;
 
         gbc.gridx = 0;
-        panel.add(
-                createLabelWithIndicator(
-                        "Fecha de nacimiento",
-                        errFechaReg
-                ),
-                gbc
-        );
+        panel.add(createFormField("Fecha de nacimiento", buildDatePanel(), errFechaReg), gbc);
 
         gbc.gridx = 1;
-        panel.add(
-                createLabelWithIndicator(
-                        "Rol",
-                        errRolReg
-                ),
-                gbc
-        );
-
-        gbc.gridy = 6;
-
-        gbc.gridx = 0;
-        panel.add(buildDatePanel(), gbc);
-
-        gbc.gridx = 1;
-        panel.add(rolBox, gbc);
+        panel.add(createFormField("Rol", rolBox, errRolReg), gbc);
 
     }
 
@@ -707,17 +640,9 @@ public class RegistroTrabajadores extends JDialog {
             GridBagConstraints gbc
     ) {
 
-        gbc.gridy = 7;
+        gbc.gridy = 4;
         gbc.gridx = 0;
         gbc.gridwidth = 2;
-
-        panel.add(
-                createLabelWithIndicator(
-                        "Género",
-                        errGeneroReg
-                ),
-                gbc
-        );
 
         JPanel genderPanel =
                 new JPanel(
@@ -734,9 +659,7 @@ public class RegistroTrabajadores extends JDialog {
         genderPanel.add(rbMujer);
         genderPanel.add(rbOtro);
 
-        gbc.gridy = 8;
-
-        panel.add(genderPanel, gbc);
+        panel.add(createFormField("Género", genderPanel, errGeneroReg), gbc);
 
     }
 
@@ -748,10 +671,10 @@ public class RegistroTrabajadores extends JDialog {
             GridBagConstraints gbc
     ) {
 
-        gbc.gridy = 9;
+        gbc.gridy = 5;
 
         gbc.insets =
-                new Insets(40, 10, 20, 10);
+                new Insets(26, 10, 14, 10);
 
         gbc.fill = GridBagConstraints.NONE;
 
@@ -833,6 +756,28 @@ public class RegistroTrabajadores extends JDialog {
 
         panel.add(label, BorderLayout.WEST);
         panel.add(errorLabel, BorderLayout.EAST);
+
+        return panel;
+
+    }
+
+    private JPanel createFormField(String label, JComponent input, JLabel errorLabel) {
+
+        JPanel panel =
+                new JPanel();
+
+        panel.setOpaque(false);
+        panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
+
+        JPanel labelPanel = createLabelWithIndicator(label, errorLabel);
+        labelPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        input.setAlignmentX(Component.LEFT_ALIGNMENT);
+        input.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+        panel.add(labelPanel);
+        panel.add(javax.swing.Box.createVerticalStrut(4));
+        panel.add(input);
 
         return panel;
 

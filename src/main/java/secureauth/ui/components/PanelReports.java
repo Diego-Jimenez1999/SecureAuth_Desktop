@@ -16,9 +16,11 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
 import secureauth.ui.utils.JpanelR;
+import secureauth.ui.utils.UiTheme;
 
 /**
  * Panel de reportes del sistema.
@@ -37,13 +39,13 @@ public class PanelReports extends JPanel {
     private static final Color BLUE = new Color(37, 99, 235);
     private static final Color GREEN = new Color(22, 163, 74);
     private static final Color ORANGE = new Color(249, 115, 22);
-    private static final Color RED = new Color(220, 38, 38);
-
     private JLabel lblVentasDia;
     private JLabel lblVentasMes;
     private JLabel lblProductos;
     private JLabel lblClientes;
     private Runnable refreshAction;
+    private Runnable exportAction;
+    private DefaultTableModel salesTableModel;
 
     public PanelReports() {
 
@@ -72,6 +74,10 @@ public class PanelReports extends JPanel {
 
     public void setOnRefresh(Runnable action) {
         this.refreshAction = action;
+    }
+
+    public void setOnExport(Runnable action) {
+        this.exportAction = action;
     }
 
     // =========================
@@ -107,6 +113,11 @@ public class PanelReports extends JPanel {
         btnGenerate.addActionListener(e -> {
             if (refreshAction != null) {
                 refreshAction.run();
+            }
+        });
+        btnExport.addActionListener(e -> {
+            if (exportAction != null) {
+                exportAction.run();
             }
         });
 
@@ -154,7 +165,7 @@ public class PanelReports extends JPanel {
         grid.add(createCard(
                 "Clientes Nuevos",
                 lblClientes,
-                RED
+                UiTheme.themeTertiary()
         ));
 
         return grid;
@@ -274,21 +285,12 @@ public class PanelReports extends JPanel {
         title.setFont(new Font("Segoe UI", Font.BOLD, 20));
         title.setForeground(TEXT);
 
-        String[] cols = {
-                "ID",
-                "Reporte",
-                "Fecha",
-                "Usuario",
-                "Estado"
+        String[] cols = {"Fecha", "Usuario", "Cliente", "Total", "Productos", "Pago"};
+        salesTableModel = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
         };
 
-        Object[][] data = {
-                {"0001","Ventas Mensuales","08/05/2026","admin","Generado"},
-                {"0002","Inventario","08/05/2026","admin","Pendiente"},
-                {"0003","Clientes","08/05/2026","admin","Exportado"}
-        };
-
-        JTable table = new JTable(data, cols);
+        JTable table = new JTable(salesTableModel);
 
         table.setRowHeight(40);
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -364,5 +366,15 @@ public class PanelReports extends JPanel {
         lblVentasMes.setText(ventasMes);
         lblProductos.setText(productos);
         lblClientes.setText(clientes);
+    }
+
+    public void renderSalesRows(java.util.List<Object[]> rows) {
+        if (salesTableModel == null) {
+            return;
+        }
+        salesTableModel.setRowCount(0);
+        for (Object[] row : rows) {
+            salesTableModel.addRow(row);
+        }
     }
 }
