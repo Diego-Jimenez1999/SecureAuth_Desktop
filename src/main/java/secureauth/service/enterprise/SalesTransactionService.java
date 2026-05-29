@@ -1,19 +1,39 @@
 package secureauth.service.enterprise;
 
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import secureauth.config.DatabaseConnection;
+import secureauth.dao.enterprise.ActividadRecienteDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO.SaleReportRow;
+import secureauth.dao.enterprise.InventoryDAO;
+import secureauth.model.SaleItem;
+import secureauth.model.Venta;
 
-/** Servicio de ventas POS y métricas de dashboard por sucursal. */
+/**
+ * Servicio de ventas POS y métricas de dashboard por sucursal.
+ *
+ * <p>La operación principal registra venta, detalle, descuento de inventario y
+ * actividad reciente dentro de una única transacción JDBC para evitar
+ * inconsistencias si ocurre un error intermedio.</p>
+ */
 public class SalesTransactionService {
 
     private final SalesTransactionDAO dao = new SalesTransactionDAO();
+    private final InventoryDAO inventoryDAO = new InventoryDAO();
+    private final ActividadRecienteDAO actividadDAO = new ActividadRecienteDAO();
     private final EnterpriseContext context = EnterpriseContext.getInstance();
 
     public void initializeSchema() throws SQLException {
         dao.ensureSchema();
+        inventoryDAO.ensureSchema();
+        actividadDAO.ensureSchema();
     }
 
     public void registerSale(double total, double gain, double tax, int items, String paymentMethod) throws SQLException {
@@ -24,6 +44,114 @@ public class SalesTransactionService {
             String itemsSummary, String clientName, String userName) throws SQLException {
         dao.insertTx(context.getActiveBusinessId(), context.getActiveBranchId(), total, gain, tax, items, paymentMethod,
                 itemsSummary, clientName, userName);
+    }
+
+    public void registerSaleWithInventory(List<SaleItem> saleItems, double total, double gain, double tax,
+            String paymentMethod, String itemsSummary, String clientName, String userName) throws SQLException {
+        Venta venta = new Venta(null, LocalDateTime.now(), clientName, total, paymentMethod, userName);
+        for (SaleItem item : saleItems) {
+            venta.addItem(item);
+        }
+        registrarVenta(venta, gain, tax, itemsSummary);
+    }
+
+    /**
+     * Registra una venta y descuenta automáticamente el inventario.
+     *
+     * <p>Flujo transaccional:
+     * valida carrito y cantidades, bloquea filas de inventario, guarda cabecera
+     * en {@code ventas}, guarda {@code detalle_venta}, descuenta stock, registra
+     * la transacción de reportes y publica actividad reciente. Si cualquier paso
+     * falla ejecuta {@code rollback()}.</p>
+     *
+     * @param venta objeto venta con productos asociados
+     * @throws SQLException si ocurre un error durante la transacción
+     */
+    public void registrarVenta(Venta venta) throws SQLException {
+        registrarVenta(venta, 0d, venta.getTotal() * 0.19d / 1.19d, buildItemsSummary(venta.getItems()));
+    }
+
+    /**
+     * Registra una venta con métricas POS calculadas por la vista.
+     *
+     * @param venta venta validada
+     * @param gain ganancia calculada
+     * @param tax impuesto calculado
+     * @param itemsSummary resumen de items
+     * @throws SQLException si ocurre un error JDBC
+     */
+    public void registrarVenta(Venta venta, double gain, double tax, String itemsSummary) throws SQLException {
+        validateSale(venta);
+        int businessId = context.getActiveBusinessId();
+        int branchId = context.getActiveBranchId();
+
+        initializeSchema();
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            boolean previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                Map<Integer, Integer> quantities = inventoryQuantities(venta.getItems());
+                for (Map.Entry<Integer, Integer> entry : quantities.entrySet()) {
+                    boolean available = inventoryDAO.hasStockForUpdate(conn, businessId, branchId, entry.getKey(),
+                            entry.getValue());
+                    if (!available) {
+                        throw new SQLException("No hay suficiente inventario disponible.");
+                    }
+                }
+
+                int saleId = dao.insertVenta(conn, venta);
+                venta.setIdVenta(saleId);
+                dao.insertDetalles(conn, saleId, venta.getItems());
+
+                for (Map.Entry<Integer, Integer> entry : quantities.entrySet()) {
+                    inventoryDAO.decreaseStock(conn, businessId, branchId, entry.getKey(), entry.getValue());
+                }
+
+                int units = venta.getItems().stream().mapToInt(SaleItem::getQuantity).sum();
+                dao.insertTx(conn, businessId, branchId, venta.getTotal(), gain, tax, units, venta.getMetodoPago(),
+                        itemsSummary, venta.getCliente(), venta.getUsuarioVendedor());
+                actividadDAO.insert(conn, "Venta registrada #" + saleId, "VENTA", venta.getUsuarioVendedor());
+                if (!quantities.isEmpty()) {
+                    actividadDAO.insert(conn, "Inventario actualizado", "INVENTARIO", venta.getUsuarioVendedor());
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(previousAutoCommit);
+            }
+        }
+    }
+
+    private Map<Integer, Integer> inventoryQuantities(List<SaleItem> saleItems) {
+        Map<Integer, Integer> quantities = new LinkedHashMap<>();
+        for (SaleItem item : saleItems) {
+            if (item.getInventoryItemId() != null) {
+                quantities.merge(item.getInventoryItemId(), item.getQuantity(), Integer::sum);
+            }
+        }
+        return quantities;
+    }
+
+    private void validateSale(Venta venta) throws SQLException {
+        if (venta == null || venta.getItems().isEmpty()) {
+            throw new SQLException("No se permiten ventas vacías.");
+        }
+        for (SaleItem item : venta.getItems()) {
+            if (item.getQuantity() <= 0) {
+                throw new SQLException("No se permiten cantidades negativas o en cero.");
+            }
+            if (item.isInventoryBacked() && item.getInventoryItemId() <= 0) {
+                throw new SQLException("Producto de inventario inválido.");
+            }
+        }
+    }
+
+    private String buildItemsSummary(List<SaleItem> items) {
+        return items.stream()
+                .map(item -> item.getQuantity() + " x " + item.getName())
+                .collect(Collectors.joining(", "));
     }
 
     public DashboardStats loadStats() throws SQLException {

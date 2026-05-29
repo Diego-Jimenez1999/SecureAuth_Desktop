@@ -6,7 +6,8 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Image;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,15 +32,14 @@ import secureauth.ui.utils.RoundedLineBorder;
 import secureauth.ui.utils.UiTheme;
 
 /**
- * Vista de registro de mascota.
- *
- * <p>
+ * Vista de registro de mascota (Panel del módulo Mascotas).
+ * * <p>
  * Esta clase se enfoca exclusivamente en la construcción de la interfaz gráfica y la interacción con el usuario.
- * No debe contener lógica de negocio ni acceso a datos.
+ * Controla el diseño del formulario en dos columnas utilizando GridBagLayout para garantizar proporciones modernas
+ * y estilizadas en los componentes de entrada.
  * </p>
- *
- * @author Diego
- * @version 1.0
+ * * @author Diego
+ * @version 1.1
  */
 public class RegMascotaPanel extends JPanel {
 
@@ -49,11 +49,12 @@ public class RegMascotaPanel extends JPanel {
     private static final Dimension FIELD_SIZE = new Dimension(20, 18);
     private static final Color DEFAULT_BORDER_COLOR = UiTheme.BORDER_COLOR;
 
+    // Componentes de la interfaz de usuario
     private JLabel lblImagenMascota;
     private String rutaImagenSeleccionada;
 
     private JTextField txtNombreMascota;
-    private JComboBox<Owner> cbOwner;// nuevo combo para seleccionar dueño existente
+    private JComboBox<Owner> cbOwner; // Combo para seleccionar dueño existente
     private JComboBox<String> cbTipoMascota;
     private JTextField txtRaza;
     private JTextField txtEdad;
@@ -72,19 +73,22 @@ public class RegMascotaPanel extends JPanel {
     private JTextField txtDireccionDueno;
     private JButton btnSubirImagen;
     private JButton btnGuardar;
+    private JButton btnNuevoDueno;
 
+    /** Lista de placeholders flotantes para la guía visual del usuario */
     private final List<FloatingPlaceholder> placeholders = new ArrayList<>();
-
 
     /**
      * Constructor principal de la vista de registro de mascota.
-     */ 
+     * Inicializa y ensambla todos los componentes visuales.
+     */
     public RegMascotaPanel() {
         init();
     }
-    
 
-    // Metoddo inicial para construir la UI
+    /**
+     * Método inicial para construir y estructurar la interfaz de usuario.
+     */
     private void init() {
         setLayout(new BorderLayout());
 
@@ -97,14 +101,16 @@ public class RegMascotaPanel extends JPanel {
 
         add(root, BorderLayout.CENTER);
     }
-    
 
-    // metodo creacion panel superior con titulo y subtitulo
+    /**
+     * Construye el panel superior de la vista que contiene el título y subtítulo correlativo.
+     * * @return JPanel con la cabecera del módulo.
+     */
     private JPanel buildHeader() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
 
-        JPanel left = new JPanel(new GridLayout(2, 1, 0, 2));
+        JPanel left = new JPanel(new java.awt.GridLayout(2, 1, 0, 2));
         left.setOpaque(false);
         JLabel title = new JLabel("Registro de Mascota");
         title.setFont(UiTheme.TITLE_FONT_SECTION);
@@ -122,6 +128,11 @@ public class RegMascotaPanel extends JPanel {
         return panel;
     }
 
+    /**
+     * Construye la tarjeta contenedora principal blanca dividida en sección de imagen (izquierda)
+     * y el formulario de datos (derecha).
+     * * @return JPanel estilo tarjeta con los componentes principales.
+     */
     private JPanel buildContentCard() {
         JPanel card = new JPanel(new BorderLayout(12, 0));
         card.setBackground(COLOR_CARD);
@@ -134,6 +145,10 @@ public class RegMascotaPanel extends JPanel {
         return card;
     }
 
+    /**
+     * Construye el bloque lateral izquierdo dedicado a la previsualización y carga de la foto de la mascota.
+     * * @return JPanel con el cargador de imágenes y etiquetas descriptivas.
+     */
     private JPanel buildImageSide() {
         JPanel left = new JPanel(new BorderLayout(0, 10));
         left.setOpaque(false);
@@ -160,7 +175,7 @@ public class RegMascotaPanel extends JPanel {
         btnSubirImagen.setPreferredSize(new Dimension(180, 34));
         btnSubirImagen.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        JPanel bottom = new JPanel(new GridLayout(3, 1, 0, 4));
+        JPanel bottom = new JPanel(new java.awt.GridLayout(3, 1, 0, 4));
         bottom.setOpaque(false);
         JPanel bWrap = new JPanel(new FlowLayout(FlowLayout.CENTER));
         bWrap.setOpaque(false);
@@ -168,7 +183,9 @@ public class RegMascotaPanel extends JPanel {
 
         JLabel f1 = new JLabel("Formatos permitidos: JPG, PNG", JLabel.CENTER);
         f1.setForeground(Color.GRAY);
-        JLabel f2 = new JLabel("Tamano maximo recomendado: 5MB", JLabel.CENTER);
+        
+        // CORREGIDO AQUÍ: Se añadió el tipo explícito JLabel para f2
+        JLabel f2 = new JLabel("Tamaño máximo recomendado: 5MB", JLabel.CENTER);
         f2.setForeground(Color.GRAY);
 
         bottom.add(bWrap);
@@ -179,13 +196,26 @@ public class RegMascotaPanel extends JPanel {
         return left;
     }
 
+    /**
+     * Construye la sección del formulario utilizando GridBagLayout. Esto soluciona los problemas
+     * de estiramiento desproporcionado fijando una altura estilizada para las cajas de texto ordinarias.
+     * * @return JPanel con todos los campos del formulario organizados adecuadamente.
+     */
     private JPanel buildFormSide() {
         JPanel right = new JPanel(new BorderLayout(0, 12));
         right.setOpaque(false);
 
-        JPanel grid = new JPanel(new GridLayout(0, 2, 14, 10));
+        // GridBagLayout reemplaza a GridLayout para evitar la deformación vertical
+        JPanel grid = new JPanel(new GridBagLayout());
         grid.setOpaque(false);
 
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new java.awt.Insets(6, 8, 6, 8); // Margen elegante entre campos
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.5;
+        gbc.weighty = 0.0;
+
+        // Inicialización de componentes
         txtNombreMascota = new JTextField();
         cbOwner = new JComboBox<>();
         cbTipoMascota = new JComboBox<>(new String[] { "Perro", "Gato", "Ave", "Otro" });
@@ -208,8 +238,11 @@ public class RegMascotaPanel extends JPanel {
         txtTelefonoDueno = new JTextField();
         txtCorreoDueno = new JTextField();
         txtDireccionDueno = new JTextField();
+        btnNuevoDueno = new JButton("Nuevo dueño");
+        btnNuevoDueno.setPreferredSize(new Dimension(130, 34));
+        btnNuevoDueno.setFont(BASE_FONT.deriveFont(Font.BOLD));
 
-        // Aplicar estilos centralizados de utils (identicos a LoginFrame)
+        // Aplicar estilos centralizados externos
         ComponentUtils.styleTextField(txtNombreMascota, FIELD_SIZE, BASE_FONT, UiTheme.FOREST_GREEN);
         ComponentUtils.styleTextField(txtRaza, FIELD_SIZE, BASE_FONT, UiTheme.FOREST_GREEN);
         ComponentUtils.styleTextField(txtEdad, FIELD_SIZE, BASE_FONT, UiTheme.FOREST_GREEN);
@@ -228,7 +261,25 @@ public class RegMascotaPanel extends JPanel {
         ComponentUtils.styleComboBox(cbSexo, FIELD_SIZE, BASE_FONT);
         ComponentUtils.styleComboBox(cbEstadoSalud, FIELD_SIZE, BASE_FONT);
 
-        // Agregar Placeholders para mejorar la guía del usuario
+        // Ajuste de tamaño preferido estandarizado (Altura de 34px) para todas las entradas simples
+        Dimension inputDimension = new Dimension(150, 34);
+        txtNombreMascota.setPreferredSize(inputDimension);
+        cbOwner.setPreferredSize(inputDimension);
+        cbTipoMascota.setPreferredSize(inputDimension);
+        txtRaza.setPreferredSize(inputDimension);
+        txtEdad.setPreferredSize(inputDimension);
+        txtPeso.setPreferredSize(inputDimension);
+        cbSexo.setPreferredSize(inputDimension);
+        txtFrecuencia.setPreferredSize(inputDimension);
+        txtTipoAlimento.setPreferredSize(inputDimension);
+        txtVacunas.setPreferredSize(inputDimension);
+        cbEstadoSalud.setPreferredSize(inputDimension);
+        txtNombreDueno.setPreferredSize(inputDimension);
+        txtTelefonoDueno.setPreferredSize(inputDimension);
+        txtCorreoDueno.setPreferredSize(inputDimension);
+        txtDireccionDueno.setPreferredSize(inputDimension);
+
+        // Agregar Placeholders de guía
         placeholders.add(new FloatingPlaceholder("Nombre de la mascota...", txtNombreMascota));
         placeholders.add(new FloatingPlaceholder("Ej: Labrador, Criollo...", txtRaza));
         placeholders.add(new FloatingPlaceholder("Ej: 2 años o 5 meses...", txtEdad));
@@ -241,34 +292,49 @@ public class RegMascotaPanel extends JPanel {
         placeholders.add(new FloatingPlaceholder("ejemplo@correo.com...", txtCorreoDueno));
         placeholders.add(new FloatingPlaceholder("Dirección de residencia...", txtDireccionDueno));
 
-        // Estilo para JTextArea para que coincida con la estética de los inputs
+        // Estilos para JTextArea
         taCuidados.setBorder(new CompoundBorder(new RoundedLineBorder(DEFAULT_BORDER_COLOR, 14, 1), new EmptyBorder(8, 12, 8, 12)));
         taNotasAdicionales.setBorder(new CompoundBorder(new RoundedLineBorder(DEFAULT_BORDER_COLOR, 14, 1), new EmptyBorder(8, 12, 8, 12)));
 
-        grid.add(field("Dueño registrado *", cbOwner));
-        grid.add(field("Nombre de la mascota *", txtNombreMascota));
-        grid.add(field("Tipo de mascota", cbTipoMascota));
-        grid.add(field("Raza *", txtRaza));
-        grid.add(field("Edad *", txtEdad));
-        grid.add(field("Peso *", txtPeso));
-        grid.add(field("Sexo *", cbSexo));
-        grid.add(field("Frecuencia de alimentacion *", txtFrecuencia));
-        grid.add(field("Tipo de alimento", txtTipoAlimento));
-        grid.add(field("Estado de salud *", cbEstadoSalud));
-        grid.add(field("Vacunas", txtVacunas));
-        grid.add(field("Nombre del dueño", txtNombreDueno));
-        grid.add(field("Teléfono del dueño", txtTelefonoDueno));
-        grid.add(field("Correo electrónico", txtCorreoDueno));
-        grid.add(field("Dirección", txtDireccionDueno));
         JScrollPane cuidadosScroll = new JScrollPane(taCuidados);
-        cuidadosScroll.setPreferredSize(new Dimension(0, 90));
-        grid.add(field("Cuidados especiales", cuidadosScroll));
+        cuidadosScroll.setPreferredSize(new Dimension(150, 90));
+        
         JScrollPane notasScroll = new JScrollPane(taNotasAdicionales);
-        notasScroll.setPreferredSize(new Dimension(0, 72));
-        grid.add(field("Notas adicionales", notasScroll));
+        notasScroll.setPreferredSize(new Dimension(150, 72));
 
-        // Envoltura para evitar distorsión: Usamos un panel intermedio en el NORTH del scroll
-        // Esto asegura que el Grid mantenga su altura natural y no se estire.
+        // Mapeo ordenado de los campos estructurados en la cuadrícula
+        JPanel ownerSelector = new JPanel(new BorderLayout(8, 0));
+        ownerSelector.setOpaque(false);
+        ownerSelector.add(cbOwner, BorderLayout.CENTER);
+        ownerSelector.add(btnNuevoDueno, BorderLayout.EAST);
+
+        java.awt.Component[] components = {
+            field("Dueño registrado *", ownerSelector),
+            field("Nombre de la mascota *", txtNombreMascota),
+            field("Tipo de mascota", cbTipoMascota),
+            field("Raza *", txtRaza),
+            field("Edad *", txtEdad),
+            field("Peso *", txtPeso),
+            field("Sexo *", cbSexo),
+            field("Frecuencia de alimentación *", txtFrecuencia),
+            field("Tipo de alimento", txtTipoAlimento),
+            field("Estado de salud *", cbEstadoSalud),
+            field("Vacunas", txtVacunas),
+            field("Nombre del dueño", txtNombreDueno),
+            field("Teléfono del dueño", txtTelefonoDueno),
+            field("Correo electrónico", txtCorreoDueno),
+            field("Dirección", txtDireccionDueno),
+            field("Cuidados especiales", cuidadosScroll),
+            field("Notas adicionales", notasScroll)
+        };
+
+        // Inserción indexada en GridBagLayout (2 columnas automáticas)
+        for (int i = 0; i < components.length; i++) {
+            gbc.gridx = i % 2;
+            gbc.gridy = i / 2;
+            grid.add(components[i], gbc);
+        }
+
         JPanel gridWrapper = new JPanel(new BorderLayout());
         gridWrapper.setOpaque(false);
         gridWrapper.add(grid, BorderLayout.NORTH);
@@ -281,11 +347,17 @@ public class RegMascotaPanel extends JPanel {
 
         right.add(formScroll, BorderLayout.CENTER);
 
+        // Configuración y dimensionamiento de los botones de acción inferiores
         JButton btnLimpiar = new JButton("Limpiar formulario");
+        btnLimpiar.setPreferredSize(new Dimension(160, 36));
+        btnLimpiar.setFont(BASE_FONT.deriveFont(Font.BOLD));
         btnLimpiar.addActionListener(e -> limpiarFormulario());
+        
         btnGuardar = new JButton("Guardar mascota");
         btnGuardar.setBackground(UiTheme.themePrimary());
         btnGuardar.setForeground(Color.WHITE);
+        btnGuardar.setPreferredSize(new Dimension(160, 36));
+        btnGuardar.setFont(BASE_FONT.deriveFont(Font.BOLD));
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 0));
         actions.setOpaque(false);
@@ -297,6 +369,12 @@ public class RegMascotaPanel extends JPanel {
         return right;
     }
 
+    /**
+     * Construye un contenedor vertical para agrupar una etiqueta y su campo de entrada.
+     * * @param label Texto descriptivo del campo.
+     * @param input Componente interactivo (JTextField, JComboBox, JScrollPane).
+     * @return JPanel con la composición del campo de formulario.
+     */
     private JPanel field(String label, java.awt.Component input) {
         JPanel p = new JPanel(new BorderLayout(0, 6));
         p.setOpaque(false);
@@ -308,33 +386,23 @@ public class RegMascotaPanel extends JPanel {
     }
 
     /**
-    *Establece la imagen por defecto de la mascota escalada a 330x360.
-        *
-        * La imagen se carga desde los recursos del proyecto y se ajusta
-        * al tamaño del JLabel manteniendo calidad de renderizado.
-    */
+     * Establece la imagen por defecto de la mascota escalada dinámicamente.
+     */
     private void setDefaultImage() {
-    java.net.URL url = getClass().getResource("/icon/newpet.png");
-    System.err.println("Cargando imagen por defecto desde: " + url);
-
-    if (url != null) {
-        ImageIcon icon = new ImageIcon(url); 
-
-        // Escalar imagen a tamaño compacto
-        Image scaledImage = icon.getImage().getScaledInstance(
-                240,
-                260,
-                Image.SCALE_SMOOTH // mejor calidad
-        );
-
-        lblImagenMascota.setIcon(new ImageIcon(scaledImage));
-        lblImagenMascota.setText(""); // limpiar texto si había
-
-    } else {
-        lblImagenMascota.setText("Sin imagen");
+        java.net.URL url = getClass().getResource("/icon/newpet.png");
+        if (url != null) {
+            ImageIcon icon = new ImageIcon(url); 
+            Image scaledImage = icon.getImage().getScaledInstance(240, 260, Image.SCALE_SMOOTH);
+            lblImagenMascota.setIcon(new ImageIcon(scaledImage));
+            lblImagenMascota.setText("");
+        } else {
+            lblImagenMascota.setText("Sin imagen");
+        }
     }
-}
 
+    /**
+     * Restablece todos los campos del formulario a sus valores iniciales vacíos.
+     */
     public void limpiarFormulario() {
         txtNombreMascota.setText("");
         cbOwner.setSelectedItem(null);
@@ -357,6 +425,10 @@ public class RegMascotaPanel extends JPanel {
         setDefaultImage();
     }
 
+    /**
+     * Setea y rellena visualmente los datos informativos del propietario seleccionado.
+     * * @param owner Modelo del propietario (Owner).
+     */
     public void setOwnerDetails(Owner owner) {
         if (owner == null) {
             txtNombreDueno.setText("");
@@ -371,6 +443,10 @@ public class RegMascotaPanel extends JPanel {
         txtDireccionDueno.setText(owner.getDireccion());
     }
 
+    /**
+     * Habilita o deshabilita la edición de los campos del propietario.
+     * * @param editable true si se permite la edición directa, false para sólo lectura.
+     */
     private void setOwnerFieldsEditable(boolean editable) {
         txtNombreDueno.setEditable(editable);
         txtTelefonoDueno.setEditable(editable);
@@ -385,7 +461,7 @@ public class RegMascotaPanel extends JPanel {
     }
 
     public void showError(String msg) { JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE); }
-    public void showSuccess(String msg) { JOptionPane.showMessageDialog(this, msg, "Exito", JOptionPane.INFORMATION_MESSAGE); }
+    public void showSuccess(String msg) { JOptionPane.showMessageDialog(this, msg, "Éxito", JOptionPane.INFORMATION_MESSAGE); }
 
     public String getNombreMascota() { return txtNombreMascota.getText(); }
     public Owner getSelectedOwner() { return (Owner) cbOwner.getSelectedItem(); }
@@ -410,4 +486,5 @@ public class RegMascotaPanel extends JPanel {
     public JLabel getLblImagenMascota() { return lblImagenMascota; }
     public JButton getBtnSubirImagen() { return btnSubirImagen; }
     public JButton getBtnGuardarMascota() { return btnGuardar; }
+    public JButton getBtnNuevoDueno() { return btnNuevoDueno; }
 }

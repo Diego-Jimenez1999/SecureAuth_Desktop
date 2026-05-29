@@ -31,6 +31,7 @@ import secureauth.model.User;
 import secureauth.service.OwnerService;
 import secureauth.service.UserService;
 import secureauth.service.enterprise.InventoryService;
+import secureauth.service.enterprise.ActividadRecienteService;
 import secureauth.service.enterprise.SalesTransactionService;
 
 /**
@@ -64,6 +65,7 @@ public final class HomeDashboardPanel extends JPanel {
     private final OwnerService ownerService;
     private final UserService userService;
     private final InventoryService inventoryService = new InventoryService();
+    private final ActividadRecienteService actividadService = new ActividadRecienteService();
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm");
     private DefaultTableModel activityModel;
@@ -131,6 +133,7 @@ public final class HomeDashboardPanel extends JPanel {
             protected DashboardData doInBackground() throws Exception {
                 salesService.initializeSchema();
                 inventoryService.initializeSchema();
+                actividadService.initializeSchema();
                 var stats = salesService.loadStats();
                 int newClients = ownerService.countNewThisMonth();
                 int newUsers = userService.countNewThisMonth();
@@ -144,6 +147,15 @@ public final class HomeDashboardPanel extends JPanel {
                             emptyAs(sale.userName(), "Sistema")
                     });
                 }
+                List<Object[]> activities = new ArrayList<>();
+                for (var activity : actividadService.recientes(10)) {
+                    activities.add(new Object[]{
+                            activity.fechaHora().format(DateTimeFormatter.ofPattern("hh:mm a")),
+                            activity.descripcion(),
+                            activity.tipo(),
+                            emptyAs(activity.usuario(), "Sistema")
+                    });
+                }
                 long lowStock = inventoryService.findAll("").stream().filter(i -> i.stock() <= i.minStock()).count();
                 return new DashboardData(new long[]{
                         (long)(stats.salesToday()  * 100),
@@ -151,7 +163,7 @@ public final class HomeDashboardPanel extends JPanel {
                         stats.itemsMonth(),
                         newClients,
                         newUsers
-                }, movements, lowStock);
+                }, movements, activities, lowStock);
             }
 
             @Override
@@ -164,6 +176,7 @@ public final class HomeDashboardPanel extends JPanel {
                     itemsMonthLabel.setText(String.valueOf(d[2]));
                     newClientsLabel.setText(String.valueOf(d[3]));
                     renderMovements(data.movements());
+                    renderActivities(data.activities());
                     if (lowStockText != null) {
                         lowStockText.setText(data.lowStockCount() == 0
                                 ? "Inventario sin alertas de stock bajo"
@@ -278,7 +291,7 @@ public final class HomeDashboardPanel extends JPanel {
         JLabel lbl = new JLabel("Actividad Reciente");
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
         panel.add(lbl, BorderLayout.NORTH);
-        activityModel = new DefaultTableModel(new String[]{"Mascota", "Dueño", "Servicio", "Hora servicio", "Recogida", "Estado"}, 0) {
+        activityModel = new DefaultTableModel(new String[]{"Fecha", "Actividad", "Tipo", "Usuario"}, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         JTable table = new JTable(activityModel);
@@ -326,8 +339,18 @@ public final class HomeDashboardPanel extends JPanel {
         for (Object[] row : rows) {
             movementsModel.addRow(row);
         }
-        if (activityModel != null && activityModel.getRowCount() == 0) {
-            activityModel.addRow(new Object[]{"-", "-", "Agendamiento pendiente", "-", "-", "Sin citas"});
+    }
+
+    private void renderActivities(List<Object[]> rows) {
+        if (activityModel == null) {
+            return;
+        }
+        activityModel.setRowCount(0);
+        for (Object[] row : rows) {
+            activityModel.addRow(row);
+        }
+        if (activityModel.getRowCount() == 0) {
+            activityModel.addRow(new Object[]{"-", "Sin actividad reciente", "-", "-"});
         }
     }
 
@@ -352,5 +375,6 @@ public final class HomeDashboardPanel extends JPanel {
         newClientsLabel.setText("--");
     }
 
-    private record DashboardData(long[] metrics, List<Object[]> movements, long lowStockCount) { }
+    private record DashboardData(long[] metrics, List<Object[]> movements, List<Object[]> activities,
+                                 long lowStockCount) { }
 }

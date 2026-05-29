@@ -12,11 +12,13 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import secureauth.dao.enterprise.InventoryDAO;
+import secureauth.config.DatabaseConnection;
 import secureauth.model.enterprise.InventoryItem;
 
 /** Servicio enterprise para inventario e importación CSV/XLSX. */
@@ -35,6 +37,24 @@ public class InventoryService {
 
     public void upsert(InventoryItem item) throws SQLException {
         dao.upsert(item);
+    }
+
+    /**
+     * Verifica si existe stock suficiente para un producto del inventario activo.
+     *
+     * @param idProducto identificador del producto
+     * @param cantidad cantidad requerida
+     * @return true si el producto existe y el stock alcanza
+     * @throws SQLException si falla la consulta JDBC
+     */
+    public boolean verificarStock(int idProducto, int cantidad) throws SQLException {
+        if (cantidad <= 0) {
+            return false;
+        }
+        try (var conn = DatabaseConnection.getConnection()) {
+            return dao.hasStockForUpdate(conn, context.getActiveBusinessId(), context.getActiveBranchId(),
+                    idProducto, cantidad);
+        }
     }
 
     public ImportPreview previewImport(File file) throws IOException {
@@ -105,7 +125,7 @@ public class InventoryService {
     private List<String[]> readCsv(File file) throws IOException {
         List<String[]> rows = new ArrayList<>();
         for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
-            rows.add(line.split(","));
+            rows.add(parseCsvLine(line));
         }
         return rows;
     }
@@ -113,6 +133,7 @@ public class InventoryService {
     private List<String[]> readXlsx(File file) throws IOException {
         List<String[]> rows = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(file); XSSFWorkbook workbook = new XSSFWorkbook(fis)) {
+            DataFormatter formatter = new DataFormatter();
             XSSFSheet sheet = workbook.getSheetAt(0);
             Iterator<Row> it = sheet.iterator();
             while (it.hasNext()) {
@@ -121,7 +142,7 @@ public class InventoryService {
                 String[] values = new String[cells];
                 for (int i = 0; i < cells; i++) {
                     Cell cell = row.getCell(i);
-                    values[i] = cell == null ? "" : cell.toString();
+                    values[i] = cell == null ? "" : formatter.formatCellValue(cell).trim();
                 }
                 rows.add(values);
             }
@@ -130,11 +151,48 @@ public class InventoryService {
     }
 
     private int parseInt(String value) {
-        try { return Integer.parseInt(value.trim()); } catch (Exception ex) { return 0; }
+        try {
+            return (int) Math.round(Double.parseDouble(normalizeNumber(value)));
+        } catch (Exception ex) {
+            return 0;
+        }
     }
 
     private double parseDouble(String value) {
-        try { return Double.parseDouble(value.trim().replace(',', '.')); } catch (Exception ex) { return 0d; }
+        try { return Double.parseDouble(normalizeNumber(value)); } catch (Exception ex) { return 0d; }
+    }
+
+    private String normalizeNumber(String value) {
+        if (value == null) {
+            return "0";
+        }
+        return value.trim().replace("$", "").replace(" ", "").replace(',', '.');
+    }
+
+    private String[] parseCsvLine(String line) {
+        List<String> values = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') {
+                if (quoted && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++;
+                } else {
+                    quoted = !quoted;
+                }
+            } else if (c == ',' && !quoted) {
+                values.add(current.toString().trim());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+
+        values.add(current.toString().trim());
+        return values.toArray(String[]::new);
     }
 
     /** Resultado de validación para preview de importación. */

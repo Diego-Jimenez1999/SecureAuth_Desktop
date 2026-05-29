@@ -1,7 +1,6 @@
 package secureauth.dao.enterprise;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -10,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import secureauth.config.DatabaseConnection;
+import secureauth.config.SchemaInspector;
 import secureauth.model.enterprise.Branch;
 import secureauth.model.enterprise.Business;
 import secureauth.model.enterprise.BusinessType;
@@ -91,12 +91,36 @@ public class EnterpriseBootstrapDAO {
                 )
                 """);
 
-            if (!columnExists(conn, "users", "created_at")) {
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS pets (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  owner_id INT NOT NULL,
+                  nombre_mascota VARCHAR(140) NOT NULL,
+                  raza VARCHAR(120) NOT NULL,
+                  edad VARCHAR(60),
+                  peso DECIMAL(8,2) NOT NULL,
+                  sexo VARCHAR(20) NOT NULL,
+                  frecuencia_alimentacion VARCHAR(180),
+                  tipo_alimento VARCHAR(180),
+                  estado_salud VARCHAR(80),
+                  vacunas VARCHAR(300),
+                  cuidados_especiales TEXT,
+                  notas_adicionales TEXT,
+                  imagen_path VARCHAR(500),
+                  fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_pets_owner_bootstrap FOREIGN KEY (owner_id) REFERENCES owners(id)
+                )
+                """);
+
+            if (!SchemaInspector.columnExists(conn, "users", "created_at")) {
                 st.execute("ALTER TABLE users ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
             }
             st.execute("ALTER TABLE users MODIFY COLUMN password VARCHAR(100) NOT NULL");
-            if (!columnExists(conn, "owners", "fecha_registro")) {
+            if (!SchemaInspector.columnExists(conn, "owners", "fecha_registro")) {
                 st.execute("ALTER TABLE owners ADD COLUMN fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+            if (SchemaInspector.columnExists(conn, "pets", "sexo")) {
+                st.execute("ALTER TABLE pets MODIFY COLUMN sexo VARCHAR(20) NOT NULL");
             }
 
         }
@@ -120,6 +144,7 @@ public class EnterpriseBootstrapDAO {
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (1,'Administrador') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (2,'Supervisor') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (3,'Recepcionista') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
+            st.execute("INSERT INTO roles(id, nombre_rol) VALUES (4,'Médico') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
         }
     }
 
@@ -219,10 +244,4 @@ public class EnterpriseBootstrapDAO {
         }
     }
 
-    private boolean columnExists(Connection conn, String tableName, String columnName) throws SQLException {
-        DatabaseMetaData meta = conn.getMetaData();
-        try (ResultSet rs = meta.getColumns(null, null, tableName, columnName)) {
-            return rs.next();
-        }
-    }
 }

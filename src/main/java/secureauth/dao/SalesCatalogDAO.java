@@ -1,7 +1,6 @@
 package secureauth.dao;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -14,6 +13,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import secureauth.config.DatabaseConnection;
+import secureauth.config.SchemaInspector;
 import secureauth.ui.sales.SalesServiceCatalog.CategoryEntry;
 import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
 
@@ -62,28 +62,21 @@ public class SalesCatalogDAO {
                 """);
 
             // Migración para instalaciones previas: Asegurar que las columnas business_id y branch_id existan
-            if (!columnExists(conn, "sales_categories", "business_id")) {
+            if (!SchemaInspector.columnExists(conn, "sales_categories", "business_id")) {
                 st.execute("ALTER TABLE sales_categories ADD COLUMN business_id INT NOT NULL DEFAULT 1");
             }
-            if (!columnExists(conn, "sales_categories", "branch_id")) {
+            if (!SchemaInspector.columnExists(conn, "sales_categories", "branch_id")) {
                 st.execute("ALTER TABLE sales_categories ADD COLUMN branch_id INT NOT NULL DEFAULT 1");
             }
-            if (!columnExists(conn, "sales_items", "business_id")) {
+            if (!SchemaInspector.columnExists(conn, "sales_items", "business_id")) {
                 st.execute("ALTER TABLE sales_items ADD COLUMN business_id INT NOT NULL DEFAULT 1");
             }
-            if (!columnExists(conn, "sales_items", "branch_id")) {
+            if (!SchemaInspector.columnExists(conn, "sales_items", "branch_id")) {
                 st.execute("ALTER TABLE sales_items ADD COLUMN branch_id INT NOT NULL DEFAULT 1");
             }
 
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "No fue posible inicializar esquema de ventas/servicios", e);
-        }
-    }
-
-    private boolean columnExists(Connection conn, String tableName, String columnName) throws SQLException {
-        DatabaseMetaData meta = conn.getMetaData();
-        try (ResultSet rs = meta.getColumns(null, null, tableName, columnName)) {
-            return rs.next();
         }
     }
 
@@ -117,6 +110,80 @@ public class SalesCatalogDAO {
             }
         } catch (SQLException e) {
             LOGGER.log(Level.WARNING, "No fue posible cargar categorías", e);
+        }
+        return list;
+    }
+
+    public void syncInventoryCatalog(int businessId, int branchId) {
+        String sql = """
+                INSERT INTO sales_categories (business_id, branch_id, category_name, subcategory_name)
+                SELECT DISTINCT i.business_id, i.branch_id, i.category_name, 'Inventario'
+                FROM inventory_items i
+                WHERE i.business_id = ?
+                  AND i.branch_id = ?
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM sales_categories c
+                      WHERE c.business_id = i.business_id
+                        AND c.branch_id = i.branch_id
+                        AND LOWER(c.category_name) = LOWER(i.category_name)
+                        AND LOWER(c.subcategory_name) = 'inventario'
+                  )
+                """;
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            if (!SchemaInspector.tableExists(conn, "inventory_items")) {
+                return;
+            }
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, businessId);
+                ps.setInt(2, branchId);
+                ps.executeUpdate();
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "No fue posible sincronizar categorías de inventario hacia ventas", e);
+        }
+    }
+
+    public List<ServiceItemEntry> findInventoryItems(int businessId, int branchId) {
+        List<ServiceItemEntry> list = new ArrayList<>();
+        String sql = """
+                SELECT id, sku, item_name, category_name, stock, cost, price, status_name
+                FROM inventory_items
+                WHERE business_id = ?
+                  AND branch_id = ?
+                  AND stock > 0
+                ORDER BY category_name, item_name
+                """;
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            if (!SchemaInspector.tableExists(conn, "inventory_items")) {
+                return list;
+            }
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, businessId);
+                ps.setInt(2, branchId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        double price = rs.getDouble("price");
+                        double cost = rs.getDouble("cost");
+                        list.add(new ServiceItemEntry(
+                                -rs.getInt("id"),
+                                rs.getString("category_name"),
+                                "Inventario",
+                                rs.getString("item_name"),
+                                "Producto",
+                                price,
+                                cost,
+                                price - cost,
+                                rs.getString("status_name"),
+                                rs.getInt("stock"),
+                                Map.of(),
+                                rs.getInt("id"),
+                                rs.getString("sku")));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "No fue posible cargar productos de inventario en ventas", e);
         }
         return list;
     }

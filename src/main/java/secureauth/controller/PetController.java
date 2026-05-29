@@ -6,8 +6,11 @@ import java.io.IOException;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import secureauth.dao.PetDataAccessException;
 import secureauth.model.Owner;
 import secureauth.model.Pet;
 import secureauth.service.OwnerService;
@@ -43,6 +46,7 @@ public class PetController {
 
     private void bindEvents() {
         view.getBtnGuardarMascota().addActionListener(e -> onGuardarMascota());
+        view.getBtnNuevoDueno().addActionListener(e -> onNuevoDueno());
         view.getBtnSubirImagen().addActionListener(e -> openImageChooser());
         view.getCbOwner().addActionListener(e -> syncOwnerDetails());
     }
@@ -61,8 +65,44 @@ public class PetController {
         } catch (IllegalArgumentException | IOException ex) {
             String errorPrefix = (ex instanceof IOException) ? "No se pudo procesar la imagen: " : "";
             view.showError(errorPrefix + ex.getMessage());
+        } catch (PetDataAccessException ex) {
+            view.showError(ex.getMessage());
         } catch (Exception ex) {
-            view.showError("Error inesperado al registrar mascota.");
+            view.showError("Error inesperado al registrar mascota: " + ex.getMessage());
+        }
+    }
+
+    private void onNuevoDueno() {
+        JTextField name = new JTextField();
+        JTextField phone = new JTextField();
+        JTextField email = new JTextField();
+        JTextField address = new JTextField();
+        Object[] fields = {
+                "Nombre completo *", name,
+                "Teléfono *", phone,
+                "Correo", email,
+                "Dirección", address
+        };
+
+        int result = JOptionPane.showConfirmDialog(view, fields, "Nuevo dueño", JOptionPane.OK_CANCEL_OPTION);
+        if (result != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        try {
+            Owner owner = new Owner();
+            owner.setNombreCompleto(name.getText().trim());
+            owner.setTelefono(phone.getText().trim());
+            owner.setCorreo(email.getText().trim());
+            owner.setDireccion(address.getText().trim());
+
+            Owner created = ownerService.createOwner(owner);
+            loadOwnersIntoCombo();
+            selectOwnerById(created.getId());
+            syncOwnerDetails();
+            view.showSuccess("Dueño registrado correctamente.");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
         }
     }
 
@@ -106,6 +146,16 @@ public class PetController {
         }
         if (selectedId == null) {
             view.getCbOwner().setSelectedItem(null);
+        }
+    }
+
+    private void selectOwnerById(int ownerId) {
+        for (int i = 0; i < view.getCbOwner().getItemCount(); i++) {
+            Owner owner = view.getCbOwner().getItemAt(i);
+            if (owner != null && owner.getId() == ownerId) {
+                view.getCbOwner().setSelectedIndex(i);
+                return;
+            }
         }
     }
 

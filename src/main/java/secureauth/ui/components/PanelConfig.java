@@ -48,10 +48,10 @@ import secureauth.dao.UserDAO;
 import secureauth.repository.UserRepositoryImpl;
 import secureauth.service.AuthService;
 import secureauth.service.UserService;
+import secureauth.ui.dialogs.ApplicationVisualConfigDialog;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
 import secureauth.ui.dialogs.PreciosPorTamanoDialog;
 import secureauth.ui.dialogs.RegistroTrabajadores;
-import secureauth.ui.dialogs.ApplicationVisualConfigDialog;
 import secureauth.ui.utils.UiTheme;
 
 /**

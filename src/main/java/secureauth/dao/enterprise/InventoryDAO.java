@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import secureauth.config.DatabaseConnection;
+import secureauth.config.SchemaInspector;
 import secureauth.model.enterprise.InventoryItem;
 
 /** DAO de inventario multi-sucursal. */
@@ -30,9 +31,13 @@ public class InventoryDAO {
                         cost DECIMAL(12,2) NOT NULL,
                         price DECIMAL(12,2) NOT NULL,
                         status_name VARCHAR(30) NOT NULL,
+                        fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         UNIQUE KEY uk_inventory_scope (business_id, branch_id, sku)
                     )
                     """);
+            if (!SchemaInspector.columnExists(conn, "inventory_items", "fecha_registro")) {
+                st.execute("ALTER TABLE inventory_items ADD COLUMN fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
         }
     }
 
@@ -71,6 +76,81 @@ public class InventoryDAO {
             ps.setInt(7, item.minStock()); ps.setString(8, item.supplier()); ps.setDouble(9, item.cost());
             ps.setDouble(10, item.price()); ps.setString(11, item.status());
             ps.executeUpdate();
+        }
+    }
+
+    public void decreaseStock(int businessId, int branchId, int inventoryId, int quantity) throws SQLException {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            decreaseStock(conn, businessId, branchId, inventoryId, quantity);
+        }
+    }
+
+    /**
+     * Descuenta stock dentro de una transacción existente.
+     *
+     * @param conn conexión JDBC con autocommit controlado por el servicio
+     * @param businessId negocio activo
+     * @param branchId sucursal activa
+     * @param inventoryId producto de inventario
+     * @param quantity cantidad a descontar
+     * @throws SQLException si el producto no existe o no hay stock suficiente
+     */
+    public void decreaseStock(Connection conn, int businessId, int branchId, int inventoryId, int quantity)
+            throws SQLException {
+        if (quantity <= 0) {
+            throw new SQLException("La cantidad debe ser mayor que cero.");
+        }
+        String sql = """
+                UPDATE inventory_items
+                SET stock = stock - ?,
+                    status_name = CASE WHEN stock - ? <= 0 THEN 'AGOTADO' ELSE status_name END
+                WHERE id = ?
+                  AND business_id = ?
+                  AND branch_id = ?
+                  AND stock >= ?
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, quantity);
+            ps.setInt(2, quantity);
+            ps.setInt(3, inventoryId);
+            ps.setInt(4, businessId);
+            ps.setInt(5, branchId);
+            ps.setInt(6, quantity);
+            int updated = ps.executeUpdate();
+            if (updated == 0) {
+                throw new SQLException("No hay suficiente inventario disponible.");
+            }
+        }
+    }
+
+    /**
+     * Valida existencia y stock disponible bloqueando la fila para la transacción.
+     *
+     * @param conn conexión transaccional
+     * @param businessId negocio activo
+     * @param branchId sucursal activa
+     * @param inventoryId producto a validar
+     * @param quantity cantidad requerida
+     * @return true si hay stock suficiente
+     * @throws SQLException si ocurre un error JDBC
+     */
+    public boolean hasStockForUpdate(Connection conn, int businessId, int branchId, int inventoryId, int quantity)
+            throws SQLException {
+        String sql = """
+                SELECT stock
+                FROM inventory_items
+                WHERE id = ?
+                  AND business_id = ?
+                  AND branch_id = ?
+                FOR UPDATE
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, inventoryId);
+            ps.setInt(2, businessId);
+            ps.setInt(3, branchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt("stock") >= quantity;
+            }
         }
     }
 }

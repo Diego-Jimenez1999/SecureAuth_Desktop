@@ -1,28 +1,37 @@
 package secureauth.ui.components;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
 import java.util.Locale;
 
+import javax.swing.AbstractCellEditor;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 
 import secureauth.controller.SalesController;
 import secureauth.model.SaleItem;
+import secureauth.model.Venta;
+import secureauth.service.enterprise.AgendaService;
 import secureauth.service.enterprise.SalesTransactionService;
+import secureauth.ui.dialogs.AgendaServicioDialog;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
 import secureauth.ui.dialogs.PreciosPorTamanoDialog;
 import secureauth.ui.dialogs.SubServiceSelector;
@@ -30,7 +39,10 @@ import secureauth.ui.sales.SalesServiceCatalog;
 import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
 import secureauth.ui.utils.UiTheme;
 
-/** Panel de ventas integrado con gestión de servicios, categorías y precios por tamaño. */
+/** * Panel principal de ventas (Punto de Venta - POS).
+ * Integra la visualización del catálogo de servicios y productos, barra de búsqueda,
+ * y el resumen del carrito de compras actual con sus respectivos cálculos (Subtotal, IVA, Total).
+ */
 public class SalesPanel extends JPanel {
 
     private final SalesController controller;
@@ -42,13 +54,26 @@ public class SalesPanel extends JPanel {
     private JLabel totalValueLabel;
     private JPanel gridPanel;
     private JTextField searchField;
-    private JList<String> itemList;
+    private JTable cartTable;
+    private DefaultTableModel cartTableModel;
     private final SalesTransactionService salesTransactionService;
+    private final AgendaService agendaService = new AgendaService();
 
+    /**
+     * Constructor principal del panel de ventas.
+     * * @param controller Controlador que maneja la lógica de los items en la venta actual.
+     * @param subServiceSelector Selector para sub-servicios adicionales (si aplica).
+     */
     public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector) {
         this(controller, subServiceSelector, new SalesTransactionService());
     }
 
+    /**
+     * Constructor sobrecargado del panel de ventas con inyección de servicio de transacciones.
+     * * @param controller Controlador de ventas.
+     * @param subServiceSelector Selector para sub-servicios.
+     * @param salesTransactionService Servicio para registrar las transacciones en la base de datos.
+     */
     public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector,
             SalesTransactionService salesTransactionService) {
         this.controller = controller;
@@ -63,10 +88,15 @@ public class SalesPanel extends JPanel {
         add(buildCatalogContainer(), BorderLayout.CENTER);
         add(buildSummarySection(), BorderLayout.EAST);
 
+        // Escuchar cambios en el catálogo para actualizar la vista dinámicamente
         catalog.addCatalogListener(evt -> refreshCatalog());
         refreshCatalog();
     }
 
+    /**
+     * Construye el contenedor principal izquierdo que aloja el catálogo de productos/servicios.
+     * * @return JPanel configurado con la cabecera y la cuadrícula del catálogo.
+     */
     private JPanel buildCatalogContainer() {
         JPanel container = new JPanel(new BorderLayout(0, 12));
         container.setBackground(UiTheme.PANEL_WHITE);
@@ -77,6 +107,11 @@ public class SalesPanel extends JPanel {
         return container;
     }
 
+    /**
+     * Construye la cabecera del catálogo, incluyendo títulos, botones de administración
+     * (Tabla de Servicios, Precios por Tamaño, Realizar Venta) y la barra de búsqueda.
+     * * @return JPanel con los componentes superiores del catálogo.
+     */
     private JPanel buildCatalogHeader() {
         JPanel header = new JPanel();
         header.setBackground(UiTheme.PANEL_WHITE);
@@ -110,6 +145,7 @@ public class SalesPanel extends JPanel {
         searchField.setPreferredSize(new Dimension(0, 34));
         searchField.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UiTheme.BORDER_COLOR),
                 new EmptyBorder(6, 10, 6, 10)));
+        // Permite filtrar el catálogo al presionar Enter en el campo de búsqueda
         searchField.addActionListener(e -> refreshCatalog());
 
         header.add(title);
@@ -122,15 +158,25 @@ public class SalesPanel extends JPanel {
         return header;
     }
 
+    /**
+     * Construye la sección donde se muestran las tarjetas de los productos/servicios.
+     * Utiliza un JScrollPane para permitir navegación si hay muchos elementos.
+     * * @return JScrollPane que contiene la cuadrícula de productos.
+     */
     private JScrollPane buildCatalogSection() {
         gridPanel = new JPanel(new GridLayout(0, 3, 12, 12));
         gridPanel.setOpaque(false);
         return new JScrollPane(gridPanel);
     }
 
+    /**
+     * Construye la sección derecha de resumen de la venta actual (Carrito).
+     * Muestra la tabla de items agregados, cantidades editables y los totales.
+     * * @return JPanel contenedor del resumen de ventas.
+     */
     private JPanel buildSummarySection() {
         JPanel summary = new JPanel(new BorderLayout());
-        summary.setPreferredSize(new Dimension(320, 0));
+        summary.setPreferredSize(new Dimension(500, 0));
         summary.setBackground(UiTheme.PANEL_WHITE);
         summary.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UiTheme.BORDER_COLOR),
                 BorderFactory.createEmptyBorder()));
@@ -144,14 +190,31 @@ public class SalesPanel extends JPanel {
         summary.add(panelTitle, BorderLayout.NORTH);
 
         JPanel body = new JPanel();
+        body.setPreferredSize(new Dimension(500, 800));
         body.setBackground(UiTheme.PANEL_WHITE);
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
         body.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        itemList = new JList<>(controller.getListModel());
-        itemList.setFont(UiTheme.BODY_FONT);
-        JScrollPane listScroll = new JScrollPane(itemList);
-        listScroll.setPreferredSize(new Dimension(280, 280));
+        cartTableModel = new DefaultTableModel(new String[]{"Producto", "Precio", "-", "Cantidad", "+", "Subtotal", "Stock"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column == 2 || column == 3 || column == 4;
+            }
+        };
+        cartTable = new JTable(cartTableModel);
+        cartTable.setFont(UiTheme.BODY_FONT);
+        cartTable.setRowHeight(34);
+        cartTable.getColumnModel().getColumn(2).setMaxWidth(42);
+        cartTable.getColumnModel().getColumn(4).setMaxWidth(42);
+        cartTable.getColumnModel().getColumn(3).setMaxWidth(80);
+        cartTable.getColumnModel().getColumn(6).setMaxWidth(70);
+        cartTable.getColumnModel().getColumn(2).setCellRenderer(new QuantityButtonCell("-"));
+        cartTable.getColumnModel().getColumn(4).setCellRenderer(new QuantityButtonCell("+"));
+        cartTable.getColumnModel().getColumn(2).setCellEditor(new QuantityButtonEditor("-", false));
+        cartTable.getColumnModel().getColumn(4).setCellEditor(new QuantityButtonEditor("+", true));
+        cartTableModel.addTableModelListener(e -> handleManualQuantityEdit(e.getFirstRow(), e.getColumn()));
+        JScrollPane listScroll = new JScrollPane(cartTable);
+        listScroll.setPreferredSize(new Dimension(420, 280));
 
         subtotalValueLabel = new JLabel(currency.format(0));
         taxValueLabel = new JLabel(currency.format(0));
@@ -176,14 +239,26 @@ public class SalesPanel extends JPanel {
         return summary;
     }
 
+    /**
+     * Construye los controles de acción para el carrito (Eliminar, Cancelar compra).
+     * Se limitó la altura máxima (setMaximumSize) para evitar que BoxLayout 
+     * estire los botones desproporcionadamente.
+     * * @return JPanel con los botones de acción del carrito.
+     */
     private JPanel buildCartActions() {
-        JPanel actions = new JPanel(new GridLayout(1, 2, 8, 0));
+        JPanel actions = new JPanel(new GridLayout(1, 2, 5, 3));
         actions.setOpaque(false);
+        
+        // RESTRICCIÓN DE ALTURA AÑADIDA AQUÍ
+        // Evita que el panel ocupe el resto del espacio disponible verticalmente
+        actions.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        actions.setPreferredSize(new Dimension(300, 40));
 
         JButton remove = new JButton("Eliminar");
         JButton cancel = new JButton("Cancelar compra");
-        UiTheme.styleButton(remove, UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT, 120, 34, 12, true, false, 8);
-        UiTheme.styleButton(cancel, new java.awt.Color(220, 38, 38), new java.awt.Color(185, 28, 28), UiTheme.TEXT_LIGHT, 150, 34, 12, true, false, 8);
+        
+        UiTheme.styleButton(remove, UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT, 100, 10, 12, true, false, 8);
+        UiTheme.styleButton(cancel, new java.awt.Color(220, 38, 38), new java.awt.Color(185, 28, 28), UiTheme.TEXT_LIGHT, 100, 10, 12, true, false, 8);
 
         remove.addActionListener(e -> removeSelectedCartItem());
         cancel.addActionListener(e -> cancelSale());
@@ -192,6 +267,10 @@ public class SalesPanel extends JPanel {
         return actions;
     }
 
+    /**
+     * Filtra y recarga la cuadrícula del catálogo basándose en el texto 
+     * introducido en el campo de búsqueda.
+     */
     private void refreshCatalog() {
         String normalized = searchField == null ? "" : searchField.getText().trim().toLowerCase();
         gridPanel.removeAll();
@@ -205,6 +284,10 @@ public class SalesPanel extends JPanel {
         gridPanel.repaint();
     }
 
+    /**
+     * Crea y añade un botón que representa una tarjeta de producto/servicio al gridPanel.
+     * * @param item Objeto ServiceItemEntry con los datos a mostrar.
+     */
     private void addServiceCard(ServiceItemEntry item) {
         JButton card = new JButton("<html><center>" + item.name() + "<br/>" + currency.format(item.price()) + "</center></html>");
         card.setHorizontalAlignment(SwingConstants.CENTER);
@@ -212,13 +295,21 @@ public class SalesPanel extends JPanel {
         card.setPreferredSize(new Dimension(190, 120));
         card.setBackground(UiTheme.PANEL_WHITE);
         card.setBorder(BorderFactory.createLineBorder(UiTheme.BORDER_COLOR));
+        // Al hacer clic, se añade el elemento al carrito
         card.addActionListener(e -> addItemToSale(item));
         gridPanel.add(card);
     }
 
+    /**
+     * Añade un producto o servicio al carrito de compras actual.
+     * Si el servicio tiene precios variantes por tamaño, abre un diálogo selector.
+     * * @param item Objeto a añadir a la venta.
+     */
     private void addItemToSale(ServiceItemEntry item) {
         double price = item.price();
         String name = item.name();
+        
+        // Verificar si el item requiere selección de tamaño
         if (item.sizePrices() != null && !item.sizePrices().isEmpty()) {
             Object selected = JOptionPane.showInputDialog(this, "Selecciona tamaño", "Precios por Tamaño",
                     JOptionPane.PLAIN_MESSAGE, null, item.sizePrices().keySet().toArray(), null);
@@ -226,37 +317,68 @@ public class SalesPanel extends JPanel {
                 String size = selected.toString();
                 price = item.sizePrices().getOrDefault(size, item.price());
                 name = item.name() + " - " + size;
+            } else {
+                // Si el usuario cancela la selección de tamaño, abortar la adición
+                return;
             }
         }
-        controller.addItem(new SaleItem(name, price));
+        if (item.stock() != null && item.stock() <= 0) {
+            JOptionPane.showMessageDialog(this, "Producto agotado. No hay stock disponible.");
+            return;
+        }
+        try {
+            controller.addItem(new SaleItem(name, price, item.id(), item.inventoryItemId(), item.sku(), item.type(),
+                    item.category(), item.stock()));
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+            return;
+        }
+        refreshCartTable();
         updateTotals();
     }
 
+    /**
+     * Abre el diálogo de administración general de servicios.
+     */
     private void openGestionDialog() {
         java.awt.Window w = javax.swing.SwingUtilities.getWindowAncestor(this);
         new GestionVentasServiciosDialog(w instanceof javax.swing.JFrame ? (javax.swing.JFrame) w : null).setVisible(true);
     }
 
+    /**
+     * Abre el diálogo de configuración de precios dinámicos por tamaño.
+     */
     private void openSizesDialog() {
         java.awt.Window w = javax.swing.SwingUtilities.getWindowAncestor(this);
         new PreciosPorTamanoDialog(w instanceof javax.swing.JFrame ? (javax.swing.JFrame) w : null).setVisible(true);
     }
 
+    /**
+     * Actualiza las etiquetas numéricas de subtotal, impuestos (IVA) y total
+     * consultando el controlador de ventas.
+     */
     private void updateTotals() {
         subtotalValueLabel.setText(currency.format(controller.getSubtotal()));
         taxValueLabel.setText(currency.format(controller.getTax()));
         totalValueLabel.setText(currency.format(controller.getTotal()));
     }
 
+    /**
+     * Elimina del carrito el elemento que esté seleccionado en el JList (lista visual).
+     */
     private void removeSelectedCartItem() {
-        int index = itemList.getSelectedIndex();
+        int index = cartTable.getSelectedRow();
         if (!controller.removeItemAt(index)) {
             JOptionPane.showMessageDialog(this, "Selecciona un producto del carrito para eliminar.");
             return;
         }
+        refreshCartTable();
         updateTotals();
     }
 
+    /**
+     * Cancela toda la venta actual limpiando el carrito, previo aviso de confirmación.
+     */
     private void cancelSale() {
         if (controller.getItems().isEmpty()) {
             return;
@@ -265,44 +387,175 @@ public class SalesPanel extends JPanel {
                 JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             controller.clearSale();
+            refreshCartTable();
             updateTotals();
         }
     }
 
+    /**
+     * Procesa la venta, pregunta por el método de pago y registra la transacción
+     * en la base de datos a través del servicio de transacciones.
+     */
     private void registerSale() {
         if (controller.getItems().isEmpty()) {
             JOptionPane.showMessageDialog(this, "No hay items en el carrito.");
             return;
         }
+        
+        // Selección de método de pago
         Object[] methods = {"Efectivo", "Tarjeta", "Transferencia"};
         Object selected = JOptionPane.showInputDialog(this, "Método de pago", "POS", JOptionPane.PLAIN_MESSAGE, null, methods, methods[0]);
         if (selected == null) {
-            return;
+            return; // El usuario canceló
         }
+        
+        // Calcular la ganancia sumando los valores gain() de cada item
         double gain = 0d;
         for (var saleItem : controller.getItems()) {
             ServiceItemEntry matched = catalog.getItems().stream().filter(i -> saleItem.getName().startsWith(i.name())).findFirst().orElse(null);
             if (matched != null) {
-                gain += matched.gain();
+                gain += matched.gain() * saleItem.getQuantity();
             }
         }
+        
         try {
             salesTransactionService.initializeSchema();
-            String itemsSummary = controller.getItems().stream().map(SaleItem::getName).collect(java.util.stream.Collectors.joining(", "));
-            salesTransactionService.registerSale(controller.getTotal(), gain, controller.getTax(), controller.getItems().size(), selected.toString(), itemsSummary, "Mostrador", "");
+            String itemsSummary = controller.getItems().stream()
+                    .map(item -> item.getQuantity() + " x " + item.getName())
+                    .collect(java.util.stream.Collectors.joining(", "));
+            Venta venta = new Venta(null, LocalDateTime.now(), "Mostrador", controller.getTotal(), selected.toString(), "");
+            for (SaleItem item : controller.getItems()) {
+                venta.addItem(item);
+            }
+            java.util.List<SaleItem> itemsToSchedule = controller.getItems().stream()
+                    .filter(this::requiresAppointment)
+                    .toList();
+            
+            // Registrar transacción final
+            salesTransactionService.registrarVenta(venta, gain, controller.getTax(), itemsSummary);
+                    
+            // Limpiar interfaz
             controller.clearSale();
+            refreshCartTable();
             searchField.setText("");
-            refreshCatalog();
+            catalog.reload();
             updateTotals();
+            
             JOptionPane.showMessageDialog(this, "Venta registrada correctamente.");
-        } catch (java.sql.SQLException ex) { // Changed to SQLException as database operations are the primary source of exceptions
-            JOptionPane.showMessageDialog(this, "No se pudo registrar venta: " + ex.getMessage());
+            openScheduleDialogs(itemsToSchedule);
+        } catch (java.sql.SQLException ex) {
+            JOptionPane.showMessageDialog(this, "No se pudo registrar venta: " + ex.getMessage(), "Error de Base de Datos", JOptionPane.ERROR_MESSAGE);
         }
     }
 
+    private void refreshCartTable() {
+        if (cartTableModel == null) {
+            return;
+        }
+        cartTableModel.setRowCount(0);
+        for (SaleItem item : controller.getItems()) {
+            cartTableModel.addRow(new Object[]{
+                    item.getName(),
+                    currency.format(item.getPrice()),
+                    "-",
+                    item.getQuantity(),
+                    "+",
+                    currency.format(item.getSubtotal()),
+                    item.getStockAvailable() == null ? "-" : Math.max(0, item.getStockAvailable() - item.getQuantity())
+            });
+        }
+    }
+
+    private void handleManualQuantityEdit(int row, int column) {
+        if (column != 3 || row < 0 || row >= controller.getItems().size()) {
+            return;
+        }
+        Object value = cartTableModel.getValueAt(row, column);
+        try {
+            int quantity = Integer.parseInt(String.valueOf(value).trim());
+            controller.updateQuantity(row, quantity);
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage() == null ? "Cantidad inválida." : ex.getMessage());
+        }
+        refreshCartTable();
+        updateTotals();
+    }
+
+    private boolean requiresAppointment(SaleItem item) {
+        String text = ((item.getCategory() == null ? "" : item.getCategory()) + " " + item.getName()).toLowerCase(Locale.ROOT);
+        return text.contains("baño")
+                || text.contains("bano")
+                || text.contains("peluquer")
+                || text.contains("spa canino")
+                || text.contains("corte de uñas")
+                || text.contains("corte de unas");
+    }
+
+    private void openScheduleDialogs(java.util.List<SaleItem> itemsToSchedule) {
+        java.awt.Window window = javax.swing.SwingUtilities.getWindowAncestor(this);
+        for (SaleItem item : itemsToSchedule) {
+            AgendaServicioDialog dialog = new AgendaServicioDialog(window, item.getName(), agendaService);
+            dialog.setVisible(true);
+        }
+    }
+
+    /**
+     * Utilidad para alinear a la derecha el texto dentro de un JLabel y darle formato en negrita.
+     * * @param label JLabel a modificar.
+     * @return El mismo JLabel ya modificado.
+     */
     private JLabel rightAligned(JLabel label) {
         label.setHorizontalAlignment(SwingConstants.RIGHT);
         label.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
         return label;
+    }
+
+    private final class QuantityButtonCell extends JButton implements TableCellRenderer {
+        private QuantityButtonCell(String text) {
+            super(text);
+            setFocusPainted(false);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                boolean hasFocus, int row, int column) {
+            setText(String.valueOf(value));
+            return this;
+        }
+    }
+
+    private final class QuantityButtonEditor extends AbstractCellEditor implements TableCellEditor {
+        private final JButton button;
+
+        private QuantityButtonEditor(String text, boolean increment) {
+            this.button = new JButton(text);
+            button.setFocusPainted(false);
+            button.addActionListener(e -> {
+                int row = cartTable.getEditingRow();
+                try {
+                    if (increment) {
+                        controller.incrementQuantity(row);
+                    } else {
+                        controller.decrementQuantity(row);
+                    }
+                } catch (IllegalArgumentException ex) {
+                    JOptionPane.showMessageDialog(SalesPanel.this, ex.getMessage());
+                }
+                fireEditingStopped();
+                refreshCartTable();
+                updateTotals();
+            });
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            return button.getText();
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row,
+                int column) {
+            return button;
+        }
     }
 }

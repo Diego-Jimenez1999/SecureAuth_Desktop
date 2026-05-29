@@ -1,41 +1,44 @@
-<<<<<<< HEAD
 # SecureAuth Desktop
 
-Aplicacion de escritorio Java (Swing) para autenticacion segura con MySQL.
+Aplicacion de escritorio Java Swing + Maven para un ERP/POS veterinario con MySQL.
 
 ## Requisitos
+
 - JDK 21
 - Maven 3.9+
 - MySQL 8+
 
-## Variables de entorno
-Configura estas variables antes de ejecutar:
+## Configuracion de base de datos
 
-- `SECUREAUTH_DB_URL` (ej: `jdbc:mysql://localhost:3306/secureauth`)
-- `SECUREAUTH_DB_USER`
-- `SECUREAUTH_DB_PASSWORD`
+La aplicacion lee la configuracion en este orden:
+
+1. Propiedades JVM: `-DSECUREAUTH_DB_PASSWORD=...`
+2. Variables de entorno:
+   - `SECUREAUTH_DB_URL`
+   - `SECUREAUTH_DB_USER`
+   - `SECUREAUTH_DB_PASSWORD`
+3. Archivo local `.env` en la raiz del proyecto
+
+Ejemplo `.env` local:
+
+```properties
+SECUREAUTH_DB_URL=jdbc:mysql://localhost:3306/secureauth
+SECUREAUTH_DB_USER=root
+SECUREAUTH_DB_PASSWORD=1234
+```
+
+El archivo `.env` esta ignorado por Git para evitar publicar credenciales locales.
 
 ## Ejecutar con Maven
+
 ```bash
 mvn clean compile
 mvn exec:java
 ```
 
 ## Arquitectura
+
 Consulta la guia completa en:
 
 - `docs/ARQUITECTURA_SECUREAUTH.md`
-
-## Git (repositorio local ya inicializado)
-Para conectar a GitHub/GitLab:
-
-```bash
-git remote add origin <URL_DEL_REPOSITORIO>
-git add .
-git commit -m "feat: base secureauth con arquitectura mvc+service+repository"
-git push -u origin main
-```
-=======
-# SecureAuth_Desktop
-arquitectura mvc service repository y setup inicial + maven"     
->>>>>>> 8c7983e8f1c4aa4667615fe86f7cae6f2947c188
+- `docs/STABILIZATION_AUDIT.md`

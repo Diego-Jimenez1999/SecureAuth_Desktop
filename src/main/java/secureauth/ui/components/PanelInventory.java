@@ -8,7 +8,11 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionListener;
+import java.text.NumberFormat;
+import java.util.Locale;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -38,6 +42,8 @@ public class PanelInventory extends JPanel {
 
     private final JLabel lblTotalProducts;
     private final JLabel lblLowStock;
+    private final JLabel lblCategories;
+    private final JLabel lblTotalValue;
 
     public PanelInventory() {
 
@@ -118,7 +124,7 @@ public class PanelInventory extends JPanel {
 
         JPanel card3 = createMetricCard(
                 "Categorías",
-                "12",
+                "0",
                 "Categorías activas",
                 new Color(0, 123, 255)
         );
@@ -132,6 +138,8 @@ public class PanelInventory extends JPanel {
 
         lblTotalProducts = getMetricValue(card1);
         lblLowStock = getMetricValue(card2);
+        lblCategories = getMetricValue(card3);
+        lblTotalValue = getMetricValue(card4);
 
         metricsPanel.add(card1);
         metricsPanel.add(card2);
@@ -306,6 +314,7 @@ public class PanelInventory extends JPanel {
         tableModel.setRowCount(0);
 
         int lowStock = 0;
+        double totalValue = 0d;
 
         for (InventoryItem item : items) {
 
@@ -326,10 +335,20 @@ public class PanelInventory extends JPanel {
                     item.minStock(),
                     status
             });
+
+            totalValue += item.stock() * item.price();
         }
+
+        Set<String> categories = items.stream()
+                .map(InventoryItem::category)
+                .filter(category -> category != null && !category.isBlank())
+                .map(String::trim)
+                .collect(Collectors.toSet());
 
         lblTotalProducts.setText(String.valueOf(items.size()));
         lblLowStock.setText(String.valueOf(lowStock));
+        lblCategories.setText(String.valueOf(categories.size()));
+        lblTotalValue.setText(NumberFormat.getCurrencyInstance(new Locale("es", "CO")).format(totalValue));
     }
 
     // =====================================================

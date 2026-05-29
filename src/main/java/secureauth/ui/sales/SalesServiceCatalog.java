@@ -50,6 +50,13 @@ public final class SalesServiceCatalog {
         return Collections.unmodifiableList(new ArrayList<>(items));
     }
 
+    public synchronized void reload() {
+        categories.clear();
+        items.clear();
+        loadFromPersistenceOrSeed();
+        fireChanged();
+    }
+
     public synchronized void addCategory(String category, String subcategory) {
         int id = dao.insertCategory(context.getActiveBusinessId(), context.getActiveBranchId(), category, subcategory);
         if (id > 0) {
@@ -112,15 +119,18 @@ public final class SalesServiceCatalog {
 
     private void loadFromPersistenceOrSeed() {
         dao.ensureSchema();
+        dao.syncInventoryCatalog(context.getActiveBusinessId(), context.getActiveBranchId());
         dao.removeLegacyDomainData(context.getActiveBusinessId(), context.getActiveBranchId());
         List<CategoryEntry> dbCategories = dao.findAllCategories(context.getActiveBusinessId(), context.getActiveBranchId());
         List<ServiceItemEntry> dbItems = dao.findAllItems(context.getActiveBusinessId(), context.getActiveBranchId());
+        List<ServiceItemEntry> inventoryItems = dao.findInventoryItems(context.getActiveBusinessId(), context.getActiveBranchId());
 
-        if (!dbCategories.isEmpty() || !dbItems.isEmpty()) {
+        if (!dbCategories.isEmpty() || !dbItems.isEmpty() || !inventoryItems.isEmpty()) {
             categories.addAll(dbCategories);
             items.addAll(dbItems);
+            items.addAll(inventoryItems);
             categoryIdGen.set(categories.stream().mapToInt(CategoryEntry::id).max().orElse(0) + 1);
-            itemIdGen.set(items.stream().mapToInt(ServiceItemEntry::id).max().orElse(0) + 1);
+            itemIdGen.set(items.stream().mapToInt(ServiceItemEntry::id).filter(id -> id > 0).max().orElse(0) + 1);
             return;
         }
 
@@ -165,10 +175,16 @@ public final class SalesServiceCatalog {
 
     public record ServiceItemEntry(int id, String category, String subcategory, String name, String type,
                                    double price, double cost, double gain, String status, Integer stock,
-                                   Map<String, Double> sizePrices) {
+                                   Map<String, Double> sizePrices, Integer inventoryItemId, String sku) {
+        public ServiceItemEntry(int id, String category, String subcategory, String name, String type,
+                double price, double cost, double gain, String status, Integer stock,
+                Map<String, Double> sizePrices) {
+            this(id, category, subcategory, name, type, price, cost, gain, status, stock, sizePrices, null, null);
+        }
+
         public ServiceItemEntry withId(int newId) {
             return new ServiceItemEntry(newId, category, subcategory, name, type, price, cost, gain, status, stock,
-                    sizePrices);
+                    sizePrices, inventoryItemId, sku);
         }
     }
 }

@@ -5,7 +5,7 @@ package secureauth.dao;
  *
  * @author Diego Alexander Gaviria Jimenez
  */
-public class PetDataAccessException extends Exception {
+public class PetDataAccessException extends RuntimeException {
 
     /**
      * Crea una excepción de acceso a datos con mensaje y causa original.

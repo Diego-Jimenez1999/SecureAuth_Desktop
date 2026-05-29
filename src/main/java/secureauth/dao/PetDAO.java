@@ -3,10 +3,12 @@ package secureauth.dao;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import secureauth.config.DatabaseConnection;
+import secureauth.config.SchemaInspector;
 import secureauth.model.Pet;
 
 /**
@@ -19,6 +21,51 @@ public class PetDAO {
     private static final Logger LOGGER = Logger.getLogger(PetDAO.class.getName());
 
     /**
+     * Crea y migra la tabla de mascotas necesaria para el módulo de registro.
+     *
+     * <p>Este método hace que el módulo sea autónomo: si una instalación tiene
+     * {@code owners} pero no {@code pets}, el registro no dependerá de scripts
+     * manuales externos.</p>
+     */
+    public void ensureSchema() {
+        try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
+            st.execute("""
+                    CREATE TABLE IF NOT EXISTS owners (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        nombre_completo VARCHAR(180) NOT NULL,
+                        telefono VARCHAR(60),
+                        correo VARCHAR(160),
+                        direccion VARCHAR(220),
+                        fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """);
+            st.execute("""
+                    CREATE TABLE IF NOT EXISTS pets (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        owner_id INT NOT NULL,
+                        nombre_mascota VARCHAR(140) NOT NULL,
+                        raza VARCHAR(120) NOT NULL,
+                        edad VARCHAR(60),
+                        peso DECIMAL(8,2) NOT NULL,
+                        sexo VARCHAR(20) NOT NULL,
+                        frecuencia_alimentacion VARCHAR(180),
+                        tipo_alimento VARCHAR(180),
+                        estado_salud VARCHAR(80),
+                        vacunas VARCHAR(300),
+                        cuidados_especiales TEXT,
+                        notas_adicionales TEXT,
+                        imagen_path VARCHAR(500),
+                        fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT fk_pets_owner FOREIGN KEY (owner_id) REFERENCES owners(id)
+                    )
+                    """);
+            migratePetsTable(conn, st);
+        } catch (SQLException e) {
+            throw new PetDataAccessException("No se pudo inicializar la tabla de mascotas.", e);
+        }
+    }
+
+    /**
      * Inserta un registro de mascota en la base de datos.
      *
      * <p>Implementa {@link PreparedStatement} para prevenir inyección SQL y
@@ -28,6 +75,7 @@ public class PetDAO {
      * @return {@code true} si la inserción afectó al menos una fila; en caso contrario {@code false}
      */
     public boolean insert(Pet pet) {
+        ensureSchema();
         final String sql = """
                 INSERT INTO pets (
                     owner_id, nombre_mascota, raza, edad, peso, sexo,
@@ -63,7 +111,29 @@ public class PetDAO {
             }
             PetDataAccessException custom = mapSqlException(message, e);
             LOGGER.log(Level.SEVERE, custom.getMessage(), custom);
-            return false;
+            throw custom;
+        }
+    }
+
+    private void migratePetsTable(Connection conn, Statement st) throws SQLException {
+        addColumnIfMissing(conn, st, "pets", "edad", "VARCHAR(60)");
+        addColumnIfMissing(conn, st, "pets", "frecuencia_alimentacion", "VARCHAR(180)");
+        addColumnIfMissing(conn, st, "pets", "tipo_alimento", "VARCHAR(180)");
+        addColumnIfMissing(conn, st, "pets", "estado_salud", "VARCHAR(80)");
+        addColumnIfMissing(conn, st, "pets", "vacunas", "VARCHAR(300)");
+        addColumnIfMissing(conn, st, "pets", "cuidados_especiales", "TEXT");
+        addColumnIfMissing(conn, st, "pets", "notas_adicionales", "TEXT");
+        addColumnIfMissing(conn, st, "pets", "imagen_path", "VARCHAR(500)");
+        addColumnIfMissing(conn, st, "pets", "fecha_registro", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        if (SchemaInspector.columnExists(conn, "pets", "sexo")) {
+            st.execute("ALTER TABLE pets MODIFY COLUMN sexo VARCHAR(20) NOT NULL");
+        }
+    }
+
+    private void addColumnIfMissing(Connection conn, Statement st, String table, String column, String definition)
+            throws SQLException {
+        if (!SchemaInspector.columnExists(conn, table, column)) {
+            st.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
         }
     }
 

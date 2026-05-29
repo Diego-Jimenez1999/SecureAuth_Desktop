@@ -16,17 +16,10 @@ import secureauth.ui.frames.LoginFrame;
 /**
  * Punto de entrada oficial de SecureAuth Desktop.
  *
- * <p>
- * Esta clase aplica un bootstrap limpio:
- * </p>
- * <ul>
- *     <li>Construye Repository, Service y Controller una sola vez.</li>
- *     <li>Inyecta dependencias en las vistas en lugar de usar {@code new} dentro de UI.</li>
- *     <li>Centraliza navegación entre pantallas (login y dashboard).</li>
- * </ul>
- *
- * @author Diego Jimenez
- * @version 1.0
+ * Bootstrap centralizado:
+ * - Inicializa contexto de aplicación
+ * - Inyecta dependencias (controllers, services)
+ * - Controla navegación entre Login y Dashboard
  */
 public final class MainApp {
 
@@ -34,59 +27,74 @@ public final class MainApp {
     private final EditUserDialogFactory editUserDialogFactory;
     private final SubServiceSelector subServiceSelector;
 
-    /**
-     * Constructor del bootstrap principal.
-     *
-     * <p>
-     * Aquí se arma el grafo de dependencias una sola vez para toda la app.
-     * </p>
-     */
     public MainApp() {
 
         this.appContext = new AppContext();
-        
-        this.editUserDialogFactory = (parent, user, controller) -> new secureauth.ui.frames.EditUserFrame(parent, user,
-                controller).setVisible(true);
+        this.appContext.initialize();
+
+        // Factory de edición de usuario
+        this.editUserDialogFactory = (parent, user, controller) ->
+                new secureauth.ui.frames.EditUserFrame(parent, user, controller)
+                        .setVisible(true);
+
+        // Selector de subservicios
         this.subServiceSelector = (parent, serviceName, subServices) -> {
             SubServiceDialog dialog = new SubServiceDialog(parent, serviceName, subServices);
             dialog.setVisible(true);
             return dialog.getSelectedItem();
         };
-        this.appContext.initialize();
     }
 
-    /**
-     * Método principal de ejecución.
-     *
-     * @param args argumentos de línea de comandos
-     */
     public static void main(String[] args) {
-        // Inicia la aplicación en el hilo de eventos de Swing
         SwingUtilities.invokeLater(() -> new MainApp().showLoginFrame());
     }
 
     /**
-     * Muestra la pantalla de login inyectando controlador y callback de éxito.
+     * Muestra pantalla de login.
      */
     private void showLoginFrame() {
+
         final LoginFrame[] holder = new LoginFrame[1];
-        LoginFrame loginFrame = new LoginFrame(appContext.getAuthController(), user -> showDashboard(user, loginFrameSize(holder[0])));
+
+        LoginFrame loginFrame = new LoginFrame(
+                appContext.getAuthController(),
+                user -> showDashboard(user, loginFrameSize(holder[0]))
+        );
+
         holder[0] = loginFrame;
         loginFrame.setVisible(true);
     }
 
     private Dimension loginFrameSize(LoginFrame loginFrame) {
-        return loginFrame.getSize();
+        return loginFrame != null ? loginFrame.getSize() : null;
     }
 
+    /**
+     * Abre dashboard principal después del login.
+     */
     private void showDashboard(User user, Dimension preferredSize) {
-        IngresoController ingresoController = new IngresoController(appContext.getUserService(), this::showLoginFrame,
-                editUserDialogFactory);
-        IngresoFrame ingresoFrame = new IngresoFrame(ingresoController, user, subServiceSelector, appContext);
-        if (preferredSize != null && preferredSize.width > 0 && preferredSize.height > 0) {
+
+        IngresoController ingresoController = new IngresoController(
+                appContext.getUserService(),
+                this::showLoginFrame,
+                editUserDialogFactory
+        );
+
+        IngresoFrame ingresoFrame = new IngresoFrame(
+                ingresoController,
+                user,
+                subServiceSelector,
+                appContext
+        );
+
+        if (preferredSize != null &&
+                preferredSize.width > 0 &&
+                preferredSize.height > 0) {
+
             ingresoFrame.setSize(preferredSize);
             ingresoFrame.setLocationRelativeTo(null);
         }
+
         ingresoFrame.setVisible(true);
     }
 }

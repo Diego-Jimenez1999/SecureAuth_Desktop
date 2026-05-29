@@ -20,11 +20,34 @@ import secureauth.model.Owner;
 public class OwnerDAO {
 
     /**
+     * Garantiza que la tabla de dueños exista antes de consultar o insertar.
+     */
+    public void ensureSchema() {
+        final String sql = """
+                CREATE TABLE IF NOT EXISTS owners (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nombre_completo VARCHAR(180) NOT NULL,
+                    telefono VARCHAR(60),
+                    correo VARCHAR(160),
+                    direccion VARCHAR(220),
+                    fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """;
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement st = conn.createStatement()) {
+            st.execute(sql);
+        } catch (SQLException e) {
+            throw new RuntimeException("No se pudo inicializar la tabla de dueños.", e);
+        }
+    }
+
+    /**
      * Recupera todos los dueños registrados en la base de datos.
      *
      * @return Una lista con todos los objetos Owner, ordenada alfabéticamente por nombre.
      */
     public List<Owner> findAll() {
+        ensureSchema();
         final String sql = "SELECT id, nombre_completo, telefono, correo, direccion FROM owners ORDER BY nombre_completo";
         List<Owner> owners = new ArrayList<>();
 
@@ -49,6 +72,7 @@ public class OwnerDAO {
      * @return El objeto Owner si lo encuentra, o null si no existe.
      */
     public Owner findById(int id) {
+        ensureSchema();
         final String sql = "SELECT id, nombre_completo, telefono, correo, direccion FROM owners WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -72,6 +96,7 @@ public class OwnerDAO {
      * @return lista filtrada
      */
     public List<Owner> search(String query) {
+        ensureSchema();
         if (query == null || query.trim().isEmpty()) {
             return findAll();
         }
@@ -112,6 +137,7 @@ public class OwnerDAO {
      * @param owner El objeto con los datos del cliente que queremos registrar.
      */
     public Owner insert(Owner owner) {
+        ensureSchema();
         final String sql = "INSERT INTO owners (nombre_completo, telefono, correo, direccion) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -139,6 +165,7 @@ public class OwnerDAO {
      * @param owner datos actualizados
      */
     public void update(Owner owner) {
+        ensureSchema();
         final String sql = "UPDATE owners SET nombre_completo=?, telefono=?, correo=?, direccion=? WHERE id=?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -159,6 +186,7 @@ public class OwnerDAO {
      * @param id identificador del dueño
      */
     public void delete(int id) {
+        ensureSchema();
         final String sql = "DELETE FROM owners WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -177,6 +205,7 @@ public class OwnerDAO {
      *         (por ejemplo, si la tabla o la columna fecha_registro aún no existen).
      */
     public int countNewThisMonth() {
+        ensureSchema();
         final String sql = """
                 SELECT COUNT(*) FROM owners
                 WHERE YEAR(fecha_registro)  = YEAR(CURRENT_DATE())

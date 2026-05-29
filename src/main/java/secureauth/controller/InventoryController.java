@@ -10,6 +10,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import secureauth.model.enterprise.InventoryItem;
 import secureauth.service.enterprise.InventoryService;
 import secureauth.ui.components.PanelInventory;
+import secureauth.ui.sales.SalesServiceCatalog;
 
 /** Controlador enterprise del inventario con importación CSV/XLSX. */
 public class InventoryController {
@@ -70,6 +71,7 @@ public class InventoryController {
             if (confirm == JOptionPane.YES_OPTION) {
                 service.importRows(preview.validRows());
                 loadInventory();
+                SalesServiceCatalog.getInstance().reload();
             }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(view, "No se pudo importar: " + ex.getMessage());

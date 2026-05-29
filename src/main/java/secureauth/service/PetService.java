@@ -40,6 +40,7 @@ public class PetService {
      */
     public boolean registerPet(Pet pet) throws IOException {
         validateRequiredFields(pet);
+        petDAO.ensureSchema();
 
         if (!isBlank(pet.getImagenPath())) {
             String copiedPath = copyImageToInternalResources(pet.getImagenPath());

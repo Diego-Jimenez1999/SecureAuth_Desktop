@@ -1,0 +1,38 @@
+package secureauth.config;
+
+import secureauth.ai.AiService;
+import secureauth.ai.OllamaClient;
+import secureauth.controller.AuthController;
+import secureauth.service.UserService;
+
+public class AppContext {
+
+    private AuthController authController;
+    private UserService userService;
+
+    // NUEVO: IA
+    private AiService aiService;
+
+    public void initialize() {
+
+        // Servicios base
+        this.userService = new UserService();
+        this.authController = new AuthController(userService);
+
+        // IA (Ollama)
+        OllamaClient ollamaClient = new OllamaClient();
+        this.aiService = new AiService(ollamaClient);
+    }
+
+    public AuthController getAuthController() {
+        return authController;
+    }
+
+    public UserService getUserService() {
+        return userService;
+    }
+
+    public AiService getAiService() {
+        return aiService;
+    }
+}

@@ -11,9 +11,16 @@ import secureauth.model.SaleItem;
 /**
  * Controlador del módulo de ventas.
  *
- * <p>Gestiona la lógica de negocio de la venta en memoria:
- * agrega items al resumen y calcula subtotal, IVA y total.
- * </p>
+ * <p>Gestiona el carrito en memoria, acumula cantidades por producto/servicio y
+ * recalcula subtotal, IVA y total cada vez que cambia una cantidad.</p>
+ *
+ * <h2>Ejemplo</h2>
+ * <pre>{@code
+ * SalesController controller = new SalesController();
+ * controller.addItem(new SaleItem("Baño Canino", 35000));
+ * controller.updateQuantity(0, 2);
+ * double total = controller.getTotal();
+ * }</pre>
  */
 public class SalesController {
 
@@ -31,13 +38,19 @@ public class SalesController {
     }
 
     /**
-     * Agrega un servicio al carrito/resumen.
+     * Agrega un producto o servicio al carrito. Si ya existe una línea
+     * compatible, incrementa la cantidad para mantener una sola fila por item.
      *
-     * @param item servicio seleccionado desde el catálogo
+     * @param item item seleccionado desde el catálogo
      */
     public void addItem(SaleItem item) {
-        saleItems.add(item);
-        listModel.addElement(item.toString());
+        int existingIndex = findMatchingItemIndex(item);
+        if (existingIndex >= 0) {
+            saleItems.get(existingIndex).incrementQuantity();
+        } else {
+            saleItems.add(item);
+        }
+        syncListModel();
     }
 
     /**
@@ -51,7 +64,53 @@ public class SalesController {
             return false;
         }
         saleItems.remove(index);
-        listModel.remove(index);
+        syncListModel();
+        return true;
+    }
+
+    /**
+     * Incrementa la cantidad de una línea del carrito.
+     *
+     * @param index fila del carrito
+     * @return true si la fila existe y fue actualizada
+     */
+    public boolean incrementQuantity(int index) {
+        if (!isValidIndex(index)) {
+            return false;
+        }
+        saleItems.get(index).incrementQuantity();
+        syncListModel();
+        return true;
+    }
+
+    /**
+     * Disminuye la cantidad de una línea del carrito.
+     *
+     * @param index fila del carrito
+     * @return true si la fila existe y fue actualizada
+     */
+    public boolean decrementQuantity(int index) {
+        if (!isValidIndex(index)) {
+            return false;
+        }
+        saleItems.get(index).decrementQuantity();
+        syncListModel();
+        return true;
+    }
+
+    /**
+     * Define manualmente la cantidad de una línea del carrito.
+     *
+     * @param index fila del carrito
+     * @param quantity cantidad mayor a cero
+     * @return true si la fila existe y fue actualizada
+     */
+    public boolean updateQuantity(int index, int quantity) {
+        if (!isValidIndex(index)) {
+            return false;
+        }
+        saleItems.get(index).setQuantity(quantity);
+        syncListModel();
         return true;
     }
 
@@ -66,7 +125,7 @@ public class SalesController {
      * @return subtotal (sin impuestos)
      */
     public double getSubtotal() {
-        return saleItems.stream().mapToDouble(SaleItem::getPrice).sum();
+        return saleItems.stream().mapToDouble(SaleItem::getSubtotal).sum();
     }
 
     /**
@@ -96,5 +155,39 @@ public class SalesController {
     public void clearSale() {
         saleItems.clear();
         listModel.clear();
+    }
+
+    /**
+     * @return cantidad total de unidades vendidas
+     */
+    public int getItemsCount() {
+        return saleItems.stream().mapToInt(SaleItem::getQuantity).sum();
+    }
+
+    private int findMatchingItemIndex(SaleItem item) {
+        for (int i = 0; i < saleItems.size(); i++) {
+            SaleItem current = saleItems.get(i);
+            boolean sameInventory = current.getInventoryItemId() != null
+                    && current.getInventoryItemId().equals(item.getInventoryItemId());
+            boolean sameCatalog = current.getInventoryItemId() == null
+                    && current.getCatalogItemId() == item.getCatalogItemId()
+                    && current.getName().equals(item.getName())
+                    && Double.compare(current.getPrice(), item.getPrice()) == 0;
+            if (sameInventory || sameCatalog) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private boolean isValidIndex(int index) {
+        return index >= 0 && index < saleItems.size();
+    }
+
+    private void syncListModel() {
+        listModel.clear();
+        for (SaleItem item : saleItems) {
+            listModel.addElement(item.toString());
+        }
     }
 }

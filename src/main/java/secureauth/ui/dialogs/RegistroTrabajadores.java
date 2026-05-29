@@ -198,7 +198,7 @@ public class RegistroTrabajadores extends JDialog {
      */
     public RegistroTrabajadores( java.awt.Frame parent,AuthController controller) {
 
-        super(parent, "Editar Usuario", true);
+        super(parent, "Registrar Trabajador", true);
         this.controller = controller;
 
         setupFrame();
@@ -1049,7 +1049,7 @@ public class RegistroTrabajadores extends JDialog {
                 getFechaNacimiento()
         );
 
-        user.setRolId(3);
+        user.setRolId(resolveSelectedRoleId());
 
         /*
          * Conversión de género.
@@ -1070,6 +1070,17 @@ public class RegistroTrabajadores extends JDialog {
 
         return user;
 
+    }
+
+    private int resolveSelectedRoleId() {
+        String selectedRole = String.valueOf(rolBox.getSelectedItem());
+        return switch (selectedRole) {
+            case "Administrador" -> 1;
+            case "Supervisor" -> 2;
+            case "Médico" -> 4;
+            case "Recepcionista" -> 3;
+            default -> 3;
+        };
     }
 
     /* =========================================================

@@ -476,9 +476,7 @@ public final class UiTheme {
                 new Dimension(width, height)
         );
 
-        btn.setMaximumSize(
-                new Dimension(width, height)
-        );
+        
 
         btn.setFont(
                 new Font(
@@ -514,7 +512,7 @@ public final class UiTheme {
 
         }
 
-        btn.setContentAreaFilled(filled);
+        btn.setContentAreaFilled(filled);// Permite fondo transparente si filled es false
 
         btn.setOpaque(filled);
 
