@@ -1,5 +1,8 @@
 # SecureAuth Desktop - Arquitectura y Guía Técnica
 
+> Documento historico. La arquitectura viva del ERP se mantiene en `docs/ARCHITECTURE.md`.
+> Este archivo se conserva por compatibilidad documental y defensa tecnica previa.
+
 ## Descripción General
 
 SecureAuth Desktop es una aplicación de escritorio desarrollada en Java con Swing, orientada a autenticación segura de usuarios y administración empresarial básica.

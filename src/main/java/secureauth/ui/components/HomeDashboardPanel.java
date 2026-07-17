@@ -44,6 +44,7 @@ import javax.swing.table.JTableHeader;
 
 import secureauth.model.User;
 import secureauth.model.Appointment;
+import secureauth.model.AppointmentStatus;
 import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.service.OwnerService;
 import secureauth.service.UserService;
@@ -688,15 +689,18 @@ public final class HomeDashboardPanel extends JPanel {
             label.setFont(new Font("Segoe UI", Font.BOLD, 12));
             label.setOpaque(true);
             label.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
-            if (AppointmentDAO.STATUS_IN_PROGRESS.equals(status)) {
+            if (AppointmentStatus.IN_PROGRESS.matches(status)) {
                 label.setBackground(new Color(219, 234, 254));
                 label.setForeground(new Color(30, 64, 175));
-            } else if (AppointmentDAO.STATUS_DONE.equals(status)) {
+            } else if (AppointmentStatus.FINALIZED.matches(status)) {
                 label.setBackground(new Color(220, 252, 231));
                 label.setForeground(new Color(22, 101, 52));
-            } else if (AppointmentDAO.STATUS_CANCELLED.equals(status)) {
+            } else if (AppointmentStatus.CANCELLED.matches(status)) {
                 label.setBackground(new Color(254, 226, 226));
                 label.setForeground(new Color(153, 27, 27));
+            } else if (AppointmentStatus.CONFIRMED.matches(status)) {
+                label.setBackground(new Color(224, 242, 254));
+                label.setForeground(new Color(3, 105, 161));
             } else {
                 label.setBackground(new Color(254, 249, 195));
                 label.setForeground(new Color(66, 32, 6));

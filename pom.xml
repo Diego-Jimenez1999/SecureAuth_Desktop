@@ -14,8 +14,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <!-- JDK 26 -->
-        <maven.compiler.release>26</maven.compiler.release>
+        <!-- JDK 21+ -->
+        <maven.compiler.release>21</maven.compiler.release>
 
         <exec.mainClass>secureauth.ui.MainApp</exec.mainClass>
 
@@ -125,8 +125,8 @@
                         <configuration>
                             <rules>
                                 <requireJavaVersion>
-                                    <version>[26,)</version>
-                                    <message>Este proyecto requiere Java 26 o superior.</message>
+                                    <version>[21,)</version>
+                                    <message>Este proyecto requiere Java 21 o superior.</message>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>

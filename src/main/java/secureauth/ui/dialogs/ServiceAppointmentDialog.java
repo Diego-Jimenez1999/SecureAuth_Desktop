@@ -37,6 +37,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 import secureauth.model.Appointment;
+import secureauth.model.AppointmentStatus;
 import secureauth.model.Owner;
 import secureauth.model.Pet;
 import secureauth.model.SaleItem;
@@ -392,7 +393,8 @@ public class ServiceAppointmentDialog extends JDialog {
             LocalTime time = LocalTime.parse(required(timeField, "Hora del servicio"));
             Appointment appointment = new Appointment(null, saleItem.getCatalogItemId(), saleItem.getName(),
                     owner.getId(), owner.getNombreCompleto(), pet.getId(), pet.getNombreMascota(), date, time,
-                    "PENDIENTE", notesArea.getText().trim(), LocalDateTime.now(), "Sistema");
+                    AppointmentStatus.PENDING.databaseValue(), notesArea.getText().trim(), LocalDateTime.now(),
+                    "Sistema");
             preparedAppointment = appointmentService.prepareForRegistration(appointment);
             saved = true;
             dispose();

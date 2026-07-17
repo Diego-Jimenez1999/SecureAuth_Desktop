@@ -2,6 +2,8 @@
 
 Fecha: 2026-05-23
 
+Actualizacion: 2026-07-17. La ejecucion del roadmap se documenta ahora en `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/MIGRATION.md` y `docs/SERVICE_FLOW.md`.
+
 ## Estado tecnico observado
 
 - El proyecto compila con Java 21 y Maven.
@@ -70,3 +72,9 @@ Cada cambio debe mantener:
 - consultas con `PreparedStatement`
 - migraciones idempotentes
 - ningun cambio destructivo sobre tablas existentes
+
+## Avance 2026-07-17
+
+- Build alineado a Java 21+.
+- Estados de agenda centralizados en `AppointmentStatus`.
+- Documentacion tecnica viva creada para la migracion ERP.

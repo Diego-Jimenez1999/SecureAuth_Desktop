@@ -14,6 +14,7 @@ import java.util.List;
 import secureauth.config.DatabaseConnection;
 import secureauth.config.SchemaInspector;
 import secureauth.model.Appointment;
+import secureauth.model.AppointmentStatus;
 
 /**
  * DAO JDBC para persistir y consultar citas de servicios veterinarios.
@@ -30,10 +31,11 @@ public class AppointmentDAO {
     /**
      * Estados operativos soportados por el módulo de citas.
      */
-    public static final String STATUS_PENDING = "PENDIENTE";
-    public static final String STATUS_IN_PROGRESS = "EN_PROCESO";
-    public static final String STATUS_DONE = "REALIZADO";
-    public static final String STATUS_CANCELLED = "CANCELADO";
+    public static final String STATUS_PENDING = AppointmentStatus.PENDING.databaseValue();
+    public static final String STATUS_CONFIRMED = AppointmentStatus.CONFIRMED.databaseValue();
+    public static final String STATUS_IN_PROGRESS = AppointmentStatus.IN_PROGRESS.databaseValue();
+    public static final String STATUS_DONE = AppointmentStatus.FINALIZED.databaseValue();
+    public static final String STATUS_CANCELLED = AppointmentStatus.CANCELLED.databaseValue();
 
     /**
      * Crea y migra la tabla {@code appointments} si no existe.
@@ -166,7 +168,7 @@ public class AppointmentDAO {
                 SELECT id, service_id, service_name, owner_id, owner_name, pet_id, pet_name,
                        appointment_date, appointment_time, status, notes, created_at, created_by
                 FROM appointments
-                ORDER BY FIELD(status, 'PENDIENTE', 'EN_PROCESO', 'REALIZADO', 'CANCELADO'),
+                ORDER BY FIELD(status, 'PENDIENTE', 'CONFIRMADA', 'EN_PROCESO', 'FINALIZADA', 'REALIZADO', 'CANCELADA', 'CANCELADO'),
                          appointment_date ASC,
                          appointment_time ASC
                 LIMIT ?
@@ -196,7 +198,7 @@ public class AppointmentDAO {
         ensureSchema();
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement("UPDATE appointments SET status = ? WHERE id = ?")) {
-            ps.setString(1, status);
+            ps.setString(1, AppointmentStatus.normalizeForStorage(status));
             ps.setInt(2, appointmentId);
             return ps.executeUpdate() > 0;
         }
@@ -209,7 +211,7 @@ public class AppointmentDAO {
      * @throws SQLException si falla la consulta
      */
     public int countScheduled() throws SQLException {
-        return countByStatuses(STATUS_PENDING, STATUS_IN_PROGRESS);
+        return countByStatuses(STATUS_PENDING, STATUS_CONFIRMED, STATUS_IN_PROGRESS);
     }
 
     /**
@@ -219,7 +221,7 @@ public class AppointmentDAO {
      * @throws SQLException si falla la consulta
      */
     public int countFinished() throws SQLException {
-        return countByStatuses(STATUS_DONE);
+        return countByStatuses(STATUS_DONE, "REALIZADO");
     }
 
     private int countByStatuses(String... statuses) throws SQLException {

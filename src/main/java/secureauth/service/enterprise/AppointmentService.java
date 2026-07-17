@@ -11,6 +11,7 @@ import secureauth.dao.PetDAO;
 import secureauth.dao.enterprise.ActividadRecienteDAO;
 import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.model.Appointment;
+import secureauth.model.AppointmentStatus;
 import secureauth.model.Pet;
 
 /**
@@ -189,10 +190,7 @@ public class AppointmentService {
 
     private void validateStatus(String status) {
         String normalized = status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
-        if (!normalized.equals(AppointmentDAO.STATUS_PENDING)
-                && !normalized.equals(AppointmentDAO.STATUS_IN_PROGRESS)
-                && !normalized.equals(AppointmentDAO.STATUS_DONE)
-                && !normalized.equals(AppointmentDAO.STATUS_CANCELLED)) {
+        if (!AppointmentStatus.isSupported(normalized)) {
             throw new IllegalArgumentException("Estado de cita no soportado.");
         }
     }
