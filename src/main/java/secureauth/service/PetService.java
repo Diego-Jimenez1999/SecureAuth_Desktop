@@ -4,11 +4,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 import secureauth.dao.PetDAO;
 import secureauth.model.Pet;
+import secureauth.service.enterprise.EnterpriseContext;
 
 /**
  * Servicio de negocio para operaciones de mascotas.
@@ -18,6 +20,7 @@ import secureauth.model.Pet;
 public class PetService {
 
     private final PetDAO petDAO;
+    private final EnterpriseContext enterpriseContext;
 
     /**
      * Constructor por inyección de dependencias.
@@ -25,7 +28,18 @@ public class PetService {
      * @param petDAO DAO para persistencia de mascotas
      */
     public PetService(PetDAO petDAO) {
+        this(petDAO, EnterpriseContext.getInstance());
+    }
+
+    /**
+     * Constructor por inyección de dependencias.
+     *
+     * @param petDAO DAO para persistencia de mascotas
+     * @param enterpriseContext contexto multiempresa activo
+     */
+    public PetService(PetDAO petDAO, EnterpriseContext enterpriseContext) {
         this.petDAO = Objects.requireNonNull(petDAO, "PetDAO es requerido");
+        this.enterpriseContext = Objects.requireNonNull(enterpriseContext, "EnterpriseContext es requerido");
     }
 
     /**
@@ -39,6 +53,7 @@ public class PetService {
      * @throws IOException cuando falla la copia de la imagen a {@code /resources/pets/}
      */
     public boolean registerPet(Pet pet) throws IOException {
+        assignActiveBusinessIfMissing(pet);
         validateRequiredFields(pet);
         petDAO.ensureSchema();
 
@@ -48,6 +63,25 @@ public class PetService {
         }
 
         return petDAO.insert(pet);
+    }
+
+    /**
+     * Obtiene mascotas registradas para un dueño.
+     *
+     * @param ownerId identificador del dueño
+     * @return lista de mascotas asociadas
+     */
+    public List<Pet> findPetsByOwner(int ownerId) {
+        if (ownerId <= 0) {
+            throw new IllegalArgumentException("Selecciona un dueño válido.");
+        }
+        return petDAO.findByOwnerId(ownerId, enterpriseContext.getActiveBusinessId());
+    }
+
+    private void assignActiveBusinessIfMissing(Pet pet) {
+        if (pet != null && pet.getBusinessId() <= 0) {
+            pet.setBusinessId(enterpriseContext.getActiveBusinessId());
+        }
     }
 
     private void validateRequiredFields(Pet pet) {
@@ -65,6 +99,9 @@ public class PetService {
         }
         if (pet.getOwnerId() <= 0) {
             throw new IllegalArgumentException("El owner_id es obligatorio.");
+        }
+        if (pet.getBusinessId() <= 0) {
+            throw new IllegalArgumentException("El business_id es obligatorio.");
         }
     }
 

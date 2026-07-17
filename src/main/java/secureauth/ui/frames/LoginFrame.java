@@ -44,6 +44,9 @@ import secureauth.ui.utils.UiTheme;
 
 /**
  * Ventana de autenticación y registro con layout responsivo.
+ * 
+ * @author Diego Jimenez
+ * @version 1.0
  */
 public class LoginFrame extends JFrame {
 
@@ -184,7 +187,7 @@ public class LoginFrame extends JFrame {
         JPanel leftFlow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         leftFlow.setOpaque(false);
         JLabel logo = new JLabel();
-        logo.setIcon(UiTheme.scaleImage("/logop_4.png", 260, 78));
+        logo.setIcon(UiTheme.scaleImage("/logop_4.png", 280, 78));
         leftFlow.add(logo);
 
         JPanel rightFlow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));

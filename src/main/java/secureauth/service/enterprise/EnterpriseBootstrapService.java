@@ -15,8 +15,12 @@ public class EnterpriseBootstrapService {
     private final EnterpriseContext context;
 
     public EnterpriseBootstrapService() {
-        this.dao = new EnterpriseBootstrapDAO();
-        this.context = EnterpriseContext.getInstance();
+        this(new EnterpriseBootstrapDAO(), EnterpriseContext.getInstance());
+    }
+
+    public EnterpriseBootstrapService(EnterpriseBootstrapDAO dao, EnterpriseContext context) {
+        this.dao = dao;
+        this.context = context;
     }
 
     /** Inicializa esquema y deja contexto activo válido. */

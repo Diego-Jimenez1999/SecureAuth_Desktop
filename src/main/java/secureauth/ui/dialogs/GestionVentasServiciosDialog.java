@@ -27,7 +27,11 @@ import secureauth.ui.sales.SalesServiceCatalog;
 import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
 import secureauth.ui.utils.UiTheme;
 
-/** Diálogo principal de administración de categorías, subcategorías y servicios/productos. */
+/** Diálogo principal de administración de categorías, subcategorías y servicios/productos.
+ *  Permite agregar, editar y eliminar categorías y servicios, así como gestionar precios por tamaño.
+ * @version  1.2
+ * @author  Diego Jimenez
+ */
 public class GestionVentasServiciosDialog extends JDialog {
 
     private final SalesServiceCatalog catalog;
@@ -36,7 +40,8 @@ public class GestionVentasServiciosDialog extends JDialog {
 
     private JTable tblCategorias;
     private JTable tblServicios;
-
+    
+    // 
     private JTextField txtCategoria;
     private JTextField txtSubcategoria;
     private JTextField txtNombre;
@@ -50,6 +55,11 @@ public class GestionVentasServiciosDialog extends JDialog {
 
     private int editingItemId = -1;
 
+    /**
+     *  constructor  
+     * 
+     * @param parent parent del dialogo
+     */
     public GestionVentasServiciosDialog(JFrame parent) {
         super(parent, "Gestión de Ventas y Servicios", true);
         this.catalog = SalesServiceCatalog.getInstance();
@@ -66,6 +76,10 @@ public class GestionVentasServiciosDialog extends JDialog {
         catalog.addCatalogListener(evt -> refreshTables());
     }
 
+
+    /**
+    * incicio de los componetes del jdialogo     
+    */
     private void initComponents() {
         setSize(1240, 760);
         setLocationRelativeTo(getParent());

@@ -35,8 +35,18 @@ public class UserService {
      * @param userRepository repositorio de usuarios
      */
     public UserService(UserRepository userRepository) {
+        this(userRepository, new UserDAO());
+    }
+
+    /**
+     * Constructor para inyección completa de dependencias.
+     *
+     * @param userRepository repositorio de usuarios
+     * @param userDAO DAO de usuarios para consultas especificas del dashboard
+     */
+    public UserService(UserRepository userRepository, UserDAO userDAO) {
         this.userRepository = userRepository;
-        this.userDAO = new UserDAO();
+        this.userDAO = userDAO;
     }
 
     /**

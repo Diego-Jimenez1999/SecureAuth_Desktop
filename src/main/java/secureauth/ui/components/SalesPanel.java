@@ -7,7 +7,10 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.swing.AbstractCellEditor;
 import javax.swing.BorderFactory;
@@ -27,13 +30,15 @@ import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
 import secureauth.controller.SalesController;
+import secureauth.model.Appointment;
 import secureauth.model.SaleItem;
 import secureauth.model.Venta;
-import secureauth.service.enterprise.AgendaService;
+import secureauth.service.OwnerService;
+import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.SalesTransactionService;
-import secureauth.ui.dialogs.AgendaServicioDialog;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
 import secureauth.ui.dialogs.PreciosPorTamanoDialog;
+import secureauth.ui.dialogs.ServiceAppointmentDialog;
 import secureauth.ui.dialogs.SubServiceSelector;
 import secureauth.ui.sales.SalesServiceCatalog;
 import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
@@ -57,7 +62,8 @@ public class SalesPanel extends JPanel {
     private JTable cartTable;
     private DefaultTableModel cartTableModel;
     private final SalesTransactionService salesTransactionService;
-    private final AgendaService agendaService = new AgendaService();
+    private final AppointmentService appointmentService;
+    private final OwnerService ownerService;
 
     /**
      * Constructor principal del panel de ventas.
@@ -76,10 +82,25 @@ public class SalesPanel extends JPanel {
      */
     public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector,
             SalesTransactionService salesTransactionService) {
+        this(controller, subServiceSelector, salesTransactionService, new AppointmentService(),
+                new OwnerService(new secureauth.dao.OwnerDAO()));
+    }
+
+    public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector,
+            SalesTransactionService salesTransactionService, AppointmentService appointmentService) {
+        this(controller, subServiceSelector, salesTransactionService, appointmentService,
+                new OwnerService(new secureauth.dao.OwnerDAO()));
+    }
+
+    public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector,
+            SalesTransactionService salesTransactionService, AppointmentService appointmentService,
+            OwnerService ownerService) {
         this.controller = controller;
         this.currency = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
         this.catalog = SalesServiceCatalog.getInstance();
         this.salesTransactionService = salesTransactionService;
+        this.appointmentService = appointmentService;
+        this.ownerService = ownerService;
 
         setLayout(new BorderLayout(16, 0));
         setBackground(UiTheme.BG_PAGE);
@@ -306,29 +327,17 @@ public class SalesPanel extends JPanel {
      * * @param item Objeto a añadir a la venta.
      */
     private void addItemToSale(ServiceItemEntry item) {
-        double price = item.price();
-        String name = item.name();
-        
-        // Verificar si el item requiere selección de tamaño
-        if (item.sizePrices() != null && !item.sizePrices().isEmpty()) {
-            Object selected = JOptionPane.showInputDialog(this, "Selecciona tamaño", "Precios por Tamaño",
-                    JOptionPane.PLAIN_MESSAGE, null, item.sizePrices().keySet().toArray(), null);
-            if (selected != null) {
-                String size = selected.toString();
-                price = item.sizePrices().getOrDefault(size, item.price());
-                name = item.name() + " - " + size;
-            } else {
-                // Si el usuario cancela la selección de tamaño, abortar la adición
-                return;
-            }
+        PricedSaleSelection selection = resolvePricedSelection(item);
+        if (selection == null) {
+            return;
         }
         if (item.stock() != null && item.stock() <= 0) {
             JOptionPane.showMessageDialog(this, "Producto agotado. No hay stock disponible.");
             return;
         }
         try {
-            controller.addItem(new SaleItem(name, price, item.id(), item.inventoryItemId(), item.sku(), item.type(),
-                    item.category(), item.stock()));
+            controller.addItem(new SaleItem(selection.name(), selection.price(), item.id(), item.inventoryItemId(),
+                    item.sku(), item.type(), item.category(), item.stock()));
         } catch (IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage());
             return;
@@ -393,20 +402,13 @@ public class SalesPanel extends JPanel {
     }
 
     /**
-     * Procesa la venta, pregunta por el método de pago y registra la transacción
-     * en la base de datos a través del servicio de transacciones.
+     * Procesa la venta. Si hay servicios, primero solicita el agendamiento;
+     * después confirma el método de pago y registra todo transaccionalmente.
      */
     private void registerSale() {
         if (controller.getItems().isEmpty()) {
             JOptionPane.showMessageDialog(this, "No hay items en el carrito.");
             return;
-        }
-        
-        // Selección de método de pago
-        Object[] methods = {"Efectivo", "Tarjeta", "Transferencia"};
-        Object selected = JOptionPane.showInputDialog(this, "Método de pago", "POS", JOptionPane.PLAIN_MESSAGE, null, methods, methods[0]);
-        if (selected == null) {
-            return; // El usuario canceló
         }
         
         // Calcular la ganancia sumando los valores gain() de cada item
@@ -423,16 +425,30 @@ public class SalesPanel extends JPanel {
             String itemsSummary = controller.getItems().stream()
                     .map(item -> item.getQuantity() + " x " + item.getName())
                     .collect(java.util.stream.Collectors.joining(", "));
-            Venta venta = new Venta(null, LocalDateTime.now(), "Mostrador", controller.getTotal(), selected.toString(), "");
-            for (SaleItem item : controller.getItems()) {
-                venta.addItem(item);
-            }
             java.util.List<SaleItem> itemsToSchedule = controller.getItems().stream()
                     .filter(this::requiresAppointment)
                     .toList();
+
+            java.util.List<Appointment> appointments = openScheduleDialogs(itemsToSchedule);
+            if (appointments == null) {
+                JOptionPane.showMessageDialog(this, "La venta no se registró porque la cita fue cancelada.",
+                        "Agendamiento requerido", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            String paymentMethod = requestPaymentMethod();
+            if (paymentMethod == null) {
+                return;
+            }
+
+            Venta venta = new Venta(null, LocalDateTime.now(), "Mostrador", controller.getTotal(), paymentMethod, "");
+            for (SaleItem item : controller.getItems()) {
+                venta.addItem(item);
+            }
             
             // Registrar transacción final
-            salesTransactionService.registrarVenta(venta, gain, controller.getTax(), itemsSummary);
+            salesTransactionService.registrarVentaConCitas(venta, gain, controller.getTax(), itemsSummary,
+                    appointments);
                     
             // Limpiar interfaz
             controller.clearSale();
@@ -441,8 +457,7 @@ public class SalesPanel extends JPanel {
             catalog.reload();
             updateTotals();
             
-            JOptionPane.showMessageDialog(this, "Venta registrada correctamente.");
-            openScheduleDialogs(itemsToSchedule);
+            JOptionPane.showMessageDialog(this, "Venta realizada correctamente.");
         } catch (java.sql.SQLException ex) {
             JOptionPane.showMessageDialog(this, "No se pudo registrar venta: " + ex.getMessage(), "Error de Base de Datos", JOptionPane.ERROR_MESSAGE);
         }
@@ -482,20 +497,85 @@ public class SalesPanel extends JPanel {
     }
 
     private boolean requiresAppointment(SaleItem item) {
-        String text = ((item.getCategory() == null ? "" : item.getCategory()) + " " + item.getName()).toLowerCase(Locale.ROOT);
-        return text.contains("baño")
-                || text.contains("bano")
-                || text.contains("peluquer")
-                || text.contains("spa canino")
-                || text.contains("corte de uñas")
-                || text.contains("corte de unas");
+        String type = item.getType() == null ? "" : item.getType().trim().toUpperCase(Locale.ROOT);
+        String category = item.getCategory() == null ? "" : item.getCategory().trim().toUpperCase(Locale.ROOT);
+        return "SERVICIO".equals(type) || "SERVICIO".equals(category);
     }
 
-    private void openScheduleDialogs(java.util.List<SaleItem> itemsToSchedule) {
+    private String requestPaymentMethod() {
+        Object[] methods = {"Efectivo", "Tarjeta", "Transferencia", "Nequi", "Daviplata"};
+        Object selected = JOptionPane.showInputDialog(this, "Método de pago", "POS", JOptionPane.PLAIN_MESSAGE,
+                null, methods, methods[0]);
+        return selected == null ? null : selected.toString();
+    }
+
+    private java.util.List<Appointment> openScheduleDialogs(java.util.List<SaleItem> itemsToSchedule) {
+        java.util.List<Appointment> appointments = new ArrayList<>();
         java.awt.Window window = javax.swing.SwingUtilities.getWindowAncestor(this);
         for (SaleItem item : itemsToSchedule) {
-            AgendaServicioDialog dialog = new AgendaServicioDialog(window, item.getName(), agendaService);
-            dialog.setVisible(true);
+            for (int i = 0; i < item.getQuantity(); i++) {
+                ServiceAppointmentDialog dialog = new ServiceAppointmentDialog(window, item, appointmentService,
+                        ownerService);
+                dialog.setVisible(true);
+                if (!dialog.isSaved() || dialog.getPreparedAppointment() == null) {
+                    return null;
+                }
+                appointments.add(dialog.getPreparedAppointment());
+            }
+        }
+        return appointments;
+    }
+
+    private PricedSaleSelection resolvePricedSelection(ServiceItemEntry item) {
+        double price = item.price();
+        String name = item.name();
+        Map<String, Double> sizePrices = item.sizePrices();
+
+        if (sizePrices != null && !sizePrices.isEmpty()) {
+            List<SizePriceOption> options = new ArrayList<>();
+            for (Map.Entry<String, Double> entry : sizePrices.entrySet()) {
+                options.add(new SizePriceOption(entry.getKey(), entry.getValue()));
+            }
+            Object selected = JOptionPane.showInputDialog(this, "Selecciona tamaño", "Precios por Tamaño",
+                    JOptionPane.PLAIN_MESSAGE, null, options.toArray(), options.get(0));
+            if (selected == null) {
+                return null;
+            }
+            SizePriceOption option = (SizePriceOption) selected;
+            price = option.price();
+            name = item.name() + " - " + option.size();
+        }
+
+        if (price <= 0d) {
+            JOptionPane.showMessageDialog(this, "El precio del servicio debe ser mayor que cero.",
+                    "Precio inválido", JOptionPane.WARNING_MESSAGE);
+            return null;
+        }
+        return new PricedSaleSelection(name, price);
+    }
+
+    private record PricedSaleSelection(String name, double price) { }
+
+    private final class SizePriceOption {
+        private final String size;
+        private final double price;
+
+        private SizePriceOption(String size, double price) {
+            this.size = size;
+            this.price = price;
+        }
+
+        private String size() {
+            return size;
+        }
+
+        private double price() {
+            return price;
+        }
+
+        @Override
+        public String toString() {
+            return size + " - " + currency.format(price);
         }
     }
 

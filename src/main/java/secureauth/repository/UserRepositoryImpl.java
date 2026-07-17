@@ -18,7 +18,16 @@ public class UserRepositoryImpl implements UserRepository {
      * Crea el repositorio con su dependencia DAO.
      */
     public UserRepositoryImpl() {
-        this.userDAO = new UserDAO();
+        this(new UserDAO());
+    }
+
+    /**
+     * Crea el repositorio con el DAO inyectado.
+     *
+     * @param userDAO DAO de usuarios
+     */
+    public UserRepositoryImpl(UserDAO userDAO) {
+        this.userDAO = userDAO;
     }
 
     @Override

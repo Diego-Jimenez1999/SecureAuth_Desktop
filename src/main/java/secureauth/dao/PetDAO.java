@@ -2,8 +2,11 @@ package secureauth.dao;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,6 +45,7 @@ public class PetDAO {
             st.execute("""
                     CREATE TABLE IF NOT EXISTS pets (
                         id INT AUTO_INCREMENT PRIMARY KEY,
+                        business_id INT NOT NULL,
                         owner_id INT NOT NULL,
                         nombre_mascota VARCHAR(140) NOT NULL,
                         raza VARCHAR(120) NOT NULL,
@@ -78,28 +82,29 @@ public class PetDAO {
         ensureSchema();
         final String sql = """
                 INSERT INTO pets (
-                    owner_id, nombre_mascota, raza, edad, peso, sexo,
+                    business_id, owner_id, nombre_mascota, raza, edad, peso, sexo,
                     frecuencia_alimentacion, tipo_alimento, estado_salud,
                     vacunas, cuidados_especiales, notas_adicionales, imagen_path
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, pet.getOwnerId());
-            ps.setString(2, pet.getNombreMascota());
-            ps.setString(3, pet.getRaza());
-            ps.setString(4, pet.getEdad());
-            ps.setDouble(5, pet.getPeso());
-            ps.setString(6, pet.getSexo());
-            ps.setString(7, pet.getFrecuenciaAlimentacion());
-            ps.setString(8, pet.getTipoAlimento());
-            ps.setString(9, pet.getEstadoSalud());
-            ps.setString(10, pet.getVacunas());
-            ps.setString(11, pet.getCuidadosEspeciales());
-            ps.setString(12, pet.getNotasAdicionales());
-            ps.setString(13, pet.getImagenPath());
+            ps.setInt(1, pet.getBusinessId());
+            ps.setInt(2, pet.getOwnerId());
+            ps.setString(3, pet.getNombreMascota());
+            ps.setString(4, pet.getRaza());
+            ps.setString(5, pet.getEdad());
+            ps.setDouble(6, pet.getPeso());
+            ps.setString(7, pet.getSexo());
+            ps.setString(8, pet.getFrecuenciaAlimentacion());
+            ps.setString(9, pet.getTipoAlimento());
+            ps.setString(10, pet.getEstadoSalud());
+            ps.setString(11, pet.getVacunas());
+            ps.setString(12, pet.getCuidadosEspeciales());
+            ps.setString(13, pet.getNotasAdicionales());
+            ps.setString(14, pet.getImagenPath());
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -115,7 +120,72 @@ public class PetDAO {
         }
     }
 
+    /**
+     * Busca las mascotas registradas para un dueño específico.
+     *
+     * @param ownerId identificador del dueño en la tabla {@code owners}
+     * @return mascotas asociadas, ordenadas por nombre
+     */
+    public List<Pet> findByOwnerId(int ownerId) {
+        return findByOwnerId(ownerId, 0);
+    }
+
+    /**
+     * Busca las mascotas registradas para un dueño específico dentro de una empresa.
+     *
+     * @param ownerId identificador del dueño en la tabla {@code owners}
+     * @param businessId identificador de empresa activa; si es menor o igual a cero no filtra por empresa
+     * @return mascotas asociadas, ordenadas por nombre
+     */
+    public List<Pet> findByOwnerId(int ownerId, int businessId) {
+        ensureSchema();
+        final String sql = """
+                SELECT id, business_id, owner_id, nombre_mascota, raza, edad, peso, sexo,
+                       frecuencia_alimentacion, tipo_alimento, estado_salud,
+                       vacunas, cuidados_especiales, notas_adicionales, imagen_path
+                FROM pets
+                WHERE owner_id = ?
+                  AND (? <= 0 OR business_id = ?)
+                ORDER BY nombre_mascota
+                """;
+        List<Pet> pets = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, ownerId);
+            ps.setInt(2, businessId);
+            ps.setInt(3, businessId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    pets.add(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new PetDataAccessException("Error consultando mascotas del dueño.", e);
+        }
+        return pets;
+    }
+
+    private Pet mapRow(ResultSet rs) throws SQLException {
+        return new Pet(
+                rs.getInt("id"),
+                rs.getInt("business_id"),
+                rs.getInt("owner_id"),
+                rs.getString("nombre_mascota"),
+                rs.getString("raza"),
+                rs.getString("edad"),
+                rs.getDouble("peso"),
+                rs.getString("sexo"),
+                rs.getString("frecuencia_alimentacion"),
+                rs.getString("tipo_alimento"),
+                rs.getString("estado_salud"),
+                rs.getString("vacunas"),
+                rs.getString("cuidados_especiales"),
+                rs.getString("notas_adicionales"),
+                rs.getString("imagen_path"));
+    }
+
     private void migratePetsTable(Connection conn, Statement st) throws SQLException {
+        addColumnIfMissing(conn, st, "pets", "business_id", "INT NOT NULL");
         addColumnIfMissing(conn, st, "pets", "edad", "VARCHAR(60)");
         addColumnIfMissing(conn, st, "pets", "frecuencia_alimentacion", "VARCHAR(180)");
         addColumnIfMissing(conn, st, "pets", "tipo_alimento", "VARCHAR(180)");

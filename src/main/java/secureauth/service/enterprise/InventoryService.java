@@ -24,8 +24,16 @@ import secureauth.model.enterprise.InventoryItem;
 /** Servicio enterprise para inventario e importación CSV/XLSX. */
 public class InventoryService {
 
-    private final InventoryDAO dao = new InventoryDAO();
+    private final InventoryDAO dao;
     private final EnterpriseContext context = EnterpriseContext.getInstance();
+
+    public InventoryService() {
+        this(new InventoryDAO());
+    }
+
+    public InventoryService(InventoryDAO dao) {
+        this.dao = dao;
+    }
 
     public void initializeSchema() throws SQLException {
         dao.ensureSchema();

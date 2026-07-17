@@ -8,6 +8,7 @@ package secureauth.model;
 public class Pet {
 
     private int id;
+    private int businessId;
     private int ownerId;
     private String nombreMascota;
     private String raza;
@@ -61,7 +62,47 @@ public class Pet {
             String cuidadosEspeciales,
             String notasAdicionales,
             String imagenPath) {
+        this(id, 0, ownerId, nombreMascota, raza, edad, peso, sexo, frecuenciaAlimentacion,
+                tipoAlimento, estadoSalud, vacunas, cuidadosEspeciales, notasAdicionales, imagenPath);
+    }
+
+    /**
+     * Constructor completo con contexto multiempresa.
+     *
+     * @param id identificador de la mascota
+     * @param businessId identificador de la empresa activa
+     * @param ownerId identificador del dueño (llave foránea)
+     * @param nombreMascota nombre de la mascota
+     * @param raza raza de la mascota
+     * @param edad edad de la mascota
+     * @param peso peso de la mascota
+     * @param sexo sexo de la mascota
+     * @param frecuenciaAlimentacion frecuencia de alimentación
+     * @param tipoAlimento tipo de alimento principal
+     * @param estadoSalud estado de salud general
+     * @param vacunas información de vacunas
+     * @param cuidadosEspeciales cuidados médicos o especiales
+     * @param notasAdicionales notas libres para observaciones
+     * @param imagenPath ruta de imagen asociada
+     */
+    public Pet(
+            int id,
+            int businessId,
+            int ownerId,
+            String nombreMascota,
+            String raza,
+            String edad,
+            double peso,
+            String sexo,
+            String frecuenciaAlimentacion,
+            String tipoAlimento,
+            String estadoSalud,
+            String vacunas,
+            String cuidadosEspeciales,
+            String notasAdicionales,
+            String imagenPath) {
         this.id = id;
+        this.businessId = businessId;
         this.ownerId = ownerId;
         this.nombreMascota = nombreMascota;
         this.raza = raza;
@@ -89,6 +130,20 @@ public class Pet {
      */
     public void setId(int id) {
         this.id = id;
+    }
+
+    /**
+     * @return identificador de la empresa activa
+     */
+    public int getBusinessId() {
+        return businessId;
+    }
+
+    /**
+     * @param businessId identificador de la empresa activa
+     */
+    public void setBusinessId(int businessId) {
+        this.businessId = businessId;
     }
 
     /**

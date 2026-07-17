@@ -14,7 +14,15 @@ import secureauth.model.ActividadReciente;
  */
 public class ActividadRecienteService {
 
-    private final ActividadRecienteDAO dao = new ActividadRecienteDAO();
+    private final ActividadRecienteDAO dao;
+
+    public ActividadRecienteService() {
+        this(new ActividadRecienteDAO());
+    }
+
+    public ActividadRecienteService(ActividadRecienteDAO dao) {
+        this.dao = dao;
+    }
 
     /**
      * Inicializa la tabla de actividad reciente.

@@ -99,12 +99,15 @@ public class IngresoFrame extends javax.swing.JFrame {
         this.controller = controller;
         this.usuarioActual = usuario;
         this.homePanel = new HomeDashboardPanel(usuario, appContext.getSalesTransactionService(),
-                appContext.getOwnerService(), appContext.getUserService());
+                appContext.getOwnerService(), appContext.getUserService(), appContext.getInventoryService(),
+                appContext.getActividadRecienteService(), appContext.getAppointmentService());
         this.clientsPanel = new ClientsPanel();
         this.mascotaRegistroPanel = new RegMascotaPanel();
         this.petController = new PetController(mascotaRegistroPanel, appContext.getPetService(), appContext.getOwnerService());
         this.userPanel = new UserPanel(this, appContext.getOwnerService(), this.petController::reloadOwners);
-        this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector, appContext.getSalesTransactionService());
+        this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector,
+                appContext.getSalesTransactionService(), appContext.getAppointmentService(),
+                appContext.getOwnerService());
         this.configPanel = new PanelConfig(appContext.getUserService(), this.controller);
         this.inventoryPanel = new PanelInventory();
         this.panelReports = new PanelReports();

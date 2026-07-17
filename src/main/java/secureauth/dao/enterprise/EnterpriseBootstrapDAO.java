@@ -94,6 +94,7 @@ public class EnterpriseBootstrapDAO {
             st.execute("""
                 CREATE TABLE IF NOT EXISTS pets (
                   id INT AUTO_INCREMENT PRIMARY KEY,
+                  business_id INT NOT NULL,
                   owner_id INT NOT NULL,
                   nombre_mascota VARCHAR(140) NOT NULL,
                   raza VARCHAR(120) NOT NULL,

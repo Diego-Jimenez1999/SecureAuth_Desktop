@@ -13,8 +13,17 @@ import secureauth.model.CitaServicio;
  */
 public class AgendaService {
 
-    private final AgendaServicioDAO agendaDAO = new AgendaServicioDAO();
-    private final ActividadRecienteDAO actividadDAO = new ActividadRecienteDAO();
+    private final AgendaServicioDAO agendaDAO;
+    private final ActividadRecienteDAO actividadDAO;
+
+    public AgendaService() {
+        this(new AgendaServicioDAO(), new ActividadRecienteDAO());
+    }
+
+    public AgendaService(AgendaServicioDAO agendaDAO, ActividadRecienteDAO actividadDAO) {
+        this.agendaDAO = agendaDAO;
+        this.actividadDAO = actividadDAO;
+    }
 
     /**
      * Inicializa las tablas requeridas por agenda y actividad reciente.

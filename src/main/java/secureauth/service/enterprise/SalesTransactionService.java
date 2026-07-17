@@ -10,9 +10,11 @@ import java.util.stream.Collectors;
 
 import secureauth.config.DatabaseConnection;
 import secureauth.dao.enterprise.ActividadRecienteDAO;
+import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO.SaleReportRow;
 import secureauth.dao.enterprise.InventoryDAO;
+import secureauth.model.Appointment;
 import secureauth.model.SaleItem;
 import secureauth.model.Venta;
 
@@ -25,15 +27,34 @@ import secureauth.model.Venta;
  */
 public class SalesTransactionService {
 
-    private final SalesTransactionDAO dao = new SalesTransactionDAO();
-    private final InventoryDAO inventoryDAO = new InventoryDAO();
-    private final ActividadRecienteDAO actividadDAO = new ActividadRecienteDAO();
+    private final SalesTransactionDAO dao;
+    private final InventoryDAO inventoryDAO;
+    private final ActividadRecienteDAO actividadDAO;
+    private final AppointmentDAO appointmentDAO;
     private final EnterpriseContext context = EnterpriseContext.getInstance();
+
+    public SalesTransactionService() {
+        this(new SalesTransactionDAO(), new InventoryDAO(), new ActividadRecienteDAO(), new AppointmentDAO());
+    }
+
+    public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
+            ActividadRecienteDAO actividadDAO) {
+        this(dao, inventoryDAO, actividadDAO, new AppointmentDAO());
+    }
+
+    public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
+            ActividadRecienteDAO actividadDAO, AppointmentDAO appointmentDAO) {
+        this.dao = dao;
+        this.inventoryDAO = inventoryDAO;
+        this.actividadDAO = actividadDAO;
+        this.appointmentDAO = appointmentDAO;
+    }
 
     public void initializeSchema() throws SQLException {
         dao.ensureSchema();
         inventoryDAO.ensureSchema();
         actividadDAO.ensureSchema();
+        appointmentDAO.ensureSchema();
     }
 
     public void registerSale(double total, double gain, double tax, int items, String paymentMethod) throws SQLException {
@@ -81,7 +102,24 @@ public class SalesTransactionService {
      * @throws SQLException si ocurre un error JDBC
      */
     public void registrarVenta(Venta venta, double gain, double tax, String itemsSummary) throws SQLException {
+        registrarVentaConCitas(venta, gain, tax, itemsSummary, List.of());
+    }
+
+    /**
+     * Registra venta, movimiento de pago/reportes, inventario y citas de
+     * servicios en una sola transacción.
+     *
+     * @param venta venta validada
+     * @param gain ganancia calculada
+     * @param tax impuesto calculado
+     * @param itemsSummary resumen de items
+     * @param appointments citas asociadas a servicios vendidos
+     * @throws SQLException si cualquier paso falla
+     */
+    public void registrarVentaConCitas(Venta venta, double gain, double tax, String itemsSummary,
+            List<Appointment> appointments) throws SQLException {
         validateSale(venta);
+        validateAppointments(appointments);
         int businessId = context.getActiveBusinessId();
         int branchId = context.getActiveBranchId();
 
@@ -114,7 +152,15 @@ public class SalesTransactionService {
                 if (!quantities.isEmpty()) {
                     actividadDAO.insert(conn, "Inventario actualizado", "INVENTARIO", venta.getUsuarioVendedor());
                 }
+                for (Appointment appointment : appointments) {
+                    appointmentDAO.insert(conn, appointment);
+                    actividadDAO.insert(conn, "Cita agendada para " + appointment.getPetName(), "CITA",
+                            appointment.getCreatedBy());
+                }
                 conn.commit();
+                if (!appointments.isEmpty()) {
+                    AppointmentService.notifyAppointmentsChanged();
+                }
             } catch (SQLException | RuntimeException ex) {
                 conn.rollback();
                 throw ex;
@@ -144,6 +190,19 @@ public class SalesTransactionService {
             }
             if (item.isInventoryBacked() && item.getInventoryItemId() <= 0) {
                 throw new SQLException("Producto de inventario inválido.");
+            }
+        }
+    }
+
+    private void validateAppointments(List<Appointment> appointments) throws SQLException {
+        if (appointments == null) {
+            return;
+        }
+        for (Appointment appointment : appointments) {
+            if (appointment == null || appointment.getOwnerId() <= 0 || appointment.getPetId() <= 0
+                    || appointment.getAppointmentDate() == null || appointment.getAppointmentTime() == null
+                    || appointment.getServiceName() == null || appointment.getServiceName().trim().isEmpty()) {
+                throw new SQLException("La cita del servicio está incompleta.");
             }
         }
     }

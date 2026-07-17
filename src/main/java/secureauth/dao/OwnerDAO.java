@@ -7,8 +7,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import secureauth.config.DatabaseConnection;
+import secureauth.config.SchemaInspector;
 import secureauth.model.Owner;
 
 /**
@@ -36,8 +38,9 @@ public class OwnerDAO {
         try (Connection conn = DatabaseConnection.getConnection();
              Statement st = conn.createStatement()) {
             st.execute(sql);
+            migrateOwnersTable(conn, st);
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudo inicializar la tabla de dueños.", e);
+            throw new RuntimeException("No se pudo inicializar la tabla de dueños: " + e.getMessage(), e);
         }
     }
 
@@ -155,7 +158,7 @@ public class OwnerDAO {
             }
             return owner;
         } catch (SQLException e) {
-            throw new RuntimeException("Error al intentar guardar un nuevo dueño.", e);
+            throw new RuntimeException("Error al intentar guardar un nuevo dueño: " + e.getMessage(), e);
         }
     }
 
@@ -239,5 +242,82 @@ public class OwnerDAO {
                 rs.getString("telefono"),
                 rs.getString("correo"),
                 rs.getString("direccion"));
+    }
+
+    private void migrateOwnersTable(Connection conn, Statement st) throws SQLException {
+        addColumnIfMissing(conn, st, "nombre_completo", "VARCHAR(180) NOT NULL");
+        addColumnIfMissing(conn, st, "telefono", "VARCHAR(60) NULL");
+        addColumnIfMissing(conn, st, "correo", "VARCHAR(160) NULL");
+        addColumnIfMissing(conn, st, "direccion", "VARCHAR(220) NULL");
+        addColumnIfMissing(conn, st, "fecha_registro", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+
+        st.execute("ALTER TABLE owners MODIFY COLUMN nombre_completo VARCHAR(180) NOT NULL");
+        st.execute("ALTER TABLE owners MODIFY COLUMN telefono VARCHAR(60) NULL");
+        st.execute("ALTER TABLE owners MODIFY COLUMN correo VARCHAR(160) NULL");
+        st.execute("ALTER TABLE owners MODIFY COLUMN direccion VARCHAR(220) NULL");
+        makeLegacyRequiredColumnsNullable(conn, st);
+    }
+
+    private void addColumnIfMissing(Connection conn, Statement st, String column, String definition)
+            throws SQLException {
+        if (!SchemaInspector.columnExists(conn, "owners", column)) {
+            st.execute("ALTER TABLE owners ADD COLUMN " + column + " " + definition);
+        }
+    }
+
+    private void makeLegacyRequiredColumnsNullable(Connection conn, Statement st) throws SQLException {
+        try (ResultSet rs = conn.getMetaData().getColumns(conn.getCatalog(), null, "owners", null)) {
+            while (rs.next()) {
+                String column = rs.getString("COLUMN_NAME");
+                String normalized = column.toLowerCase(Locale.ROOT);
+                if (isManagedColumn(normalized)
+                        || rs.getInt("NULLABLE") != java.sql.DatabaseMetaData.columnNoNulls
+                        || rs.getString("COLUMN_DEF") != null
+                        || isAutoIncrement(rs)) {
+                    continue;
+                }
+
+                String definition = sqlDefinition(rs);
+                if (definition != null) {
+                    st.execute("ALTER TABLE owners MODIFY COLUMN " + column + " " + definition + " NULL");
+                }
+            }
+        }
+    }
+
+    private boolean isManagedColumn(String column) {
+        return column.equals("id")
+                || column.equals("nombre_completo")
+                || column.equals("telefono")
+                || column.equals("correo")
+                || column.equals("direccion")
+                || column.equals("fecha_registro");
+    }
+
+    private boolean isAutoIncrement(ResultSet rs) throws SQLException {
+        String value = rs.getString("IS_AUTOINCREMENT");
+        return value != null && value.equalsIgnoreCase("YES");
+    }
+
+    private String sqlDefinition(ResultSet rs) throws SQLException {
+        String type = rs.getString("TYPE_NAME");
+        int size = rs.getInt("COLUMN_SIZE");
+        int decimalDigits = rs.getInt("DECIMAL_DIGITS");
+        String normalizedType = type.toUpperCase(Locale.ROOT);
+
+        if (normalizedType.contains("CHAR") || normalizedType.contains("BINARY")) {
+            return normalizedType + "(" + Math.max(size, 1) + ")";
+        }
+        if (normalizedType.equals("DECIMAL") || normalizedType.equals("NUMERIC")) {
+            return normalizedType + "(" + Math.max(size, 1) + "," + Math.max(decimalDigits, 0) + ")";
+        }
+        if (normalizedType.contains("TEXT") || normalizedType.contains("BLOB")
+                || normalizedType.contains("INT") || normalizedType.equals("DATE")
+                || normalizedType.equals("TIME") || normalizedType.equals("DATETIME")
+                || normalizedType.equals("TIMESTAMP") || normalizedType.equals("DOUBLE")
+                || normalizedType.equals("FLOAT") || normalizedType.equals("BOOLEAN")) {
+            return normalizedType;
+        }
+        return null;
     }
 }

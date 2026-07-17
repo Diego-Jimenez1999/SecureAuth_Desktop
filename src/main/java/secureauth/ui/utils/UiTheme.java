@@ -69,12 +69,12 @@ import secureauth.ui.config.ApplicationVisualSettings;
  */
 public final class UiTheme {
 
-    /* =========================================================
+     /* =========================================================
      * CONSTRUCTOR PRIVADO
      * =========================================================
      */
 
-    /**
+     /**
      * Evita instancias de la clase utilitaria.
      */
     private UiTheme() {
