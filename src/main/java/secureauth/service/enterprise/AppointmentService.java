@@ -135,8 +135,23 @@ public class AppointmentService {
      * @throws SQLException si falla la actualización
      */
     public void updateStatus(int appointmentId, String status) throws SQLException {
+        updateStatus(appointmentId, status, null);
+    }
+
+    /**
+     * Cambia el estado de una cita y conserva un punto de extensión para motivo
+     * de cancelación cuando el esquema lo soporte.
+     *
+     * @param appointmentId identificador de cita
+     * @param status nuevo estado soportado
+     * @param reason motivo opcional asociado al cambio
+     * @throws SQLException si falla la actualización
+     */
+    public void updateStatus(int appointmentId, String status, String reason) throws SQLException {
         validateStatus(status);
-        if (appointmentDAO.updateStatus(appointmentId, status)) {
+        String normalizedStatus = AppointmentStatus.normalizeForStorage(status);
+        if (appointmentDAO.updateStatus(appointmentId, normalizedStatus)) {
+            registerStatusActivity(appointmentId, normalizedStatus, reason);
             fireChanged();
         }
     }
@@ -193,6 +208,22 @@ public class AppointmentService {
         if (!AppointmentStatus.isSupported(normalized)) {
             throw new IllegalArgumentException("Estado de cita no soportado.");
         }
+    }
+
+    private void registerStatusActivity(int appointmentId, String status, String reason) throws SQLException {
+        Appointment appointment = appointmentDAO.findById(appointmentId);
+        if (appointment == null) {
+            return;
+        }
+        String displayStatus = AppointmentStatus.fromDatabaseValue(status)
+                .map(AppointmentStatus::displayName)
+                .orElse(status);
+        String description = "Cita de " + appointment.getPetName() + " actualizada a " + displayStatus;
+        if (!isBlank(reason)) {
+            description += ". Motivo: " + reason.trim();
+        }
+        actividadDAO.ensureSchema();
+        actividadDAO.insert(description, "CITA", appointment.getCreatedBy());
     }
 
     public static void notifyAppointmentsChanged() {

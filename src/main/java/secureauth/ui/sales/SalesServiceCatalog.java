@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import secureauth.dao.SalesCatalogDAO;
+import secureauth.domain.sales.SaleItemType;
 import secureauth.service.enterprise.EnterpriseContext;
 
 /**
@@ -185,6 +186,10 @@ public final class SalesServiceCatalog {
         public ServiceItemEntry withId(int newId) {
             return new ServiceItemEntry(newId, category, subcategory, name, type, price, cost, gain, status, stock,
                     sizePrices, inventoryItemId, sku);
+        }
+
+        public SaleItemType saleItemType() {
+            return SaleItemType.fromCatalogValue(type);
         }
     }
 }

@@ -34,6 +34,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
@@ -42,17 +43,16 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
-import secureauth.model.User;
+import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.model.Appointment;
 import secureauth.model.AppointmentStatus;
-import secureauth.dao.enterprise.AppointmentDAO;
+import secureauth.model.User;
 import secureauth.service.OwnerService;
 import secureauth.service.UserService;
 import secureauth.service.enterprise.ActividadRecienteService;
 import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.InventoryService;
 import secureauth.service.enterprise.SalesTransactionService;
-import secureauth.ui.utils.UiTheme;
 
 /**
  * Panel Home del dashboard.
@@ -73,10 +73,15 @@ import secureauth.ui.utils.UiTheme;
 public final class HomeDashboardPanel extends JPanel {
 
     private static final Logger LOGGER = Logger.getLogger(HomeDashboardPanel.class.getName());
-    private static final int TOP_CARD_HEIGHT = 175;
-    private static final int KPI_ICON_SIZE_WIDTH = 150;
-    private static final int KPI_ICON_SIZE_HEIGHT = 50;
     private static final int ALERT_CARD_HEIGHT = 52;
+    private static final int KPI_CARD_GAP = 16;
+    private static final int KPI_CARD_PADDING = 14;
+    private static final int KPI_INFO_TOP_GAP = 10;
+    private static final int SUMMARY_PANEL_HEIGHT = 200;
+    private static final int SUMMARY_SEPARATOR_HEIGHT = 140;
+    private static final int SUMMARY_CARD_VERTICAL_PADDING = 6;
+    private static final int SUMMARY_METRIC_ICON_WIDTH = 150;
+    private static final int SUMMARY_METRIC_ICON_HEIGHT = 64;
 
     // KPI labels — actualizados desde el EDT tras carga en background
     private final JLabel salesTodayLabel   = new JLabel("Cargando...");
@@ -185,15 +190,16 @@ public final class HomeDashboardPanel extends JPanel {
                 int finishedServices = appointmentService.countFinishedServices();
                 List<Appointment> appointments = appointmentService.findDashboardAppointments(12);
                 List<Object[]> movements = new ArrayList<>();
+                
                 for (var sale : salesService.recentSales(8)) {
-                    movements.add(new Object[]{
-                            emptyAs(sale.itemsSummary(), sale.itemsCount() + " item(s)"),
-                            sale.itemsCount(),
-                            currency.format(sale.total()),
-                            sale.createdAt().format(dateFormatter),
-                            emptyAs(sale.userName(), "Sistema")
-                    });
-                }
+                        movements.add(new Object[]{
+                        emptyAs(sale.itemsSummary(), sale.itemsCount() + " item(s)"),
+                        emptyAs(sale.paymentMethod(), "-"),
+                        sale.itemsCount(),
+                        currency.format(sale.total()),
+                        sale.createdAt().format(dateFormatter)
+                });
+}
                 List<Object[]> activities = new ArrayList<>();
                 for (var activity : actividadService.recientes(10)) {
                     activities.add(new Object[]{
@@ -310,12 +316,13 @@ public final class HomeDashboardPanel extends JPanel {
 
     private JPanel createKpiPanel() {
         JPanel panel = card();
-        panel.setLayout(new BorderLayout(0, 8));
-        panel.setPreferredSize(new Dimension(720, TOP_CARD_HEIGHT));
-        panel.setMinimumSize(new Dimension(520, TOP_CARD_HEIGHT));
+        panel.setLayout(new BorderLayout(0, 12));
+        panel.setPreferredSize(new Dimension(720, SUMMARY_PANEL_HEIGHT));
+        panel.setMinimumSize(new Dimension(520, SUMMARY_PANEL_HEIGHT));
 
         JLabel title = new JLabel("Resumen del Día");
         title.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        title.setForeground(new Color(17, 24, 39));
         panel.add(title, BorderLayout.NORTH);
 
         JPanel content = new JPanel();
@@ -323,16 +330,19 @@ public final class HomeDashboardPanel extends JPanel {
         content.setOpaque(false);
         content.setBorder(new EmptyBorder(4, 0, 0, 0));
 
-        content.add(createVerticalKpiCard("/icon/H10101.png", "", null, 130, 100));
-        content.add(metricSeparator());
-        content.add(createVerticalKpiCard("/icon/H10102.png", "Citas Programadas", itemsMonthLabel,
-                KPI_ICON_SIZE_WIDTH, KPI_ICON_SIZE_HEIGHT));
-        content.add(metricSeparator());
-        content.add(createVerticalKpiCard("/icon/H10103.png", "Servicios Finalizados", newClientsSummaryLabel,
-                KPI_ICON_SIZE_WIDTH, KPI_ICON_SIZE_HEIGHT));
-        content.add(metricSeparator());
-        content.add(createVerticalKpiCard("/icon/H10104.png", "Ingresos del Día", salesTodayLabel,
-                KPI_ICON_SIZE_WIDTH, KPI_ICON_SIZE_HEIGHT));
+        content.add(createSummaryImageLabel("/icon/H10101.png"));
+        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+        content.add(createSummarySeparator());
+        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+        content.add(createSummaryCard("/icon/H10102.png", "Citas Programadas", itemsMonthLabel));
+        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+        content.add(createSummarySeparator());
+        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+        content.add(createSummaryCard("/icon/H10103.png", "Servicios Finalizados", newClientsSummaryLabel));
+        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+        content.add(createSummarySeparator());
+        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+        content.add(createSummaryCard("/icon/H10104.png", "Ingresos del Día", salesTodayLabel));
 
         panel.add(content, BorderLayout.CENTER);
         return panel;
@@ -345,32 +355,14 @@ public final class HomeDashboardPanel extends JPanel {
     */
     private JPanel createMesCard() {
         JPanel panel = card();
-        panel.setLayout(new GridLayout(1, 2, 10, 0));
-        panel.setPreferredSize(new Dimension(280, TOP_CARD_HEIGHT));
-        panel.setMinimumSize(new Dimension(240, TOP_CARD_HEIGHT));
+        panel.setLayout(new GridLayout(1, 2, KPI_CARD_GAP, 0));
+        panel.setMinimumSize(new Dimension(240, 0));
 
-        panel.add(createVerticalKpiCard("/icon/H10104.png", "Ventas del Mes", salesMonthLabel,
-                KPI_ICON_SIZE_WIDTH, KPI_ICON_SIZE_HEIGHT));
-        panel.add(createVerticalKpiCard("/icon/H10102.png", "Clientes Nuevos/Mes", newClientsLabel,
-                KPI_ICON_SIZE_WIDTH, KPI_ICON_SIZE_HEIGHT));
+        panel.add(createKpiCard("/icon/H10104.png", "Ventas del Mes", salesMonthLabel));
+        panel.add(createKpiCard("/icon/H10102.png", "Clientes Nuevos/Mes", newClientsLabel));
 
         return panel;
     }
-
-    /*
-        * Crea un separador vertical para dividir las métricas en el dashboard.
-        * El separador tiene un diseño sencillo y consistente con el estilo general del panel.
-    */
-    private JSeparator metricSeparator() {
-        JSeparator separator = new JSeparator(SwingConstants.VERTICAL);
-        separator.setForeground(new Color(225, 229, 235));
-        separator.setBackground(new Color(225, 229, 235));
-        separator.setMaximumSize(new Dimension(1, 96));
-        separator.setPreferredSize(new Dimension(1, 96));
-        separator.setBorder(new EmptyBorder(0, 8, 0, 8));
-        return separator;
-    }
-
 
     /*
         * Crea la tarjeta de actividad reciente con un diseño limpio y moderno.
@@ -500,45 +492,165 @@ public final class HomeDashboardPanel extends JPanel {
         return panel;
     }
 
-    private JPanel createVerticalKpiCard(String imagePath, String title, JLabel valueLabel, int width, int height) {
+    /**
+     * Crea un JLabel con un icono centrado y un tamaño preferido para usarlo como separador visual en el panel de resumen.
+     * @param imagePath
+     * @return
+     */
+    private JLabel createSummaryImageLabel(String imagePath) {
+        JLabel imageLabel = new JLabel(loadOriginalIcon(imagePath));
+        imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        imageLabel.setVerticalAlignment(SwingConstants.CENTER);
+        imageLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
+        imageLabel.setPreferredSize(new Dimension(150, SUMMARY_SEPARATOR_HEIGHT));
+        imageLabel.setMinimumSize(new Dimension(120, SUMMARY_SEPARATOR_HEIGHT));
+        imageLabel.setMaximumSize(new Dimension(180, SUMMARY_SEPARATOR_HEIGHT));
+        return imageLabel;
+    }
+
+    private JPanel createSummarySeparator() {
+        JPanel separator = new JPanel(new BorderLayout());
+        separator.setOpaque(false);
+        separator.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, new Color(225, 229, 235)));
+        separator.setPreferredSize(new Dimension(1, SUMMARY_SEPARATOR_HEIGHT));
+        separator.setMinimumSize(new Dimension(1, SUMMARY_SEPARATOR_HEIGHT));
+        separator.setMaximumSize(new Dimension(1, SUMMARY_SEPARATOR_HEIGHT));
+        return separator;
+    }
+
+    private JPanel createSummaryCard(String imagePath, String title, JLabel valueLabel) {
         JPanel card = new JPanel();
         card.setOpaque(false);
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBorder(new EmptyBorder(0, 8, 0, 8));
-        card.setMinimumSize(new Dimension(0, 115));
+        card.setBorder(new EmptyBorder(SUMMARY_CARD_VERTICAL_PADDING, KPI_CARD_PADDING,
+                SUMMARY_CARD_VERTICAL_PADDING, KPI_CARD_PADDING));
+        card.setAlignmentY(Component.CENTER_ALIGNMENT);
+        card.setMinimumSize(new Dimension(120, SUMMARY_SEPARATOR_HEIGHT));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, SUMMARY_SEPARATOR_HEIGHT));
 
-        ImageIcon icon = UiTheme.scaleImage(imagePath, width, height);
+        card.add(Box.createVerticalGlue());
+
+        ImageIcon icon = loadOriginalIcon(imagePath);
         if (icon != null) {
             JLabel imageLabel = new JLabel(icon);
-            imageLabel.setAlignmentX(CENTER_ALIGNMENT);
+            imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            imageLabel.setVerticalAlignment(SwingConstants.CENTER);
+            imageLabel.setPreferredSize(new Dimension(SUMMARY_METRIC_ICON_WIDTH, SUMMARY_METRIC_ICON_HEIGHT));
+            imageLabel.setMinimumSize(new Dimension(SUMMARY_METRIC_ICON_WIDTH, SUMMARY_METRIC_ICON_HEIGHT));
+            imageLabel.setMaximumSize(new Dimension(SUMMARY_METRIC_ICON_WIDTH, SUMMARY_METRIC_ICON_HEIGHT));
             card.add(imageLabel);
         }
 
-        if (!title.isBlank()) {
-            card.add(Box.createVerticalStrut(5));
-            JLabel lblTitle = new JLabel(title);
-            lblTitle.setAlignmentX(CENTER_ALIGNMENT);
-            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            lblTitle.setForeground(new Color(80, 80, 80));
-            card.add(lblTitle);
-        }
+        card.add(Box.createVerticalStrut(KPI_INFO_TOP_GAP));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblTitle.setForeground(new Color(100, 116, 139));
+        card.add(lblTitle);
 
         if (valueLabel != null) {
-            card.add(Box.createVerticalStrut(4));
-            JPanel valueWrap = new JPanel(new BorderLayout());
-            valueWrap.setOpaque(false);
-            valueWrap.setAlignmentX(LEFT_ALIGNMENT);
-            valueWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
+            card.add(Box.createVerticalStrut(8));
+            valueLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            valueLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
+            valueLabel.setForeground(new Color(15, 23, 42));
+            card.add(valueLabel);
+        }
 
-            valueLabel.setHorizontalAlignment(SwingConstants.LEFT);
-            valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
-            valueLabel.setForeground(new Color(20, 24, 31));
+        card.add(Box.createVerticalGlue());
+        return card;
+    }
 
-            valueWrap.add(valueLabel, BorderLayout.WEST);
-            card.add(valueWrap);
+    private JPanel createKpiCard(String imagePath, String title, JLabel valueLabel) {
+        JPanel card = new JPanel();
+        card.setVisible(true); 
+        card.setBackground(Color.WHITE);
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(235, 238, 242), 1),
+                new EmptyBorder(KPI_CARD_PADDING, KPI_CARD_PADDING, KPI_CARD_PADDING, KPI_CARD_PADDING)
+        ));
+
+        ImageIcon icon = loadOriginalIcon(imagePath);
+        if (icon != null) {
+            JLabel imageLabel = new JLabel(icon);
+            imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            card.add(imageLabel);
+        }
+
+        if (title != null && !title.isBlank()) {
+            JPanel info = new JPanel();
+            info.setOpaque(false);
+            info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
+            info.setAlignmentX(Component.CENTER_ALIGNMENT);
+            info.setBorder(new EmptyBorder(KPI_INFO_TOP_GAP, 0, 0, 0));
+
+            JLabel lblTitle = new JLabel(title);
+            lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+            lblTitle.setHorizontalAlignment(SwingConstants.CENTER);
+            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            lblTitle.setForeground(new Color(100, 116, 139));
+            info.add(lblTitle);
+
+            if (valueLabel != null) {
+                info.add(Box.createVerticalStrut(8));
+                info.add(kpiSeparator());
+                info.add(Box.createVerticalStrut(8));
+
+                valueLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                valueLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+                valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
+                valueLabel.setForeground(new Color(15, 23, 42));
+                info.add(valueLabel);
+
+                info.add(Box.createVerticalStrut(8));
+                info.add(kpiSeparator());
+            }
+
+            card.add(info);
         }
 
         return card;
+    }
+
+    /** Separador horizontal fino usado entre título/valor de cada tarjeta KPI (Cambio 3 y 4). */
+    private JSeparator kpiSeparator() {
+        JSeparator separator = new JSeparator(SwingConstants.HORIZONTAL);
+        separator.setForeground(new Color(235, 238, 242));
+        separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        separator.setAlignmentX(Component.CENTER_ALIGNMENT);
+        return separator;
+    }
+
+    /**
+     * Carga un icono en su tamaño original. Cualquier error de carga se registra
+     * y retorna {@code null} en vez de propagar la excepción, para no romper el
+     * resto del panel.
+     */
+    private ImageIcon loadOriginalIcon(String imagePath) {
+        try {
+            java.net.URL resource = getClass().getResource(imagePath);
+            if (resource == null) {
+                LOGGER.log(Level.WARNING, "No se encontró el icono: {0}", imagePath);
+                return null;
+            }
+            ImageIcon original = new ImageIcon(resource);
+            int originalWidth = original.getIconWidth();
+            int originalHeight = original.getIconHeight();
+            if (originalWidth <= 0 || originalHeight <= 0) {
+                LOGGER.log(Level.WARNING, "Icono inválido o vacío: {0}", imagePath);
+                return null;
+            }
+
+            return original;
+        } catch (RuntimeException ex) {
+            LOGGER.log(Level.WARNING, "No se pudo cargar el icono: " + imagePath, ex);
+            return null;
+        }
     }
 
 
@@ -567,7 +679,6 @@ public final class HomeDashboardPanel extends JPanel {
         menu.add(start);
         menu.add(finish);
         menu.add(cancel);
-        menu.addSeparator();
         menu.add(details);
         return menu;
     }
@@ -614,15 +725,63 @@ public final class HomeDashboardPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Selecciona una cita válida.");
             return;
         }
-        JOptionPane.showMessageDialog(this,
-                "Servicio: " + appointment.getServiceName()
-                        + "\nMascota: " + appointment.getPetName()
-                        + "\nDueño: " + appointment.getOwnerName()
-                        + "\nFecha: " + appointment.getAppointmentDate()
-                        + "\nHora: " + appointment.getAppointmentTime()
-                        + "\nEstado: " + appointment.getStatus()
-                        + "\nObservaciones: " + emptyAs(appointment.getNotes(), "-"),
-                "Detalle de Cita", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, createAppointmentDetailsPanel(appointment),
+                "Detalle de Cita", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    private JPanel createAppointmentDetailsPanel(Appointment appointment) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(new EmptyBorder(14, 16, 14, 16));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 0, 5, 14);
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+
+        addDetailRow(panel, gbc, "Propietario", appointment.getOwnerName());
+        addDetailRow(panel, gbc, "Mascota", appointment.getPetName());
+        addDetailRow(panel, gbc, "Servicio", appointment.getServiceName());
+        addDetailRow(panel, gbc, "Fecha", String.valueOf(appointment.getAppointmentDate()));
+        addDetailRow(panel, gbc, "Hora", String.valueOf(appointment.getAppointmentTime()));
+        addDetailRow(panel, gbc, "Estado", displayStatus(appointment.getStatus()));
+        addDetailRow(panel, gbc, "Veterinario", emptyAs(appointment.getCreatedBy(), "-"));
+        addDetailRow(panel, gbc, "Observaciones", emptyAs(appointment.getNotes(), "-"));
+
+        return panel;
+    }
+
+    private void addDetailRow(JPanel panel, GridBagConstraints gbc, String label, String value) {
+        JLabel labelComponent = new JLabel(label);
+        labelComponent.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        labelComponent.setForeground(new Color(71, 85, 105));
+        panel.add(labelComponent, gbc);
+
+        JTextArea valueComponent = new JTextArea(value);
+        valueComponent.setEditable(false);
+        valueComponent.setOpaque(false);
+        valueComponent.setLineWrap(true);
+        valueComponent.setWrapStyleWord(true);
+        valueComponent.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        valueComponent.setForeground(new Color(15, 23, 42));
+        valueComponent.setBorder(null);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(valueComponent, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+    }
+
+    private static String displayStatus(String status) {
+        return AppointmentStatus.fromDatabaseValue(status)
+                .map(AppointmentStatus::displayName)
+                .orElse(status == null || status.isBlank() ? "-" : status);
     }
 
 
@@ -685,6 +844,7 @@ public final class HomeDashboardPanel extends JPanel {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row,
                     column);
             String status = value == null ? "" : value.toString();
+            label.setText(displayStatus(status));
             label.setHorizontalAlignment(SwingConstants.CENTER);
             label.setFont(new Font("Segoe UI", Font.BOLD, 12));
             label.setOpaque(true);

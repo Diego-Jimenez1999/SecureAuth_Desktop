@@ -1,11 +1,13 @@
 package secureauth.controller;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import javax.swing.DefaultListModel;
 
+import secureauth.application.dto.SaleItemDTO;
+import secureauth.application.mapper.SaleMapper;
+import secureauth.application.usecase.SalesCartUseCase;
 import secureauth.model.SaleItem;
 
 /**
@@ -24,16 +26,14 @@ import secureauth.model.SaleItem;
  */
 public class SalesController {
 
-    private static final double TAX_RATE = 0.19;
-
-    private final List<SaleItem> saleItems;
+    private final SalesCartUseCase cartUseCase;
     private final DefaultListModel<String> listModel;
 
     /**
      * Inicializa el controlador con estado vacío.
      */
     public SalesController() {
-        this.saleItems = new ArrayList<>();
+        this.cartUseCase = new SalesCartUseCase();
         this.listModel = new DefaultListModel<>();
     }
 
@@ -44,12 +44,16 @@ public class SalesController {
      * @param item item seleccionado desde el catálogo
      */
     public void addItem(SaleItem item) {
-        int existingIndex = findMatchingItemIndex(item);
-        if (existingIndex >= 0) {
-            saleItems.get(existingIndex).incrementQuantity();
-        } else {
-            saleItems.add(item);
-        }
+        addItem(SaleMapper.toDTO(item));
+    }
+
+    /**
+     * Agrega una linea desacoplada del modelo legacy al carrito.
+     *
+     * @param item item seleccionado desde el catalogo
+     */
+    public void addItem(SaleItemDTO item) {
+        cartUseCase.addItem(item);
         syncListModel();
     }
 
@@ -60,12 +64,9 @@ public class SalesController {
      * @return true si se eliminó un item
      */
     public boolean removeItemAt(int index) {
-        if (index < 0 || index >= saleItems.size()) {
-            return false;
-        }
-        saleItems.remove(index);
+        boolean removed = cartUseCase.removeItemAt(index);
         syncListModel();
-        return true;
+        return removed;
     }
 
     /**
@@ -75,12 +76,9 @@ public class SalesController {
      * @return true si la fila existe y fue actualizada
      */
     public boolean incrementQuantity(int index) {
-        if (!isValidIndex(index)) {
-            return false;
-        }
-        saleItems.get(index).incrementQuantity();
+        boolean updated = cartUseCase.incrementQuantity(index);
         syncListModel();
-        return true;
+        return updated;
     }
 
     /**
@@ -90,12 +88,9 @@ public class SalesController {
      * @return true si la fila existe y fue actualizada
      */
     public boolean decrementQuantity(int index) {
-        if (!isValidIndex(index)) {
-            return false;
-        }
-        saleItems.get(index).decrementQuantity();
+        boolean updated = cartUseCase.decrementQuantity(index);
         syncListModel();
-        return true;
+        return updated;
     }
 
     /**
@@ -106,12 +101,9 @@ public class SalesController {
      * @return true si la fila existe y fue actualizada
      */
     public boolean updateQuantity(int index, int quantity) {
-        if (!isValidIndex(index)) {
-            return false;
-        }
-        saleItems.get(index).setQuantity(quantity);
+        boolean updated = cartUseCase.updateQuantity(index, quantity);
         syncListModel();
-        return true;
+        return updated;
     }
 
     /**
@@ -125,35 +117,39 @@ public class SalesController {
      * @return subtotal (sin impuestos)
      */
     public double getSubtotal() {
-        return saleItems.stream().mapToDouble(SaleItem::getSubtotal).sum();
+        return cartUseCase.subtotal();
     }
 
     /**
      * @return valor del IVA al 19%
      */
     public double getTax() {
-        return getSubtotal() * TAX_RATE;
+        return cartUseCase.tax();
     }
 
     /**
      * @return total final incluyendo IVA
      */
     public double getTotal() {
-        return getSubtotal() + getTax();
+        return cartUseCase.total();
     }
 
     /**
      * @return vista inmutable de items agregados
      */
     public List<SaleItem> getItems() {
-        return Collections.unmodifiableList(saleItems);
+        return Collections.unmodifiableList(cartUseCase.getItems().stream().map(SaleMapper::toDomain).toList());
+    }
+
+    public List<SaleItemDTO> getItemDTOs() {
+        return cartUseCase.getItems();
     }
 
     /**
      * Limpia el estado de la venta actual.
      */
     public void clearSale() {
-        saleItems.clear();
+        cartUseCase.clear();
         listModel.clear();
     }
 
@@ -161,33 +157,13 @@ public class SalesController {
      * @return cantidad total de unidades vendidas
      */
     public int getItemsCount() {
-        return saleItems.stream().mapToInt(SaleItem::getQuantity).sum();
-    }
-
-    private int findMatchingItemIndex(SaleItem item) {
-        for (int i = 0; i < saleItems.size(); i++) {
-            SaleItem current = saleItems.get(i);
-            boolean sameInventory = current.getInventoryItemId() != null
-                    && current.getInventoryItemId().equals(item.getInventoryItemId());
-            boolean sameCatalog = current.getInventoryItemId() == null
-                    && current.getCatalogItemId() == item.getCatalogItemId()
-                    && current.getName().equals(item.getName())
-                    && Double.compare(current.getPrice(), item.getPrice()) == 0;
-            if (sameInventory || sameCatalog) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private boolean isValidIndex(int index) {
-        return index >= 0 && index < saleItems.size();
+        return cartUseCase.unitsCount();
     }
 
     private void syncListModel() {
         listModel.clear();
-        for (SaleItem item : saleItems) {
-            listModel.addElement(item.toString());
+        for (SaleItemDTO item : cartUseCase.getItems()) {
+            listModel.addElement(SaleMapper.toDomain(item).toString());
         }
     }
 }

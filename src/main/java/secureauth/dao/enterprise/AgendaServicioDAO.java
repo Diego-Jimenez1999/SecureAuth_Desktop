@@ -3,9 +3,13 @@ package secureauth.dao.enterprise;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import secureauth.config.DatabaseConnection;
 import secureauth.model.CitaServicio;
@@ -79,5 +83,46 @@ public class AgendaServicioDAO {
         try (Connection conn = DatabaseConnection.getConnection()) {
             insert(conn, cita);
         }
+    }
+
+    /**
+     * Lista citas activas de la agenda legacy para una fecha.
+     *
+     * @param date fecha a consultar
+     * @return citas ordenadas por hora
+     * @throws SQLException si falla la consulta
+     */
+    public List<CitaServicio> findActiveByDate(LocalDate date) throws SQLException {
+        ensureSchema();
+        String sql = """
+                SELECT id_cita, nombre_dueno, nombre_perro, raza, telefono, servicio,
+                       fecha_servicio, hora_servicio, hora_recogida, observaciones, estado
+                FROM citas_servicio
+                WHERE fecha_servicio = ?
+                  AND UPPER(estado) NOT IN ('CANCELADA', 'CANCELADO')
+                ORDER BY hora_servicio
+                """;
+        List<CitaServicio> appointments = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(date));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    appointments.add(new CitaServicio(
+                            rs.getInt("id_cita"),
+                            rs.getString("nombre_dueno"),
+                            rs.getString("nombre_perro"),
+                            rs.getString("raza"),
+                            rs.getString("telefono"),
+                            rs.getString("servicio"),
+                            rs.getDate("fecha_servicio").toLocalDate(),
+                            rs.getTime("hora_servicio").toLocalTime(),
+                            rs.getTime("hora_recogida").toLocalTime(),
+                            rs.getString("observaciones"),
+                            rs.getString("estado")));
+                }
+            }
+        }
+        return appointments;
     }
 }

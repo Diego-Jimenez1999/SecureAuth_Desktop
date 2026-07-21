@@ -93,7 +93,7 @@ public class OwnerDAO {
     }
 
     /**
-     * Busca dueños por nombre, teléfono, correo o dirección.
+     * Busca dueños por id, nombre, teléfono, correo o dirección.
      *
      * @param query texto de búsqueda
      * @return lista filtrada
@@ -107,7 +107,8 @@ public class OwnerDAO {
         final String sql = """
                 SELECT id, nombre_completo, telefono, correo, direccion
                 FROM owners
-                WHERE nombre_completo LIKE ?
+                WHERE CAST(id AS CHAR) LIKE ?
+                   OR nombre_completo LIKE ?
                    OR telefono LIKE ?
                    OR correo LIKE ?
                    OR direccion LIKE ?
@@ -122,6 +123,7 @@ public class OwnerDAO {
             ps.setString(2, filter);
             ps.setString(3, filter);
             ps.setString(4, filter);
+            ps.setString(5, filter);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

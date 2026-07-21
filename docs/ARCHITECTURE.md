@@ -97,7 +97,9 @@ Swing View
 - Fase 1 en curso: estabilizacion, documentacion y correccion de inconsistencias.
 - Maven y documentacion quedan alineados a Java 21+.
 - Los estados de agenda se centralizan en `secureauth.model.AppointmentStatus`.
-- Las capas nuevas se agregaran en Fase 2 sin eliminar compatibilidad.
+- Fase 2 iniciada: se crearon paquetes `application`, `infrastructure` y `shared` para ventas.
+- `SalesPanel` ya delega el carrito y el registro de venta en casos de uso; conserva Swing solo para captura, renderizado y dialogos.
+- `SalesController` queda como puente compatible hacia `SalesCartUseCase` mientras se migran los demas paneles.
 
 ## Decisiones
 
@@ -107,3 +109,107 @@ Swing View
 - La compatibilidad objetivo se alinea a Java 21+.
 - Las tablas legacy no se eliminan hasta tener migracion de datos validada.
 - Los estados legacy de agenda se leen mediante aliases mientras se migran los datos.
+
+## Dependencias Fase 2
+
+```text
+secureauth.ui.components.SalesPanel
+  -> secureauth.controller.SalesController
+  -> secureauth.application.usecase.SalesCartUseCase
+
+secureauth.ui.components.SalesPanel
+  -> secureauth.application.command.RegisterSaleCommand
+  -> secureauth.application.usecase.RegisterSaleUseCase
+  -> secureauth.infrastructure.repository.SalesRepository
+  -> secureauth.infrastructure.persistence.JdbcSalesRepository
+  -> secureauth.service.enterprise.SalesTransactionService
+  -> secureauth.dao.enterprise.*
+```
+
+Base de eventos preparada:
+
+```text
+RegisterSaleUseCase
+  -> shared.events.EventPublisher
+  -> shared.events.SaleRegisteredEvent
+```
+
+## Flujo De Venta De Servicios
+
+El POS diferencia articulos vendibles con `domain.sales.SaleItemType`:
+
+```text
+PRODUCT -> se agrega directamente al carrito
+SERVICE -> abre ServiceAppointmentDialog antes de agregarse al carrito
+```
+
+El panel de ventas ya no decide por nombres, prefijos ni comparaciones de
+categoria. La unica conversion desde texto vive en `SaleItemType.fromCatalogValue`
+como adaptador de compatibilidad porque la tabla `sales_items.item_type` sigue
+existiendo como columna textual.
+
+El carrito puede contener productos y servicios simultaneamente. Los servicios
+se guardan como `SaleItemDTO` con su `AppointmentDTO` interno; al confirmar el
+pago, `RegisterSaleUseCase` persiste venta y citas en una unica transaccion a
+traves de `SalesRepository`.
+
+## Orden De Servicio
+
+Fase 4 introduce `secureauth.domain.services` como modelo independiente para
+procedimientos veterinarios:
+
+```text
+ServiceOrder
+  -> ServiceOrderItem
+  -> ServiceProduct[]
+  -> suggested ServiceProduct[]
+  -> ServiceSummary
+```
+
+La orden no depende de Swing, JDBC, DAOs ni DTOs. Los DTOs viven en
+`secureauth.application.dto` y los casos de uso en `secureauth.application.usecase`.
+Durante esta fase no existe persistencia propia para ordenes: el dialogo prepara
+la orden y mantiene productos utilizados/sugeridos en memoria, usando inventario
+solo como selector.
+
+Restriccion vigente: Fase 4 no descuenta stock, no registra consumos, no crea
+movimientos de inventario y no agrega tablas nuevas.
+
+## Integracion Orden-Inventario
+
+Fase 5 conecta la orden de servicio preparada por el dialogo con el flujo
+transaccional actual sin cambiar el contrato de la UI ni crear tablas nuevas en
+runtime:
+
+```text
+RegisterSaleUseCase
+  -> SalesRepository
+  -> JdbcSalesRepository
+  -> SalesTransactionService.registrarVentaConCitas(..., serviceOrders)
+  -> JdbcServiceOrderRepository
+  -> InventoryDAO
+  -> ActividadRecienteDAO
+```
+
+La unidad transaccional incluye:
+
+```text
+ventas
+detalle_venta
+appointments
+serviceOrders adaptadas
+consumo de inventory_items
+actividad_reciente
+```
+
+Si falla la validacion de stock, producto activo o consumo, se ejecuta rollback
+de toda la venta. La trazabilidad de consumo queda temporalmente adaptada a
+`actividad_reciente`; la migracion a tablas propias esta preparada en
+`docs/migrations/V005_service_order_inventory.sql`.
+
+Eventos preparados:
+
+```text
+ServiceOrderRegisteredEvent
+InventoryConsumptionEvent
+```

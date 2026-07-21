@@ -81,4 +81,24 @@ venta 0..1 -> N service_order
 
 ## Migraciones
 
-Las migraciones versionadas se agregaran en Fase 3. Hasta entonces se conserva `ensureSchema()` para compatibilidad.
+Se mantiene `ensureSchema()` para compatibilidad runtime con el esquema actual.
+
+Scripts preparados, no ejecutados automaticamente:
+
+- `docs/migrations/V005_service_order_inventory.sql`
+
+## Adaptacion Fase 5
+
+La Orden de Servicio ya consume inventario dentro de la transaccion de venta,
+pero todavia no persiste en tablas fisicas propias. El flujo actual usa:
+
+| Dato | Persistencia temporal |
+| --- | --- |
+| Venta | `ventas`, `detalle_venta`, `sales_tx` |
+| Cita | `appointments` |
+| Consumo de inventario | decremento en `inventory_items.stock` |
+| Historial de orden/consumo | `actividad_reciente` |
+
+Las tablas futuras `service_order`, `service_order_item`,
+`inventory_consumption`, `service_history` y `service_product_template` quedan
+definidas en el script preparado para una migracion posterior.

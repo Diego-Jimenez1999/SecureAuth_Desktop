@@ -26,6 +26,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultCellEditor;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
@@ -36,6 +37,7 @@ import javax.swing.JSeparator;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
+import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
@@ -125,8 +127,16 @@ public class PanelConfig extends JPanel {
         setLayout(new BorderLayout());
         setBackground(UiTheme.BG_PAGE);
 
-        // Contenedor interior con padding
-        JPanel content = new JPanel();
+        // Contenedor interior con padding.
+        // FIX (resize/scroll bug): se usa ScrollableContentPanel en vez de un JPanel
+        // plano. Un JPanel normal NO implementa Scrollable, por lo que JViewport
+        // congela su ancho en el preferredSize calculado la primera vez y nunca lo
+        // actualiza al tamaño real de la ventana. Esto hacía que los GridLayout(1,4)
+        // de buildMetricsSection()/buildActionCardsSection() recibieran siempre el
+        // mismo ancho "viejo", provocando que la última tarjeta quedara recortada
+        // por el borde del JScrollPane al redimensionar. Ver ScrollableContentPanel
+        // más abajo para el detalle de la corrección.
+        JPanel content = new ScrollableContentPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setBackground(UiTheme.BG_PAGE);
         content.setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
@@ -208,7 +218,10 @@ public class PanelConfig extends JPanel {
     private JPanel buildMetricsSection() {
         JPanel row = new JPanel(new GridLayout(1, 4, UiTheme.CARD_SPACING, 0));
         row.setBackground(UiTheme.BG_PAGE);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
+        // FIX: se amplía el alto (110 -> 140) porque el título ahora puede
+        // hacer salto de línea en vez de truncarse con "...". Sin este
+        // espacio extra, un título de 2 líneas quedaría recortado igual.
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
 
         // Tarjeta 1 — Ventas Totales
         lblVentasValor = new JLabel("$2,503.64");
@@ -258,71 +271,154 @@ public class PanelConfig extends JPanel {
     /**
      * Construye una tarjeta de métrica estándar con valor numérico.
      */
-    private JPanel buildMetricCard(String icon, String label,
-                                    JLabel valueLabel, JLabel trendLabel, Color accent) {
-        RoundedPanel card = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
-        card.setLayout(new BorderLayout(8, 0));
-        card.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+    private JPanel buildMetricCard(
+                    String icon, String label,
+                            JLabel valueLabel, JLabel trendLabel,Color accent) {
 
-        // Ícono de acento
-        JPanel iconBadge = buildIconBadge(icon, accent);
+    RoundedPanel card = new RoundedPanel(
+            UiTheme.BORDER_RADIUS,
+            UiTheme.PANEL_WHITE);
 
-        // Textos
-        JPanel texts = new JPanel(new GridLayout(3, 1, 0, 2));
-        texts.setBackground(UiTheme.PANEL_WHITE);
-        JLabel lbl = new JLabel(label);
-        lbl.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
-        lbl.setForeground(UiTheme.TEXT_SECONDARY);
-        texts.add(lbl);
-        texts.add(valueLabel);
-        texts.add(trendLabel);
+    card.setLayout(new BorderLayout(0,12));
+    card.setBorder(BorderFactory.createEmptyBorder(18,18,18,18));
 
-        card.add(iconBadge, BorderLayout.WEST);
-        card.add(texts,     BorderLayout.CENTER);
-        return card;
+    JPanel header = new JPanel(new BorderLayout(12,0));
+    header.setOpaque(false);
+    // FIX: se amplía el alto del header (72 -> 92) para dar espacio al
+    // título cuando hace salto de línea en vez de truncarse.
+    header.setPreferredSize(new Dimension(0,92));
+
+    JPanel iconBadge = buildIconBadge(icon, accent);
+
+    iconBadge.setPreferredSize(new Dimension(56,56));
+    iconBadge.setMinimumSize(new Dimension(56,56));
+    iconBadge.setMaximumSize(new Dimension(56,56));
+
+    JPanel textPanel = new JPanel();
+    textPanel.setOpaque(false);
+    textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+
+    // FIX: se envuelve el texto en <html> para que, si el título no cabe
+    // en una línea, haga salto de línea (wrap) en vez de recortarse con
+    // "..." (JLabel solo trunca con "..." cuando el texto es un String
+    // plano; con HTML, hace reflow del texto al ancho real disponible).
+    JLabel title = new JLabel("<html>" + label + "</html>");
+    title.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+    title.setForeground(UiTheme.TEXT_SECONDARY);
+
+    textPanel.add(title);
+    textPanel.add(Box.createVerticalStrut(6));
+    textPanel.add(valueLabel);
+    textPanel.add(Box.createVerticalStrut(4));
+    textPanel.add(trendLabel);
+
+    header.add(iconBadge, BorderLayout.WEST);
+    header.add(textPanel, BorderLayout.CENTER);
+
+    card.add(header, BorderLayout.CENTER);
+
+    return card;
     }
 
     /**
      * Construye una tarjeta de métrica con contenido personalizado (sin valor único).
+     * @param icon Carácter emoji para el ícono
+     * @param label Título de la tarjeta
+     * @param customContent Panel con contenido personalizado (ej. tabla, gráficos)
+     * @param accent Color de acento para el ícono
      */
-    private JPanel buildMetricCardCustom(String icon, String label,
-                                        JPanel customContent, Color accent) {
-        RoundedPanel card = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
-        card.setLayout(new BorderLayout(8, 0));
-        card.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+    private JPanel buildMetricCardCustom(
+                        String icon,String label,
+                                JPanel customContent,Color accent) {
 
-        JPanel iconBadge = buildIconBadge(icon, accent);
+    RoundedPanel card = new RoundedPanel(
+            UiTheme.BORDER_RADIUS,
+            UiTheme.PANEL_WHITE);
 
-        JPanel texts = new JPanel(new BorderLayout(0, 6));
-        texts.setBackground(UiTheme.PANEL_WHITE);
-        JLabel lbl = new JLabel(label);
-        lbl.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
-        lbl.setForeground(UiTheme.TEXT_SECONDARY);
-        texts.add(lbl,           BorderLayout.NORTH);
-        texts.add(customContent, BorderLayout.CENTER);
+    card.setLayout(new BorderLayout(0, 12));
+    card.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
 
-        card.add(iconBadge, BorderLayout.WEST);
-        card.add(texts,     BorderLayout.CENTER);
-        return card;
+    //-------------------------------------------------------
+    // CABECERA
+    //-------------------------------------------------------
+
+    JPanel header = new JPanel(new BorderLayout(12, 0));
+    header.setOpaque(false);
+
+    // FIX: se amplía el alto del header (72 -> 92) para dar espacio al
+    // título cuando hace salto de línea en vez de truncarse.
+    header.setPreferredSize(new Dimension(0, 92));
+
+    //-------------------------------------------------------
+    // Icono
+    //-------------------------------------------------------
+
+    JPanel iconBadge = buildIconBadge(icon, accent);
+
+    iconBadge.setPreferredSize(new Dimension(56,56));
+    iconBadge.setMinimumSize(new Dimension(56,56));
+    iconBadge.setMaximumSize(new Dimension(56,56));
+
+    //-------------------------------------------------------
+    // Texto
+    //-------------------------------------------------------
+
+    JPanel textPanel = new JPanel();
+    textPanel.setOpaque(false);
+    textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+
+    // FIX: <html> permite que el título haga salto de línea al ancho real
+    // disponible en vez de truncarse con "..." (ver mismo fix en buildMetricCard).
+    JLabel title = new JLabel("<html>" + label + "</html>");
+    title.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+    title.setForeground(UiTheme.TEXT_SECONDARY);
+
+    textPanel.add(title);
+    textPanel.add(Box.createVerticalStrut(8));
+    textPanel.add(customContent);
+
+    //-------------------------------------------------------
+    // Ensamblaje
+    //-------------------------------------------------------
+
+    header.add(iconBadge, BorderLayout.WEST);
+    header.add(textPanel, BorderLayout.CENTER);
+
+    card.add(header, BorderLayout.CENTER);
+
+    return card;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    //  SECCIÓN 3 — TARJETAS DE ACCIÓN (3 MÓDULOS)
+    //  SECCIÓN 3 — TARJETAS DE ACCIÓN (4 MÓDULOS)
     // ═════════════════════════════════════════════════════════════════════════
 
     /**
-     * Construye la fila de tres tarjetas de acción: Ventas, Inventario y Usuarios.
+     * Construye la fila de cuatros tarjetas de acción: Ventas, Inventario y Usuarios.
      *
-     * @return JPanel con las 3 tarjetas de acción
+     * @return JPanel con las 4 tarjetas de acción
      */
     private JPanel buildActionCardsSection() {
-        JPanel row = new JPanel(new GridLayout(1, 3, UiTheme.CARD_SPACING, 0));
+        JPanel row = new JPanel(new GridLayout(1, 4, UiTheme.CARD_SPACING, 0));
         row.setBackground(UiTheme.BG_PAGE);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
+        // FIX (crecer al maximizar): antes el alto máximo estaba fijo en
+        // 230px, así que aunque la ventana se maximizara y sobrara espacio
+        // vertical, las tarjetas de acción NUNCA crecían — ese espacio
+        // quedaba vacío debajo del contenido dentro del JScrollPane. Ahora
+        // el máximo es ilimitado: cuando ScrollableContentPanel detecta
+        // espacio vertical disponible, BoxLayout reparte ese espacio extra
+        // a esta fila, y GridLayout(1,4) lo divide por igual entre las 4
+        // tarjetas, haciéndolas crecer proporcionalmente. El alto mínimo
+        // (~190-230px, según el contenido de cada tarjeta) lo sigue
+        // garantizando GridLayout a partir del preferredSize de las tarjetas.
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
         // Tarjeta 1 — Gestión de Ventas y Servicios
+        ImageIcon serviceIcon = new ImageIcon(//
+        getClass().getResource("/icon/service.png"));
+
         row.add(buildActionCard(
-            "🛒", "Gestión de Ventas y Servicios",
+            serviceIcon, "Gestión de Ventas y Servicios",
             "Configura categorías, subcategorías y precios dinámicos para guardería canina y otros tipos de negocio",
             new String[]{"Tabla de Servicios", "Precios por Tamaño"},
             new ActionListener[]{
@@ -332,8 +428,11 @@ public class PanelConfig extends JPanel {
         ));
 
         // Tarjeta 2 — Control de Inventario y Productos
+        ImageIcon inventoryIcon = new ImageIcon(//dirección de icono de inventario
+        getClass().getResource("/icon/inventory.png"));
         row.add(buildActionCard(
-            "📦", "Control de Inventario y Productos",
+
+            inventoryIcon, "Control de Inventario y Productos",
             "Administra productos físicos, stock mínimo y alertas, importación masiva",
             new String[]{"Ver Inventario", "Importar CSV/Excel"},
             new ActionListener[]{
@@ -343,8 +442,11 @@ public class PanelConfig extends JPanel {
         ));
 
         // Tarjeta 3 — Control de Usuarios (Trabajadores)
+        ImageIcon usersIcon = new ImageIcon( //direccion de icono de usuarios
+        getClass().getResource("/icon/users.png"));
+
         row.add(buildActionCard(
-            "👷", "Control de Usuarios (Trabajadores)",
+            usersIcon, "Control de Usuarios (Trabajadores)",
             "Administra cuentas de empleados, asigna roles (Admin, Vet, Recepcionista) y gestiona permisos",
             new String[]{"Lista de Trabajadores", "Nuevos Trabajadores"},
             new ActionListener[]{
@@ -353,14 +455,22 @@ public class PanelConfig extends JPanel {
             }
         ));
 
-        row.add(configApp("🎨", "Configuración de la Aplicación",
-                "Gestiona las opciones generales de configuración de la aplicación",
-                new String[]{"Opciones Generales"},
-                new ActionListener[]{e -> onConfigAppClick()}
+        // Tarjeta 4 — Configuración de la Aplicación
+        ImageIcon configIcon = new ImageIcon( //direccion de icono de configuracion
+        getClass().getResource("/icon/config_1.png"));
+
+        row.add(buildActionCard(
+            configIcon, "Configuración de la Aplicación",
+            "Gestiona las opciones generales de configuración de la aplicación",
+            new String[]{"Opciones Generales"},
+            new ActionListener[]{e -> onConfigAppClick()}
         ));
+
 
         return row;
     }
+
+
 
     /**
      * Construye una tarjeta de acción individual con ícono, descripción y botones.
@@ -372,53 +482,108 @@ public class PanelConfig extends JPanel {
      * @param listeners    ActionListeners correspondientes a cada botón
      * @return JPanel estilizado como tarjeta de acción
      */
-    private JPanel buildActionCard(String icon, String title, String description,
-                                    String[] btnLabels, ActionListener[] listeners) {
-        RoundedPanel card = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
-        card.setLayout(new BorderLayout(0, 12));
-        card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+    private JPanel buildActionCard(
+                        ImageIcon icon, String title,
+                                String description,String[] btnLabels,ActionListener[] listeners) {
 
-        // Zona de íconos decorativos superiores
-        JPanel iconRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        iconRow.setBackground(UiTheme.PANEL_WHITE);
-        JLabel ico1 = new JLabel(icon);
-        ico1.setPreferredSize(new Dimension(32,32));
-        ico1.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 25));
-        JLabel arrow = new JLabel("⇄");
-        arrow.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
-        arrow.setForeground(UiTheme.TEXT_MUTED);
-        JLabel ico2 = new JLabel("⚙️");
-        ico2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 35));
-        iconRow.add(ico1);
-        iconRow.add(arrow);
-        iconRow.add(ico2);
+    RoundedPanel card = new RoundedPanel(
+            UiTheme.BORDER_RADIUS,
+            UiTheme.PANEL_WHITE);
 
-        // Título y descripción
-        JPanel textBlock = new JPanel(new BorderLayout(0, 6));
-        textBlock.setBackground(UiTheme.PANEL_WHITE);
-        JLabel titleLbl = new JLabel("<html>" + title + "</html>");
-        titleLbl.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
-        titleLbl.setForeground(UiTheme.TEXT_PRIMARY);
-        JLabel descLbl = new JLabel("<html><p style='width:200px'>" + description + "</p></html>");
-        descLbl.setFont(UiTheme.BODY_FONT);
-        descLbl.setForeground(UiTheme.TEXT_SECONDARY);
-        textBlock.add(titleLbl, BorderLayout.NORTH);
-        textBlock.add(descLbl,  BorderLayout.CENTER);
+    card.setLayout(new BorderLayout(0, 12));
+    card.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
 
-        // Botones
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        btnRow.setBackground(UiTheme.PANEL_WHITE);
-        for (int i = 0; i < btnLabels.length; i++) {
-            JButton btn = buildDarkButton(btnLabels[i]);
-            btn.addActionListener(listeners[i]);
-            btnRow.add(btn);
-        }
+    // FIX: ancho/alto mínimo para que el GridLayout(1,4) de
+    // buildActionCardsSection() nunca comprima la tarjeta por debajo de lo
+    // necesario para mostrar icono + texto + botones legibles.
+    card.setMinimumSize(new Dimension(220, 210));
 
-        card.add(iconRow,   BorderLayout.NORTH);
-        card.add(textBlock, BorderLayout.CENTER);
-        card.add(btnRow,    BorderLayout.SOUTH);
-        return card;
+    //=========================================================
+    // CABECERA
+    //=========================================================
+
+    JPanel header = new JPanel(new BorderLayout(12, 0));
+    header.setOpaque(false);
+
+    // FIX: se amplía el alto (80 -> 100) para dar espacio al título cuando
+    // hace salto de línea en vez de truncarse con "...".
+    header.setPreferredSize(new Dimension(0, 100));
+
+    //---------------------------------------------------------
+    // Imagen
+    //---------------------------------------------------------
+
+    JLabel image = new JLabel(icon);
+    image.setHorizontalAlignment(SwingConstants.CENTER);
+    image.setVerticalAlignment(SwingConstants.CENTER);
+
+    // Todas las tarjetas utilizarán exactamente el mismo espacio.
+    image.setPreferredSize(new Dimension(72, 72));
+    image.setMinimumSize(new Dimension(72, 72));
+    image.setMaximumSize(new Dimension(72, 72));
+
+    //---------------------------------------------------------
+    // Texto
+    //---------------------------------------------------------
+
+    JPanel textPanel = new JPanel();
+    textPanel.setOpaque(false);
+    textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+
+    // FIX: <html> permite que el título haga salto de línea al ancho real
+    // disponible en vez de truncarse con "..." (antes: "Gestión de Ventas
+    // y Ser...", "Control de Usuarios (Tr...", etc.)
+    JLabel titleLbl = new JLabel("<html>" + title + "</html>");
+    titleLbl.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD, 13f));
+    titleLbl.setForeground(UiTheme.TEXT_PRIMARY);
+
+    // FIX: se elimina el ancho fijo "width:110px" del HTML. Ese ancho fijo
+    // ignoraba el espacio real que la tarjeta recibía del GridLayout, y
+    // cuando la columna era más angosta que 110px + icono + padding, el
+    // texto quedaba recortado por el header. Ahora el <html> deja que el
+    // JLabel haga wrap según el ancho real disponible en cada resize.
+    JLabel descLbl = new JLabel("<html>" + description + "</html>");
+
+    descLbl.setFont(UiTheme.BODY_FONT);
+    descLbl.setForeground(UiTheme.TEXT_SECONDARY);
+
+    textPanel.add(titleLbl);
+    textPanel.add(Box.createVerticalStrut(6));
+    textPanel.add(descLbl);
+
+    header.add(image, BorderLayout.WEST);
+    header.add(textPanel, BorderLayout.CENTER);
+
+    //=========================================================
+    // BOTONES
+    //=========================================================
+
+    // FIX: se reemplaza FlowLayout por GridLayout(1, n). FlowLayout envolvía
+    // el segundo botón a una fila inferior cuando el ancho no alcanzaba, y
+    // esa fila quedaba fuera del área reservada por BorderLayout.SOUTH
+    // (calculada asumiendo una sola fila) → el botón "desaparecía" (se veía
+    // solo "Tabla de Servicios" y no "Precios por Tamaño", por ejemplo).
+    // Con GridLayout los botones siempre están en una sola fila, dividiendo
+    // el ancho disponible entre ellos en vez de ocultarse.
+    JPanel btnRow = new JPanel(new GridLayout(1, btnLabels.length, 8, 0));
+    btnRow.setOpaque(false);
+
+    for (int i = 0; i < btnLabels.length; i++) {
+        JButton btn = buildDarkButton(btnLabels[i]);
+        btn.addActionListener(listeners[i]);
+        btnRow.add(btn);
     }
+
+    //=========================================================
+    // ENSAMBLAJE FINAL
+    //=========================================================
+
+    card.add(header, BorderLayout.CENTER);
+    card.add(btnRow, BorderLayout.SOUTH);
+
+    return card;
+    }
+
 
     /**
      * Construye el panel completo de la tabla de Trabajadores con buscador.
@@ -617,7 +782,7 @@ public class PanelConfig extends JPanel {
             cb.setFont(UiTheme.BODY_FONT);
             cb.setBackground(UiTheme.PANEL_WHITE);
             cb.setForeground(UiTheme.TEXT_PRIMARY);
-            cb.addActionListener(e -> 
+            cb.addActionListener(e ->
                 System.out.println("[Placeholder] Método " + method + " activo: " + cb.isSelected())
             );
             panel.add(cb);
@@ -625,55 +790,6 @@ public class PanelConfig extends JPanel {
         return panel;
     }
 
-    private JPanel configApp(String icon, String title, String description,
-                                    String[] btnLabels, ActionListener[] listeners) {
-        RoundedPanel card = new RoundedPanel(UiTheme.BORDER_RADIUS, UiTheme.PANEL_WHITE);
-        card.setLayout(new BorderLayout(0, 12));
-        card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        // Zona de íconos decorativos superiores
-        JPanel iconRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        iconRow.setBackground(UiTheme.PANEL_WHITE);
-        JLabel ico1 = new JLabel(icon);
-        ico1.setPreferredSize(new Dimension(32,32));
-        ico1.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 25));
-        JLabel arrow = new JLabel("⇄");
-        arrow.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
-        arrow.setForeground(UiTheme.TEXT_MUTED);
-        JLabel ico2 = new JLabel("⚙️");
-       // ico2.setPreferredSize(new Dimension(32,32));
-        ico2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 30));
-        iconRow.add(ico1);
-        iconRow.add(arrow);
-        iconRow.add(ico2);
-
-        // Título y descripción
-        JPanel textBlock = new JPanel(new BorderLayout(0, 6));
-        textBlock.setBackground(UiTheme.PANEL_WHITE);
-        JLabel titleLbl = new JLabel("<html>" + title + "</html>");
-        titleLbl.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
-        titleLbl.setForeground(UiTheme.TEXT_PRIMARY);
-        JLabel descLbl = new JLabel("<html><p style='width:200px'>" + description + "</p></html>");
-        descLbl.setFont(UiTheme.BODY_FONT);
-        descLbl.setForeground(UiTheme.TEXT_SECONDARY);
-        textBlock.add(titleLbl, BorderLayout.NORTH);
-        textBlock.add(descLbl,  BorderLayout.CENTER);
-
-        // Botones
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        btnRow.setBackground(UiTheme.PANEL_WHITE);
-        for (int i = 0; i < btnLabels.length; i++) {
-            JButton btn = buildDarkButton(btnLabels[i]);
-            btn.addActionListener(listeners[i]);
-            btnRow.add(btn);
-        }
-
-        card.add(iconRow,   BorderLayout.NORTH);
-        card.add(textBlock, BorderLayout.CENTER);
-        card.add(btnRow,    BorderLayout.SOUTH);
-
-        return card;
-    }
     // ═════════════════════════════════════════════════════════════════════════
     //  HELPERS DE ESTILO
     // ═════════════════════════════════════════════════════════════════════════
@@ -714,13 +830,14 @@ public class PanelConfig extends JPanel {
         });
         return btn;
     }
-/** 
- * Crea un badge circular con ícono para las tarjetas de métricas.
- * Se asegura de que sea un círculo perfecto incluso si el panel se estira.
- */
-private JPanel buildIconBadge(String icon, Color accent) {
+
+    /**
+        * Crea un badge circular con ícono para las tarjetas de métricas.
+        * Se asegura de que sea un círculo perfecto incluso si el panel se estira.
+    */
+    private JPanel buildIconBadge(String icon, Color accent) {
     JPanel badge = new JPanel() {
-        @Override 
+        @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             // Suavizado de bordes para que el círculo no se vea pixelado
@@ -881,6 +998,67 @@ private JPanel buildIconBadge(String icon, Color accent) {
     // ═════════════════════════════════════════════════════════════════════════
     //  CLASES INTERNAS — COMPONENTES PERSONALIZADOS
     // ═════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Panel raíz del contenido dentro del {@link JScrollPane}.
+     *
+     * <p><b>Por qué existe esta clase (fix de redimensionamiento):</b> un
+     * {@code JPanel} normal NO implementa {@link Scrollable}. Cuando eso pasa,
+     * {@code JViewport}/{@code ViewportLayout} ignora el ancho real del
+     * viewport y siempre le asigna a la vista su {@code preferredSize}
+     * "congelado" (calculado la primera vez, a partir de la fila de tarjetas
+     * más ancha). Como consecuencia, los {@code GridLayout(1,4,...)} de
+     * {@code buildMetricsSection()} y {@code buildActionCardsSection()} nunca
+     * recibían el ancho verdadero de la ventana al redimensionar, y la última
+     * tarjeta terminaba recortada por el borde del scroll.</p>
+     *
+     * <p>Al implementar {@code Scrollable} y devolver {@code true} en
+     * {@link #getScrollableTracksViewportWidth()}, forzamos a que el ancho de
+     * este panel SIEMPRE sea igual al ancho real del viewport en cada resize,
+     * mientras que el alto sigue calculándose por {@code preferredSize} (para
+     * conservar el scroll vertical). Esto no cambia ningún layout manager
+     * existente (BoxLayout, GridLayout, BorderLayout siguen intactos), solo
+     * corrige el ancho que reciben.</p>
+     */
+    private static class ScrollableContentPanel extends JPanel implements Scrollable {
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+            return orientation == SwingConstants.VERTICAL ? visibleRect.height : visibleRect.width;
+        }
+
+        // CLAVE del fix: el ancho de este panel siempre sigue al del viewport,
+        // así BoxLayout/GridLayout reciben el ancho real de la ventana.
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        // El alto NO sigue al viewport de forma incondicional: solo lo hace
+        // cuando sobra espacio vertical (ventana maximizada con poco
+        // contenido). Así, las filas con maximumSize ilimitado en alto
+        // (p. ej. buildActionCardsSection()) pueden crecer para llenar ese
+        // espacio extra. Si el contenido es más alto que el viewport (caso
+        // normal, muchos datos), se devuelve false y el scroll vertical
+        // sigue funcionando exactamente igual que antes.
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            if (getParent() instanceof javax.swing.JViewport viewport) {
+                return viewport.getHeight() > getPreferredSize().height;
+            }
+            return false;
+        }
+    }
 
     /**
      * JPanel con bordes redondeados y sombra suave.

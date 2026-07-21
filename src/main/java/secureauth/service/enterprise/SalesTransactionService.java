@@ -14,9 +14,16 @@ import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO.SaleReportRow;
 import secureauth.dao.enterprise.InventoryDAO;
+import secureauth.application.dto.ServiceOrderDTO;
+import secureauth.infrastructure.persistence.JdbcServiceOrderRepository;
+import secureauth.infrastructure.repository.ServiceOrderRepository;
 import secureauth.model.Appointment;
 import secureauth.model.SaleItem;
 import secureauth.model.Venta;
+import secureauth.shared.events.EventPublisher;
+import secureauth.shared.events.InventoryConsumptionEvent;
+import secureauth.shared.events.NoOpEventPublisher;
+import secureauth.shared.events.ServiceOrderRegisteredEvent;
 
 /**
  * Servicio de ventas POS y métricas de dashboard por sucursal.
@@ -31,23 +38,40 @@ public class SalesTransactionService {
     private final InventoryDAO inventoryDAO;
     private final ActividadRecienteDAO actividadDAO;
     private final AppointmentDAO appointmentDAO;
+    private final ServiceOrderRepository serviceOrderRepository;
+    private final EventPublisher eventPublisher;
     private final EnterpriseContext context = EnterpriseContext.getInstance();
 
     public SalesTransactionService() {
-        this(new SalesTransactionDAO(), new InventoryDAO(), new ActividadRecienteDAO(), new AppointmentDAO());
+        this(new SalesTransactionDAO(), new InventoryDAO(), new ActividadRecienteDAO(), new AppointmentDAO(),
+                new JdbcServiceOrderRepository());
     }
 
     public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
             ActividadRecienteDAO actividadDAO) {
-        this(dao, inventoryDAO, actividadDAO, new AppointmentDAO());
+        this(dao, inventoryDAO, actividadDAO, new AppointmentDAO(), new JdbcServiceOrderRepository());
     }
 
     public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
             ActividadRecienteDAO actividadDAO, AppointmentDAO appointmentDAO) {
+        this(dao, inventoryDAO, actividadDAO, appointmentDAO, new JdbcServiceOrderRepository());
+    }
+
+    public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
+            ActividadRecienteDAO actividadDAO, AppointmentDAO appointmentDAO,
+            ServiceOrderRepository serviceOrderRepository) {
+        this(dao, inventoryDAO, actividadDAO, appointmentDAO, serviceOrderRepository, new NoOpEventPublisher());
+    }
+
+    public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
+            ActividadRecienteDAO actividadDAO, AppointmentDAO appointmentDAO,
+            ServiceOrderRepository serviceOrderRepository, EventPublisher eventPublisher) {
         this.dao = dao;
         this.inventoryDAO = inventoryDAO;
         this.actividadDAO = actividadDAO;
         this.appointmentDAO = appointmentDAO;
+        this.serviceOrderRepository = serviceOrderRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public void initializeSchema() throws SQLException {
@@ -118,10 +142,23 @@ public class SalesTransactionService {
      */
     public void registrarVentaConCitas(Venta venta, double gain, double tax, String itemsSummary,
             List<Appointment> appointments) throws SQLException {
+        registrarVentaConCitas(venta, gain, tax, itemsSummary, appointments, List.of());
+    }
+
+    public void registrarVentaConCitas(Venta venta, double gain, double tax, String itemsSummary,
+            List<Appointment> appointments, List<ServiceOrderDTO> serviceOrders) throws SQLException {
         validateSale(venta);
         validateAppointments(appointments);
         int businessId = context.getActiveBusinessId();
         int branchId = context.getActiveBranchId();
+        int serviceOrderCount = serviceOrders == null ? 0 : serviceOrders.size();
+        int consumedProductLines = serviceOrders == null ? 0 : serviceOrders.stream()
+                .mapToInt(order -> order.products().size())
+                .sum();
+        int consumedUnits = serviceOrders == null ? 0 : serviceOrders.stream()
+                .flatMap(order -> order.products().stream())
+                .mapToInt(secureauth.application.dto.ServiceProductDTO::quantity)
+                .sum();
 
         initializeSchema();
         try (Connection conn = DatabaseConnection.getConnection()) {
@@ -140,6 +177,9 @@ public class SalesTransactionService {
                 int saleId = dao.insertVenta(conn, venta);
                 venta.setIdVenta(saleId);
                 dao.insertDetalles(conn, saleId, venta.getItems());
+
+                serviceOrderRepository.registerWithInventoryConsumption(conn, businessId, branchId, saleId,
+                        serviceOrders, venta.getUsuarioVendedor());
 
                 for (Map.Entry<Integer, Integer> entry : quantities.entrySet()) {
                     inventoryDAO.decreaseStock(conn, businessId, branchId, entry.getKey(), entry.getValue());
@@ -160,6 +200,14 @@ public class SalesTransactionService {
                 conn.commit();
                 if (!appointments.isEmpty()) {
                     AppointmentService.notifyAppointmentsChanged();
+                }
+                if (serviceOrderCount > 0) {
+                    eventPublisher.publish(new ServiceOrderRegisteredEvent(LocalDateTime.now(), serviceOrderCount,
+                            consumedProductLines));
+                }
+                if (consumedProductLines > 0) {
+                    eventPublisher.publish(new InventoryConsumptionEvent(LocalDateTime.now(), consumedProductLines,
+                            consumedUnits));
                 }
             } catch (SQLException | RuntimeException ex) {
                 conn.rollback();

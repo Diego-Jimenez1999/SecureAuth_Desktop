@@ -4,7 +4,13 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.net.URL;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
@@ -68,6 +74,8 @@ import secureauth.ui.config.ApplicationVisualSettings;
  * @version 2.0
  */
 public final class UiTheme {
+
+    private static final Map<String, ImageIcon> IMAGE_CACHE = new ConcurrentHashMap<>();
 
      /* =========================================================
      * CONSTRUCTOR PRIVADO
@@ -719,33 +727,54 @@ public final class UiTheme {
 
     ) {
 
-        try {
-
-            ImageIcon icon =
-                    new ImageIcon(
-                            UiTheme.class.getResource(path)
-                    );
-
-            Image img =
-                    icon.getImage()
-                            .getScaledInstance(
-                                    width,
-                                    height,
-                                    Image.SCALE_SMOOTH
-                            );
-
-            return new ImageIcon(img);
-
-        } catch (Exception e) {
-
-            System.err.println(
-                    "Error cargando imagen: " + path
-            );
-
+        if (path == null || path.isBlank() || width <= 0 || height <= 0) {
             return null;
-
         }
 
+        return IMAGE_CACHE.computeIfAbsent(path + "|" + width + "x" + height,
+                key -> createScaledImage(path, width, height));
+
+    }
+
+    private static ImageIcon createScaledImage(String path, int width, int height) {
+        try {
+            URL resource = UiTheme.class.getResource(path);
+            if (resource == null) {
+                System.err.println("Error cargando imagen: " + path);
+                return null;
+            }
+
+            Image source = new ImageIcon(resource).getImage();
+            int sourceWidth = source.getWidth(null);
+            int sourceHeight = source.getHeight(null);
+            if (sourceWidth <= 0 || sourceHeight <= 0) {
+                return null;
+            }
+
+            double scale = Math.min((double) width / sourceWidth, (double) height / sourceHeight);
+            int scaledWidth = Math.max(1, (int) Math.round(sourceWidth * scale));
+            int scaledHeight = Math.max(1, (int) Math.round(sourceHeight * scale));
+            int x = (width - scaledWidth) / 2;
+            int y = (height - scaledHeight) / 2;
+
+            BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D graphics = canvas.createGraphics();
+            try {
+                graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                        RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                graphics.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+                        RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+                graphics.drawImage(source, x, y, scaledWidth, scaledHeight, null);
+            } finally {
+                graphics.dispose();
+            }
+            return new ImageIcon(canvas);
+        } catch (Exception e) {
+            System.err.println("Error cargando imagen: " + path);
+            return null;
+        }
     }
 
     /* =========================================================

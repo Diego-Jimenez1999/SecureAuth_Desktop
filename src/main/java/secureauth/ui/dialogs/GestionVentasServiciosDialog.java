@@ -23,6 +23,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
+import secureauth.domain.sales.SaleItemType;
 import secureauth.ui.sales.SalesServiceCatalog;
 import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
 import secureauth.ui.utils.UiTheme;
@@ -51,7 +52,7 @@ public class GestionVentasServiciosDialog extends JDialog {
     private JTextField txtStock;
     private JTextField txtSizeLabel;
     private JTextField txtSizePrice;
-    private JComboBox<String> cbTipo;
+    private JComboBox<SaleItemType> cbTipo;
 
     private int editingItemId = -1;
 
@@ -122,8 +123,10 @@ public class GestionVentasServiciosDialog extends JDialog {
         btnAgregar.addActionListener(e -> addCategory());
         btnEliminar.addActionListener(e -> removeSelectedCategory());
 
-        gbc.gridy++;
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        gbc.gridx=0;
+        gbc.gridy=8;
+        gbc.gridwidth=2;
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         actions.setOpaque(false);
         actions.add(btnAgregar);
         actions.add(btnEliminar);
@@ -155,17 +158,44 @@ public class GestionVentasServiciosDialog extends JDialog {
         txtStock = field();
         txtSizeLabel = field();
         txtSizePrice = field();
-        cbTipo = new JComboBox<>(new String[]{"Servicio", "Producto"});
+        cbTipo = new JComboBox<>(SaleItemType.values());
         cbTipo.setFont(UiTheme.BODY_FONT);
+        cbTipo.setRenderer((list, value, index, isSelected, cellHasFocus) -> {
+            JLabel label = new JLabel(value == null ? "" : value.displayName());
+            label.setOpaque(true);
+            label.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
+            label.setForeground(isSelected ? list.getSelectionForeground() : list.getForeground());
+            label.setFont(UiTheme.BODY_FONT);
+            return label;
+        });
 
-        addField(form, gbc, "Nombre", txtNombre);
-        addField(form, gbc, "Tipo", cbTipo);
-        addField(form, gbc, "Precio", txtPrecio);
-        addField(form, gbc, "Costo", txtCosto);
-        addField(form, gbc, "Estado", txtEstado);
-        addField(form, gbc, "Stock (opcional)", txtStock);
-        addField(form, gbc, "Tamaño", txtSizeLabel);
-        addField(form, gbc, "Precio tamaño", txtSizePrice);
+        gbc.insets = new Insets(6,6,6,6);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+
+        // Fila 1
+        gbc.gridx=0; gbc.gridy=0; form.add(new JLabel("Nombre"), gbc);
+        gbc.gridx=1; form.add(new JLabel("Tipo"), gbc);
+        gbc.gridx=0; gbc.gridy=1; form.add(txtNombre, gbc);
+        gbc.gridx=1; form.add(cbTipo, gbc);
+
+        // Fila 2
+        gbc.gridx=0; gbc.gridy=2; form.add(new JLabel("Precio"), gbc);
+        gbc.gridx=1; form.add(new JLabel("Costo"), gbc);
+        gbc.gridx=0; gbc.gridy=3; form.add(txtPrecio, gbc);
+        gbc.gridx=1; form.add(txtCosto, gbc);
+
+        // Fila 3
+        gbc.gridx=0; gbc.gridy=4; form.add(new JLabel("Estado"), gbc);
+        gbc.gridx=1; form.add(new JLabel("Stock (opcional)"), gbc);
+        gbc.gridx=0; gbc.gridy=5; form.add(txtEstado, gbc);
+        gbc.gridx=1; form.add(txtStock, gbc);
+
+        // Fila 4
+        gbc.gridx=0; gbc.gridy=6; form.add(new JLabel("Tamaño"), gbc);
+        gbc.gridx=1; form.add(new JLabel("Precio tamaño"), gbc);
+        gbc.gridx=0; gbc.gridy=7; form.add(txtSizeLabel, gbc);
+        gbc.gridx=1; form.add(txtSizePrice, gbc);
 
         JButton btnGuardar = button("Guardar");
         JButton btnEditar = button("Cargar Selección");
@@ -176,8 +206,10 @@ public class GestionVentasServiciosDialog extends JDialog {
         btnEliminar.addActionListener(e -> removeSelectedService());
         btnPrecios.addActionListener(e -> openSizePricesDialog());
 
-        gbc.gridy++;
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        gbc.gridx=0;
+        gbc.gridy=8;
+        gbc.gridwidth=2;
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         actions.setOpaque(false);
         actions.add(btnGuardar);
         actions.add(btnEditar);
@@ -260,7 +292,7 @@ public class GestionVentasServiciosDialog extends JDialog {
         }
 
         ServiceItemEntry entry = new ServiceItemEntry(editingItemId, category, subcategory, txtNombre.getText().trim(),
-                String.valueOf(cbTipo.getSelectedItem()), price, cost, price - cost,
+                selectedType().displayName(), price, cost, price - cost,
                 txtEstado.getText().isBlank() ? "Activo" : txtEstado.getText().trim(), stock, sizePrices);
         catalog.upsertItem(entry);
         clearForm();
@@ -274,7 +306,7 @@ public class GestionVentasServiciosDialog extends JDialog {
         }
         editingItemId = Integer.parseInt(String.valueOf(servicesModel.getValueAt(row, 0)));
         txtNombre.setText(String.valueOf(servicesModel.getValueAt(row, 3)));
-        cbTipo.setSelectedItem(String.valueOf(servicesModel.getValueAt(row, 4)));
+        cbTipo.setSelectedItem(SaleItemType.fromCatalogValue(String.valueOf(servicesModel.getValueAt(row, 4))));
         txtPrecio.setText(String.valueOf(servicesModel.getValueAt(row, 5)));
         txtCosto.setText(String.valueOf(servicesModel.getValueAt(row, 6)));
         txtEstado.setText(String.valueOf(servicesModel.getValueAt(row, 8)));
@@ -345,6 +377,11 @@ public class GestionVentasServiciosDialog extends JDialog {
         } catch (NumberFormatException ex) {
             return 0d;
         }
+    }
+
+    private SaleItemType selectedType() {
+        Object selected = cbTipo.getSelectedItem();
+        return selected instanceof SaleItemType type ? type : SaleItemType.PRODUCT;
     }
 
     private void warn(String message) {

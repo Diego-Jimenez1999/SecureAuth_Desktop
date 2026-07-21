@@ -153,4 +153,35 @@ public class InventoryDAO {
             }
         }
     }
+
+    public InventoryConsumptionSource findConsumptionSourceForUpdate(Connection conn, int businessId, int branchId,
+            int inventoryId) throws SQLException {
+        String sql = """
+                SELECT id, sku, item_name, stock, cost, price, status_name
+                FROM inventory_items
+                WHERE id = ?
+                  AND business_id = ?
+                  AND branch_id = ?
+                FOR UPDATE
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, inventoryId);
+            ps.setInt(2, businessId);
+            ps.setInt(3, branchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                String status = rs.getString("status_name");
+                boolean active = status == null || (!status.equalsIgnoreCase("INACTIVO")
+                        && !status.equalsIgnoreCase("AGOTADO"));
+                return new InventoryConsumptionSource(rs.getInt("id"), rs.getString("sku"), rs.getString("item_name"),
+                        rs.getInt("stock"), rs.getDouble("cost"), rs.getDouble("price"), status, active);
+            }
+        }
+    }
+
+    public record InventoryConsumptionSource(int id, String sku, String name, int stock, double cost, double price,
+                                             String status, boolean active) {
+    }
 }

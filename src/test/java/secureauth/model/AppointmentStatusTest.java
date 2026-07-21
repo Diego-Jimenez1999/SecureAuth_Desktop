@@ -9,6 +9,7 @@ class AppointmentStatusTest {
 
     @Test
     void supportsCurrentAndLegacyStatusValues() {
+        assertTrue(AppointmentStatus.isSupported("FINALIZADO"));
         assertTrue(AppointmentStatus.isSupported("FINALIZADA"));
         assertTrue(AppointmentStatus.isSupported("REALIZADO"));
         assertTrue(AppointmentStatus.isSupported("CANCELADA"));
@@ -17,7 +18,8 @@ class AppointmentStatusTest {
 
     @Test
     void normalizesLegacyValuesForStorage() {
-        assertEquals("FINALIZADA", AppointmentStatus.normalizeForStorage("REALIZADO"));
+        assertEquals("FINALIZADO", AppointmentStatus.normalizeForStorage("FINALIZADA"));
+        assertEquals("FINALIZADO", AppointmentStatus.normalizeForStorage("REALIZADO"));
         assertEquals("CANCELADA", AppointmentStatus.normalizeForStorage("CANCELADO"));
     }
 }

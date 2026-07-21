@@ -6,7 +6,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.text.NumberFormat;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -29,10 +28,15 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
+import secureauth.application.command.RegisterSaleCommand;
+import secureauth.application.dto.AppointmentDTO;
+import secureauth.application.dto.SaleDTO;
+import secureauth.application.dto.SaleItemDTO;
+import secureauth.application.dto.ServiceOrderDTO;
+import secureauth.application.usecase.RegisterSaleUseCase;
 import secureauth.controller.SalesController;
-import secureauth.model.Appointment;
-import secureauth.model.SaleItem;
-import secureauth.model.Venta;
+import secureauth.domain.sales.SaleItemType;
+import secureauth.infrastructure.persistence.JdbcSalesRepository;
 import secureauth.service.OwnerService;
 import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.SalesTransactionService;
@@ -61,7 +65,7 @@ public class SalesPanel extends JPanel {
     private JTextField searchField;
     private JTable cartTable;
     private DefaultTableModel cartTableModel;
-    private final SalesTransactionService salesTransactionService;
+    private final RegisterSaleUseCase registerSaleUseCase;
     private final AppointmentService appointmentService;
     private final OwnerService ownerService;
 
@@ -95,10 +99,17 @@ public class SalesPanel extends JPanel {
     public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector,
             SalesTransactionService salesTransactionService, AppointmentService appointmentService,
             OwnerService ownerService) {
+        this(controller, subServiceSelector, new RegisterSaleUseCase(new JdbcSalesRepository(salesTransactionService)),
+                appointmentService, ownerService);
+    }
+
+    public SalesPanel(SalesController controller, SubServiceSelector subServiceSelector,
+            RegisterSaleUseCase registerSaleUseCase, AppointmentService appointmentService,
+            OwnerService ownerService) {
         this.controller = controller;
         this.currency = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
         this.catalog = SalesServiceCatalog.getInstance();
-        this.salesTransactionService = salesTransactionService;
+        this.registerSaleUseCase = registerSaleUseCase;
         this.appointmentService = appointmentService;
         this.ownerService = ownerService;
 
@@ -335,9 +346,21 @@ public class SalesPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Producto agotado. No hay stock disponible.");
             return;
         }
+        SaleItemType itemType = item.saleItemType();
+        SaleItemDTO saleItem = new SaleItemDTO(selection.name(), selection.price(), item.id(), item.inventoryItemId(),
+                item.sku(), itemType, item.category(), item.stock(), item.gain(), 1);
+        if (itemType.requiresAppointment()) {
+            ScheduledService scheduledService = openScheduleDialog(saleItem);
+            if (scheduledService == null) {
+                JOptionPane.showMessageDialog(this, "El servicio no se agregó porque el agendamiento fue cancelado.",
+                        "Agendamiento requerido", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            saleItem = saleItem.withAppointment(scheduledService.appointment())
+                    .withServiceOrder(scheduledService.serviceOrder());
+        }
         try {
-            controller.addItem(new SaleItem(selection.name(), selection.price(), item.id(), item.inventoryItemId(),
-                    item.sku(), item.type(), item.category(), item.stock()));
+            controller.addItem(saleItem);
         } catch (IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage());
             return;
@@ -389,7 +412,7 @@ public class SalesPanel extends JPanel {
      * Cancela toda la venta actual limpiando el carrito, previo aviso de confirmación.
      */
     private void cancelSale() {
-        if (controller.getItems().isEmpty()) {
+        if (controller.getItemDTOs().isEmpty()) {
             return;
         }
         int confirm = JOptionPane.showConfirmDialog(this, "¿Cancelar toda la compra actual?", "Cancelar compra",
@@ -406,49 +429,24 @@ public class SalesPanel extends JPanel {
      * después confirma el método de pago y registra todo transaccionalmente.
      */
     private void registerSale() {
-        if (controller.getItems().isEmpty()) {
+        if (controller.getItemDTOs().isEmpty()) {
             JOptionPane.showMessageDialog(this, "No hay items en el carrito.");
             return;
         }
-        
-        // Calcular la ganancia sumando los valores gain() de cada item
-        double gain = 0d;
-        for (var saleItem : controller.getItems()) {
-            ServiceItemEntry matched = catalog.getItems().stream().filter(i -> saleItem.getName().startsWith(i.name())).findFirst().orElse(null);
-            if (matched != null) {
-                gain += matched.gain() * saleItem.getQuantity();
-            }
-        }
-        
+
         try {
-            salesTransactionService.initializeSchema();
-            String itemsSummary = controller.getItems().stream()
-                    .map(item -> item.getQuantity() + " x " + item.getName())
-                    .collect(java.util.stream.Collectors.joining(", "));
-            java.util.List<SaleItem> itemsToSchedule = controller.getItems().stream()
-                    .filter(this::requiresAppointment)
-                    .toList();
-
-            java.util.List<Appointment> appointments = openScheduleDialogs(itemsToSchedule);
-            if (appointments == null) {
-                JOptionPane.showMessageDialog(this, "La venta no se registró porque la cita fue cancelada.",
-                        "Agendamiento requerido", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
             String paymentMethod = requestPaymentMethod();
             if (paymentMethod == null) {
                 return;
             }
 
-            Venta venta = new Venta(null, LocalDateTime.now(), "Mostrador", controller.getTotal(), paymentMethod, "");
-            for (SaleItem item : controller.getItems()) {
-                venta.addItem(item);
-            }
-            
-            // Registrar transacción final
-            salesTransactionService.registrarVentaConCitas(venta, gain, controller.getTax(), itemsSummary,
-                    appointments);
+            SaleDTO sale = new SaleDTO(null, java.time.LocalDateTime.now(), "Mostrador", controller.getTotal(),
+                    paymentMethod, "", controller.getItemDTOs());
+            List<AppointmentDTO> appointmentDTOs = controller.getItemDTOs().stream()
+                    .map(SaleItemDTO::appointment)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            registerSaleUseCase.register(new RegisterSaleCommand(sale, appointmentDTOs));
                     
             // Limpiar interfaz
             controller.clearSale();
@@ -468,21 +466,21 @@ public class SalesPanel extends JPanel {
             return;
         }
         cartTableModel.setRowCount(0);
-        for (SaleItem item : controller.getItems()) {
+        for (SaleItemDTO item : controller.getItemDTOs()) {
             cartTableModel.addRow(new Object[]{
-                    item.getName(),
-                    currency.format(item.getPrice()),
+                    item.name(),
+                    currency.format(item.price()),
                     "-",
-                    item.getQuantity(),
+                    item.quantity(),
                     "+",
-                    currency.format(item.getSubtotal()),
-                    item.getStockAvailable() == null ? "-" : Math.max(0, item.getStockAvailable() - item.getQuantity())
+                    currency.format(item.subtotal()),
+                    item.stockAvailable() == null ? "-" : Math.max(0, item.stockAvailable() - item.quantity())
             });
         }
     }
 
     private void handleManualQuantityEdit(int row, int column) {
-        if (column != 3 || row < 0 || row >= controller.getItems().size()) {
+        if (column != 3 || row < 0 || row >= controller.getItemDTOs().size()) {
             return;
         }
         Object value = cartTableModel.getValueAt(row, column);
@@ -496,12 +494,6 @@ public class SalesPanel extends JPanel {
         updateTotals();
     }
 
-    private boolean requiresAppointment(SaleItem item) {
-        String type = item.getType() == null ? "" : item.getType().trim().toUpperCase(Locale.ROOT);
-        String category = item.getCategory() == null ? "" : item.getCategory().trim().toUpperCase(Locale.ROOT);
-        return "SERVICIO".equals(type) || "SERVICIO".equals(category);
-    }
-
     private String requestPaymentMethod() {
         Object[] methods = {"Efectivo", "Tarjeta", "Transferencia", "Nequi", "Daviplata"};
         Object selected = JOptionPane.showInputDialog(this, "Método de pago", "POS", JOptionPane.PLAIN_MESSAGE,
@@ -509,21 +501,17 @@ public class SalesPanel extends JPanel {
         return selected == null ? null : selected.toString();
     }
 
-    private java.util.List<Appointment> openScheduleDialogs(java.util.List<SaleItem> itemsToSchedule) {
-        java.util.List<Appointment> appointments = new ArrayList<>();
+    private ScheduledService openScheduleDialog(SaleItemDTO item) {
         java.awt.Window window = javax.swing.SwingUtilities.getWindowAncestor(this);
-        for (SaleItem item : itemsToSchedule) {
-            for (int i = 0; i < item.getQuantity(); i++) {
-                ServiceAppointmentDialog dialog = new ServiceAppointmentDialog(window, item, appointmentService,
-                        ownerService);
-                dialog.setVisible(true);
-                if (!dialog.isSaved() || dialog.getPreparedAppointment() == null) {
-                    return null;
-                }
-                appointments.add(dialog.getPreparedAppointment());
-            }
+        ServiceAppointmentDialog dialog = new ServiceAppointmentDialog(window, item, appointmentService, ownerService);
+        dialog.setVisible(true);
+        if (!dialog.isSaved() || dialog.getPreparedAppointment() == null || dialog.getPreparedServiceOrder() == null) {
+            return null;
         }
-        return appointments;
+        return new ScheduledService(dialog.getPreparedAppointment(), dialog.getPreparedServiceOrder());
+    }
+
+    private record ScheduledService(AppointmentDTO appointment, ServiceOrderDTO serviceOrder) {
     }
 
     private PricedSaleSelection resolvePricedSelection(ServiceItemEntry item) {

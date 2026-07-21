@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -168,7 +169,7 @@ public class AppointmentDAO {
                 SELECT id, service_id, service_name, owner_id, owner_name, pet_id, pet_name,
                        appointment_date, appointment_time, status, notes, created_at, created_by
                 FROM appointments
-                ORDER BY FIELD(status, 'PENDIENTE', 'CONFIRMADA', 'EN_PROCESO', 'FINALIZADA', 'REALIZADO', 'CANCELADA', 'CANCELADO'),
+                ORDER BY FIELD(status, 'PENDIENTE', 'CONFIRMADA', 'EN_PROCESO', 'FINALIZADO', 'FINALIZADA', 'REALIZADO', 'CANCELADA', 'CANCELADO'),
                          appointment_date ASC,
                          appointment_time ASC
                 LIMIT ?
@@ -177,6 +178,39 @@ public class AppointmentDAO {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    appointments.add(mapRow(rs));
+                }
+            }
+        }
+        return appointments;
+    }
+
+    /**
+     * Lista citas activas del módulo veterinario para una fecha.
+     *
+     * @param date fecha de agenda
+     * @return citas pendientes, confirmadas o en proceso
+     * @throws SQLException si falla la consulta
+     */
+    public List<Appointment> findActiveByDate(LocalDate date) throws SQLException {
+        ensureSchema();
+        String sql = """
+                SELECT id, service_id, service_name, owner_id, owner_name, pet_id, pet_name,
+                       appointment_date, appointment_time, status, notes, created_at, created_by
+                FROM appointments
+                WHERE appointment_date = ?
+                  AND status IN (?, ?, ?)
+                ORDER BY appointment_time
+                """;
+        List<Appointment> appointments = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(date));
+            ps.setString(2, STATUS_PENDING);
+            ps.setString(3, STATUS_CONFIRMED);
+            ps.setString(4, STATUS_IN_PROGRESS);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     appointments.add(mapRow(rs));
@@ -221,7 +255,7 @@ public class AppointmentDAO {
      * @throws SQLException si falla la consulta
      */
     public int countFinished() throws SQLException {
-        return countByStatuses(STATUS_DONE, "REALIZADO");
+        return countByStatuses(STATUS_DONE, "FINALIZADA", "REALIZADO");
     }
 
     private int countByStatuses(String... statuses) throws SQLException {
