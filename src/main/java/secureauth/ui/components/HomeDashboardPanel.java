@@ -139,6 +139,16 @@ public final class HomeDashboardPanel extends JPanel {
                 new ActividadRecienteService(), new AppointmentService());
     }
 
+    /**
+     * Constructor principal con todos los servicios inyectados desde el bootstrap.
+     * @param currentUser
+     * @param salesService
+     * @param ownerService
+     * @param userService
+     * @param inventoryService
+     * @param actividadService
+     * @param appointmentService
+     */
     public HomeDashboardPanel(User currentUser, SalesTransactionService salesService, OwnerService ownerService,
             UserService userService, InventoryService inventoryService, ActividadRecienteService actividadService,
             AppointmentService appointmentService) {
@@ -252,6 +262,9 @@ public final class HomeDashboardPanel extends JPanel {
     // CONSTRUCCIÓN DE LA UI
     // =========================================================
 
+    /**
+     * Construye la interfaz de usuario del panel de dashboard.
+     */
     private void build() {
         setLayout(new BorderLayout(0, 16));
         setBackground(new Color(240, 242, 245));
@@ -314,6 +327,10 @@ public final class HomeDashboardPanel extends JPanel {
         add(centerContent, BorderLayout.CENTER);
     }
 
+    /**
+     * Crea el panel de KPIs del día con un diseño limpio y moderno.
+     * @return el panel de KPIs del día
+     */
     private JPanel createKpiPanel() {
         JPanel panel = card();
         panel.setLayout(new BorderLayout(0, 12));
@@ -504,7 +521,7 @@ public final class HomeDashboardPanel extends JPanel {
         imageLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
         imageLabel.setPreferredSize(new Dimension(150, SUMMARY_SEPARATOR_HEIGHT));
         imageLabel.setMinimumSize(new Dimension(120, SUMMARY_SEPARATOR_HEIGHT));
-        imageLabel.setMaximumSize(new Dimension(180, SUMMARY_SEPARATOR_HEIGHT));
+        imageLabel.setMaximumSize(new Dimension(190, SUMMARY_SEPARATOR_HEIGHT));
         return imageLabel;
     }
 
