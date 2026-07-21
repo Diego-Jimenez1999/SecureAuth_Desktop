@@ -14,7 +14,7 @@ import secureauth.ui.frames.IngresoFrame;
 import secureauth.ui.frames.LoginFrame;
 
 /**
- * Punto de entrada oficial de SecureAuth Desktop.
+ * Punto de entrada oficial de SecureAuth Desktop.4
  *
  * Bootstrap centralizado:
  * - Inicializa contexto de aplicación
