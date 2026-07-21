@@ -23,12 +23,12 @@ public final class ServiceOrderMapper {
 
     public static ServiceOrderItem toDomain(ServiceOrderItemDTO dto) {
         return new ServiceOrderItem(dto.serviceId(), dto.serviceName(), dto.veterinarian(), dto.serviceDate(),
-                dto.serviceTime(), dto.durationMinutes(), dto.observations(), dto.servicePrice());
+                dto.serviceTime(), dto.endDate(), dto.endTime(), dto.durationMinutes(), dto.observations(), dto.servicePrice());
     }
 
     public static ServiceOrderItemDTO toDTO(ServiceOrderItem item) {
         return new ServiceOrderItemDTO(item.serviceId(), item.serviceName(), item.veterinarian(), item.serviceDate(),
-                item.serviceTime(), item.durationMinutes(), item.observations(), item.servicePrice());
+                item.serviceTime(), item.endDate(), item.endTime(), item.durationMinutes(), item.observations(), item.servicePrice());
     }
 
     public static ServiceOrder toDomain(ServiceOrderDTO dto) {

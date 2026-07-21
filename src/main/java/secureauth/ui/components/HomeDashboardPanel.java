@@ -464,12 +464,20 @@ public final class HomeDashboardPanel extends JPanel {
         appointmentRows = new ArrayList<>(rows);
         activityModel.setRowCount(0);
         for (Appointment appointment : rows) {
+            String timeAndDate;
+            if (appointment.getEndDate() != null && !appointment.getEndDate().equals(appointment.getAppointmentDate())) {
+                String interval = secureauth.shared.util.ServiceScheduleHelper.formatInterval(appointment.getAppointmentDate(), appointment.getEndDate());
+                timeAndDate = interval + " (" + appointment.getAppointmentTime() + " → " + appointment.getEndTime() + ")";
+            } else {
+                timeAndDate = appointment.getAppointmentDate().format(appointmentDateFormatter) + " "
+                        + appointment.getAppointmentTime();
+            }
+
             activityModel.addRow(new Object[]{
                     appointment.getPetName(),
                     appointment.getServiceName(),
                     appointment.getOwnerName(),
-                    appointment.getAppointmentDate().format(appointmentDateFormatter) + " "
-                            + appointment.getAppointmentTime(),
+                    timeAndDate,
                     appointment.getStatus()
             });
         }
@@ -743,8 +751,22 @@ public final class HomeDashboardPanel extends JPanel {
         addDetailRow(panel, gbc, "Propietario", appointment.getOwnerName());
         addDetailRow(panel, gbc, "Mascota", appointment.getPetName());
         addDetailRow(panel, gbc, "Servicio", appointment.getServiceName());
-        addDetailRow(panel, gbc, "Fecha", String.valueOf(appointment.getAppointmentDate()));
-        addDetailRow(panel, gbc, "Hora", String.valueOf(appointment.getAppointmentTime()));
+
+        if (appointment.getEndDate() != null && !appointment.getEndDate().equals(appointment.getAppointmentDate())) {
+            addDetailRow(panel, gbc, "Fecha Inicio", String.valueOf(appointment.getAppointmentDate()));
+            addDetailRow(panel, gbc, "Hora Inicio", String.valueOf(appointment.getAppointmentTime()));
+            addDetailRow(panel, gbc, "Fecha Fin", String.valueOf(appointment.getEndDate()));
+            addDetailRow(panel, gbc, "Hora Fin", String.valueOf(appointment.getEndTime()));
+            String dur = secureauth.shared.util.ServiceScheduleHelper.calculateDurationString(
+                    appointment.getServiceName(), appointment.getAppointmentDate(), appointment.getAppointmentTime(),
+                    appointment.getEndDate(), appointment.getEndTime()
+            );
+            addDetailRow(panel, gbc, "Duración", dur);
+        } else {
+            addDetailRow(panel, gbc, "Fecha", String.valueOf(appointment.getAppointmentDate()));
+            addDetailRow(panel, gbc, "Hora", String.valueOf(appointment.getAppointmentTime()));
+        }
+
         addDetailRow(panel, gbc, "Estado", displayStatus(appointment.getStatus()));
         addDetailRow(panel, gbc, "Veterinario", emptyAs(appointment.getCreatedBy(), "-"));
         addDetailRow(panel, gbc, "Observaciones", emptyAs(appointment.getNotes(), "-"));

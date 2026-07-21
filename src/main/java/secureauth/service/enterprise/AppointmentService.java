@@ -196,6 +196,15 @@ public class AppointmentService {
                 || appointment.getAppointmentTime() == null) {
             throw new IllegalArgumentException("Completa los datos obligatorios de la cita.");
         }
+
+        // Validar el intervalo temporal (fecha/hora fin no menores a fecha/hora inicio)
+        if (appointment.getEndDate() != null && appointment.getEndTime() != null) {
+            secureauth.shared.util.ServiceScheduleHelper.validateInterval(
+                appointment.getAppointmentDate(), appointment.getAppointmentTime(),
+                appointment.getEndDate(), appointment.getEndTime()
+            );
+        }
+
         LocalDateTime appointmentDateTime = LocalDateTime.of(appointment.getAppointmentDate(),
                 appointment.getAppointmentTime());
         if (appointmentDateTime.isBefore(LocalDateTime.now())) {

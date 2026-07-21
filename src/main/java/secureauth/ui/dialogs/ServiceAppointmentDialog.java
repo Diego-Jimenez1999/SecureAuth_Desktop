@@ -104,6 +104,11 @@ public class ServiceAppointmentDialog extends JDialog {
             5));
     private final JSpinner durationSpinner = new JSpinner(new SpinnerNumberModel(ESTIMATED_DURATION_MINUTES, 1, 480,
             5));
+    private final JSpinner endDateSpinner = new JSpinner(new SpinnerDateModel(new Date(), null, null,
+            Calendar.DAY_OF_MONTH));
+    private final JSpinner endHourSpinner = new JSpinner(new SpinnerNumberModel(17, 0, 23, 1));
+    private final JSpinner endMinuteSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 59, 5));
+    private final JTextField calculatedDurationField = new JTextField();
     private final JTextField discountField = new JTextField("0");
     private final JTextArea notesArea = new JTextArea(4, 24);
     private final JLabel endTimeLabel = new JLabel();
@@ -311,14 +316,32 @@ public class ServiceAppointmentDialog extends JDialog {
         styleSpinner(hourSpinner);
         styleSpinner(minuteSpinner);
         styleSpinner(durationSpinner);
+        styleSpinner(endDateSpinner);
+        styleSpinner(endHourSpinner);
+        styleSpinner(endMinuteSpinner);
+        styleField(calculatedDurationField);
+        calculatedDurationField.setEditable(false);
         styleField(discountField);
         dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd"));
+        endDateSpinner.setEditor(new JSpinner.DateEditor(endDateSpinner, "yyyy-MM-dd"));
         notesArea.setLineWrap(true);
         notesArea.setWrapStyleWord(true);
         notesArea.setFont(UiTheme.BODY_FONT);
         notesArea.setRows(3);
         styleInfoLabel(endTimeLabel);
+
+        // Inicializar fecha y hora de fin por defecto y configurar listeners de cambio de agenda
+        initDefaultEndSchedule();
         updateEndTimeLabel();
+        onScheduleChanged();
+
+        javax.swing.event.ChangeListener scheduleListener = e -> onScheduleChanged();
+        dateSpinner.addChangeListener(scheduleListener);
+        hourSpinner.addChangeListener(scheduleListener);
+        minuteSpinner.addChangeListener(scheduleListener);
+        endDateSpinner.addChangeListener(scheduleListener);
+        endHourSpinner.addChangeListener(scheduleListener);
+        endMinuteSpinner.addChangeListener(scheduleListener);
 
         documentField.addActionListener(e -> searchOwnersAsync(documentField.getText(), true));
         petCombo.addItemListener(e -> {
@@ -432,8 +455,77 @@ public class ServiceAppointmentDialog extends JDialog {
         panel.setLayout(new GridBagLayout());
         panel.setBorder(cardBorder());
         addHeader(panel, "Agenda");
-        addFourthFields(panel, 1, "Fecha", dateSpinner, "Hora de inicio", hourSpinner, "Duración",
-                durationSpinner, "Hora de finalización", endTimeLabel);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+
+        // --- INICIO ---
+        gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridwidth = 1;
+        gbc.insets = new Insets(14, 0, 4, 0);
+        panel.add(smallLabel("Fecha inicio"), gbc);
+
+        gbc.gridy = 2;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        panel.add(dateSpinner, gbc);
+
+        gbc.gridy = 1;
+        gbc.gridx = 1;
+        gbc.insets = new Insets(14, 10, 4, 0);
+        panel.add(smallLabel("Hora inicio"), gbc);
+
+        gbc.gridy = 2;
+        gbc.insets = new Insets(0, 10, 0, 0);
+        JPanel startTimePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        startTimePanel.setOpaque(false);
+        hourSpinner.setPreferredSize(new Dimension(60, 28));
+        minuteSpinner.setPreferredSize(new Dimension(60, 28));
+        startTimePanel.add(hourSpinner);
+        startTimePanel.add(new JLabel(":"));
+        startTimePanel.add(minuteSpinner);
+        panel.add(startTimePanel, gbc);
+
+        // --- FINALIZACIÓN (Apartado nuevo) ---
+        gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.insets = new Insets(14, 0, 4, 0);
+        panel.add(smallLabel("Fecha final (Finalización)"), gbc);
+
+        gbc.gridy = 4;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        panel.add(endDateSpinner, gbc);
+
+        gbc.gridy = 3;
+        gbc.gridx = 1;
+        gbc.insets = new Insets(14, 10, 4, 0);
+        panel.add(smallLabel("Hora final (Finalización)"), gbc);
+
+        gbc.gridy = 4;
+        gbc.insets = new Insets(0, 10, 0, 0);
+        JPanel endTimePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        endTimePanel.setOpaque(false);
+        endHourSpinner.setPreferredSize(new Dimension(60, 28));
+        endMinuteSpinner.setPreferredSize(new Dimension(60, 28));
+        endTimePanel.add(endHourSpinner);
+        endTimePanel.add(new JLabel(":"));
+        endTimePanel.add(endMinuteSpinner);
+        panel.add(endTimePanel, gbc);
+
+        // --- DURACIÓN (Automática y no editable) ---
+        gbc.gridy = 1;
+        gbc.gridx = 2;
+        gbc.gridheight = 2;
+        gbc.insets = new Insets(14, 20, 4, 0);
+        panel.add(smallLabel("Duración automática"), gbc);
+
+        gbc.gridy = 3;
+        gbc.gridheight = 1;
+        gbc.insets = new Insets(0, 20, 0, 0);
+        calculatedDurationField.setPreferredSize(new Dimension(150, 28));
+        panel.add(calculatedDurationField, gbc);
+
         return panel;
     }
 
@@ -841,12 +933,18 @@ public class ServiceAppointmentDialog extends JDialog {
 
     private void saveAppointment() {
         try {
-            Owner owner = selectedOwner();
-            Pet pet = selectedPet();
             LocalDate date = selectedDate();
             LocalTime time = selectedTime();
+            LocalDate endDate = selectedEndDate();
+            LocalTime endTime = selectedEndTime();
+            secureauth.shared.util.ServiceScheduleHelper.validateInterval(date, time, endDate, endTime);
+
+            Owner owner = selectedOwner();
+            Pet pet = selectedPet();
+
             Appointment appointment = new Appointment(null, saleItem.catalogItemId(), saleItem.name(),
                     owner.getId(), owner.getNombreCompleto(), pet.getId(), pet.getNombreMascota(), date, time,
+                    endDate, endTime,
                     AppointmentStatus.PENDING.databaseValue(), notesArea.getText().trim(), LocalDateTime.now(),
                     veterinarianField.getText().isBlank() ? "Sistema" : veterinarianField.getText().trim());
             preparedAppointment = AppointmentMapper.toDTO(appointmentService.prepareForRegistration(appointment));
@@ -859,7 +957,7 @@ public class ServiceAppointmentDialog extends JDialog {
             JOptionPane.showMessageDialog(this, "Revisa el formato de fecha u hora.", "Datos inválidos",
                     JOptionPane.WARNING_MESSAGE);
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Datos incompletos", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Datos incompletos o inválidos", JOptionPane.WARNING_MESSAGE);
         }
     }
 
@@ -1101,6 +1199,7 @@ public class ServiceAppointmentDialog extends JDialog {
     private ServiceOrderItemDTO buildServiceOrderItem(LocalDate date, LocalTime time) {
         return new ServiceOrderItemDTO(saleItem.catalogItemId(), saleItem.name(),
                 veterinarianField.getText().isBlank() ? "Sistema" : veterinarianField.getText().trim(), date, time,
+                selectedEndDate(), selectedEndTime(),
                 parseDuration(), notesArea.getText().trim(), saleItem.price());
     }
 
@@ -1181,18 +1280,29 @@ public class ServiceAppointmentDialog extends JDialog {
     }
 
     private void updateEndTimeLabel() {
-        endTimeLabel.setText(selectedTime().plusMinutes(parseDuration()).toString());
+        try {
+            endTimeLabel.setText(selectedEndDate().toString() + " " + selectedEndTime().toString());
+        } catch (RuntimeException ex) {
+            endTimeLabel.setText("-");
+        }
     }
 
     private void refreshAppointmentSummary() {
         summaryServiceLabel.setText(saleItem.name());
-        summaryDurationLabel.setText(parseDuration() + " minutos");
         try {
-            updateEndTimeLabel();
-            summaryDateLabel.setText(selectedDate().toString());
-            summaryStartLabel.setText(selectedTime().toString());
-            summaryEndLabel.setText(endTimeLabel.getText());
+            LocalDate startD = selectedDate();
+            LocalTime startT = selectedTime();
+            LocalDate endD = selectedEndDate();
+            LocalTime endT = selectedEndTime();
+
+            String durStr = secureauth.shared.util.ServiceScheduleHelper.calculateDurationString(saleItem.name(), startD, startT, endD, endT);
+            summaryDurationLabel.setText(durStr);
+
+            summaryDateLabel.setText(secureauth.shared.util.ServiceScheduleHelper.formatInterval(startD, endD));
+            summaryStartLabel.setText(startT.toString());
+            summaryEndLabel.setText(endT.toString());
         } catch (RuntimeException ex) {
+            summaryDurationLabel.setText("-");
             summaryDateLabel.setText("-");
             summaryStartLabel.setText("-");
             summaryEndLabel.setText("-");
@@ -1224,6 +1334,62 @@ public class ServiceAppointmentDialog extends JDialog {
         int hour = ((Number) hourSpinner.getValue()).intValue();
         int minute = ((Number) minuteSpinner.getValue()).intValue();
         return LocalTime.of(hour, minute);
+    }
+
+    private LocalDate selectedEndDate() {
+        Date selected = (Date) endDateSpinner.getValue();
+        return selected.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private LocalTime selectedEndTime() {
+        int hour = ((Number) endHourSpinner.getValue()).intValue();
+        int minute = ((Number) endMinuteSpinner.getValue()).intValue();
+        return LocalTime.of(hour, minute);
+    }
+
+    private void initDefaultEndSchedule() {
+        try {
+            LocalDate startD = selectedDate();
+            LocalTime startT = selectedTime();
+            if (secureauth.shared.util.ServiceScheduleHelper.isMultiDayService(saleItem.name(), saleItem.category())) {
+                LocalDate endD = startD.plusDays(3);
+                java.util.Date endDateVal = java.util.Date.from(endD.atStartOfDay(ZoneId.systemDefault()).toInstant());
+                endDateSpinner.setValue(endDateVal);
+                endHourSpinner.setValue(17);
+                endMinuteSpinner.setValue(0);
+            } else {
+                endDateSpinner.setValue(dateSpinner.getValue());
+                LocalTime endT = startT.plusMinutes(ESTIMATED_DURATION_MINUTES);
+                endHourSpinner.setValue(endT.getHour());
+                endMinuteSpinner.setValue(endT.getMinute());
+            }
+        } catch (RuntimeException ex) {
+            // Ignorar errores durante la inicialización
+        }
+    }
+
+    private void onScheduleChanged() {
+        try {
+            if (!secureauth.shared.util.ServiceScheduleHelper.isMultiDayService(saleItem.name(), saleItem.category())) {
+                endDateSpinner.setValue(dateSpinner.getValue());
+                endDateSpinner.setEnabled(false);
+            } else {
+                endDateSpinner.setEnabled(true);
+            }
+
+            LocalDate startD = selectedDate();
+            LocalTime startT = selectedTime();
+            LocalDate endD = selectedEndDate();
+            LocalTime endT = selectedEndTime();
+
+            String durationStr = secureauth.shared.util.ServiceScheduleHelper.calculateDurationString(saleItem.name(), startD, startT, endD, endT);
+            calculatedDurationField.setText(durationStr);
+        } catch (RuntimeException ex) {
+            calculatedDurationField.setText("Intervalo inválido");
+        }
+
+        updateEndTimeLabel();
+        updateSummary();
     }
 
     private static LocalTime nextBookableTime() {
