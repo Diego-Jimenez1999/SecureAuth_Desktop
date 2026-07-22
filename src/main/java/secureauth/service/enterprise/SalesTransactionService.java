@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -188,14 +189,17 @@ public class SalesTransactionService {
                 int units = venta.getItems().stream().mapToInt(SaleItem::getQuantity).sum();
                 dao.insertTx(conn, businessId, branchId, venta.getTotal(), gain, tax, units, venta.getMetodoPago(),
                         itemsSummary, venta.getCliente(), venta.getUsuarioVendedor());
-                actividadDAO.insert(conn, "Venta registrada #" + saleId, "VENTA", venta.getUsuarioVendedor());
+                java.text.NumberFormat curFmt = java.text.NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
+                String auditSale = "Venta #" + saleId + " | Cliente: " + venta.getCliente() + " | Total: " + curFmt.format(venta.getTotal()) + " (Método: " + venta.getMetodoPago() + ")";
+                actividadDAO.insert(conn, auditSale, "VENTAS", venta.getUsuarioVendedor());
                 if (!quantities.isEmpty()) {
-                    actividadDAO.insert(conn, "Inventario actualizado", "INVENTARIO", venta.getUsuarioVendedor());
+                    String auditInv = "Inventario | Descuento de " + units + " unidad(es) de stock por Venta #" + saleId;
+                    actividadDAO.insert(conn, auditInv, "INVENTARIO", venta.getUsuarioVendedor());
                 }
                 for (Appointment appointment : appointments) {
                     appointmentDAO.insert(conn, appointment);
-                    actividadDAO.insert(conn, "Cita agendada para " + appointment.getPetName(), "CITA",
-                            appointment.getCreatedBy());
+                    String auditCita = "Cita agendada | Mascota: " + appointment.getPetName() + " | Servicio: " + appointment.getServiceName() + " (" + appointment.getAppointmentDate() + " " + appointment.getAppointmentTime() + ")";
+                    actividadDAO.insert(conn, auditCita, "CITAS", appointment.getCreatedBy());
                 }
                 conn.commit();
                 if (!appointments.isEmpty()) {
