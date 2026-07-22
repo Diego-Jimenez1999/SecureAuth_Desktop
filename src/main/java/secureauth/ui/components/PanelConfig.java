@@ -50,7 +50,7 @@ import secureauth.dao.UserDAO;
 import secureauth.repository.UserRepositoryImpl;
 import secureauth.service.AuthService;
 import secureauth.service.UserService;
-import secureauth.ui.dialogs.ApplicationVisualConfigDialog;
+import secureauth.ui.dialogs.AdvancedConfigDialog;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
 import secureauth.ui.dialogs.PreciosPorTamanoDialog;
 import secureauth.ui.dialogs.RegistroTrabajadores;
@@ -934,7 +934,7 @@ public class PanelConfig extends JPanel {
     private void onConfigAppClick() {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame parent = (window instanceof Frame) ? (Frame) window : null;
-        new ApplicationVisualConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+        new AdvancedConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
     }
 
     /** Abre el formulario de registro de usuarios existente. */

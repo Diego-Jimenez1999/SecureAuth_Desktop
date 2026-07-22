@@ -25,6 +25,8 @@ public class Appointment {
     private String petName;
     private LocalDate appointmentDate;
     private LocalTime appointmentTime;
+    private LocalDate endDate;
+    private LocalTime endTime;
     private String status;
     private String notes;
     private LocalDateTime createdAt;
@@ -37,7 +39,46 @@ public class Appointment {
     }
 
     /**
-     * Construye una cita con todos sus campos.
+     * Construye una cita con todos sus campos, incluyendo fecha y hora de finalización.
+     *
+     * @param id identificador de la cita
+     * @param serviceId identificador del servicio vendido
+     * @param serviceName nombre visible del servicio
+     * @param ownerId identificador del dueño
+     * @param ownerName nombre visible del dueño
+     * @param petId identificador de la mascota
+     * @param petName nombre visible de la mascota
+     * @param appointmentDate fecha programada del servicio
+     * @param appointmentTime hora programada del servicio
+     * @param endDate fecha final programada del servicio
+     * @param endTime hora final programada del servicio
+     * @param status estado operativo de la cita
+     * @param notes observaciones de la cita
+     * @param createdAt fecha y hora de creación
+     * @param createdBy usuario responsable del registro
+     */
+    public Appointment(Integer id, int serviceId, String serviceName, int ownerId, String ownerName, int petId,
+            String petName, LocalDate appointmentDate, LocalTime appointmentTime, LocalDate endDate, LocalTime endTime,
+            String status, String notes, LocalDateTime createdAt, String createdBy) {
+        this.id = id;
+        this.serviceId = serviceId;
+        this.serviceName = serviceName;
+        this.ownerId = ownerId;
+        this.ownerName = ownerName;
+        this.petId = petId;
+        this.petName = petName;
+        this.appointmentDate = appointmentDate;
+        this.appointmentTime = appointmentTime;
+        this.endDate = endDate != null ? endDate : appointmentDate;
+        this.endTime = endTime != null ? endTime : appointmentTime;
+        this.status = status;
+        this.notes = notes;
+        this.createdAt = createdAt;
+        this.createdBy = createdBy;
+    }
+
+    /**
+     * Construye una cita con todos sus campos (constructor legacy para mantener compatibilidad).
      *
      * @param id identificador de la cita
      * @param serviceId identificador del servicio vendido
@@ -56,19 +97,8 @@ public class Appointment {
     public Appointment(Integer id, int serviceId, String serviceName, int ownerId, String ownerName, int petId,
             String petName, LocalDate appointmentDate, LocalTime appointmentTime, String status, String notes,
             LocalDateTime createdAt, String createdBy) {
-        this.id = id;
-        this.serviceId = serviceId;
-        this.serviceName = serviceName;
-        this.ownerId = ownerId;
-        this.ownerName = ownerName;
-        this.petId = petId;
-        this.petName = petName;
-        this.appointmentDate = appointmentDate;
-        this.appointmentTime = appointmentTime;
-        this.status = status;
-        this.notes = notes;
-        this.createdAt = createdAt;
-        this.createdBy = createdBy;
+        this(id, serviceId, serviceName, ownerId, ownerName, petId, petName, appointmentDate, appointmentTime,
+             appointmentDate, appointmentTime, status, notes, createdAt, createdBy);
     }
 
     /**
@@ -195,6 +225,34 @@ public class Appointment {
      */
     public void setAppointmentTime(LocalTime appointmentTime) {
         this.appointmentTime = appointmentTime;
+    }
+
+    /**
+     * @return fecha final programada
+     */
+    public LocalDate getEndDate() {
+        return endDate;
+    }
+
+    /**
+     * @param endDate fecha final programada
+     */
+    public void setEndDate(LocalDate endDate) {
+        this.endDate = endDate;
+    }
+
+    /**
+     * @return hora final programada
+     */
+    public LocalTime getEndTime() {
+        return endTime;
+    }
+
+    /**
+     * @param endTime hora final programada
+     */
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
     }
 
     /**

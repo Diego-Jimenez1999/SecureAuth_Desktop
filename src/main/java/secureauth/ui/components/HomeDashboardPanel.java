@@ -3,6 +3,7 @@ package secureauth.ui.components;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Window;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -23,6 +24,7 @@ import java.util.logging.Logger;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.JButton;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JComponent;
@@ -53,6 +55,8 @@ import secureauth.service.enterprise.ActividadRecienteService;
 import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.InventoryService;
 import secureauth.service.enterprise.SalesTransactionService;
+import secureauth.ui.dialogs.AppointmentHistoryDialog;
+import secureauth.ui.dialogs.AuditHistoryDialog;
 
 /**
  * Panel Home del dashboard.
@@ -190,23 +194,12 @@ public final class HomeDashboardPanel extends JPanel {
                 int finishedServices = appointmentService.countFinishedServices();
                 List<Appointment> appointments = appointmentService.findDashboardAppointments(12);
                 List<Object[]> movements = new ArrayList<>();
-                
-                for (var sale : salesService.recentSales(8)) {
-                        movements.add(new Object[]{
-                        emptyAs(sale.itemsSummary(), sale.itemsCount() + " item(s)"),
-                        emptyAs(sale.paymentMethod(), "-"),
-                        sale.itemsCount(),
-                        currency.format(sale.total()),
-                        sale.createdAt().format(dateFormatter)
-                });
-}
-                List<Object[]> activities = new ArrayList<>();
-                for (var activity : actividadService.recientes(10)) {
-                    activities.add(new Object[]{
-                            activity.fechaHora().format(DateTimeFormatter.ofPattern("hh:mm a")),
-                            activity.descripcion(),
-                            activity.tipo(),
-                            emptyAs(activity.usuario(), "Sistema")
+                for (var act : actividadService.recientes(8)) {
+                    movements.add(new Object[]{
+                            act.timestampReal(),
+                            emptyAs(act.usuario(), "Sistema"),
+                            act.tipo(),
+                            act.descripcion()
                     });
                 }
                 long lowStock = inventoryService.findAll("").stream().filter(i -> i.stock() <= i.minStock()).count();
@@ -217,7 +210,7 @@ public final class HomeDashboardPanel extends JPanel {
                         newClients,
                         finishedServices,
                         newUsers
-                }, movements, activities, appointments, lowStock);
+                }, movements, List.of(), appointments, lowStock);
             }
 
             @Override
@@ -373,10 +366,29 @@ public final class HomeDashboardPanel extends JPanel {
         JPanel panel = card();
         panel.setLayout(new BorderLayout(0, 10));
 
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+
         JLabel lbl = new JLabel("Citas Agendadas");
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
         lbl.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 0));
-        panel.add(lbl, BorderLayout.NORTH);
+        headerPanel.add(lbl, BorderLayout.WEST);
+
+        JButton btnHistory = new JButton("Ver Historial Completo");
+        btnHistory.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnHistory.setBackground(new Color(31, 41, 55));
+        btnHistory.setForeground(Color.WHITE);
+        btnHistory.setBorderPainted(false);
+        btnHistory.setFocusPainted(false);
+        btnHistory.addActionListener(e -> {
+            Window window = SwingUtilities.getWindowAncestor(this);
+            AppointmentHistoryDialog dlg = new AppointmentHistoryDialog(window, appointmentService);
+            dlg.setVisible(true);
+            refresh();
+        });
+        headerPanel.add(btnHistory, BorderLayout.EAST);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
 
         activityModel = new DefaultTableModel(new String[]{
                 "Mascota", "Tipo de Servicio", "Dueño", "Hora Citada", "Estado"
@@ -413,12 +425,30 @@ public final class HomeDashboardPanel extends JPanel {
         JPanel panel = card();
         panel.setLayout(new BorderLayout(0, 10));
 
-        JLabel lbl = new JLabel("Últimos Movimientos de inventario");
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+
+        JLabel lbl = new JLabel("Auditoría de Actividad (Últimos Movimientos)");
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
         lbl.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 0));
-        panel.add(lbl, BorderLayout.NORTH);
+        headerPanel.add(lbl, BorderLayout.WEST);
 
-        movementsModel = new DefaultTableModel(new String[]{"Producto", "Metodo de Pago", "Cantidad", "Valor pago", "Fecha"}, 0) {
+        JButton btnAudit = new JButton("📋 Abrir Auditoría");
+        btnAudit.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnAudit.setBackground(new Color(15, 23, 42));
+        btnAudit.setForeground(Color.WHITE);
+        btnAudit.setBorderPainted(false);
+        btnAudit.setFocusPainted(false);
+        btnAudit.addActionListener(e -> {
+            Window window = SwingUtilities.getWindowAncestor(this);
+            AuditHistoryDialog dlg = new AuditHistoryDialog(window, actividadService);
+            dlg.setVisible(true);
+            refresh();
+        });
+        headerPanel.add(btnAudit, BorderLayout.EAST);
+        panel.add(headerPanel, BorderLayout.NORTH);
+
+        movementsModel = new DefaultTableModel(new String[]{"Fecha / Hora Real", "Usuario", "Módulo", "Descripción"}, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
 
@@ -464,12 +494,20 @@ public final class HomeDashboardPanel extends JPanel {
         appointmentRows = new ArrayList<>(rows);
         activityModel.setRowCount(0);
         for (Appointment appointment : rows) {
+            String timeAndDate;
+            if (appointment.getEndDate() != null && !appointment.getEndDate().equals(appointment.getAppointmentDate())) {
+                String interval = secureauth.shared.util.ServiceScheduleHelper.formatInterval(appointment.getAppointmentDate(), appointment.getEndDate());
+                timeAndDate = interval + " (" + appointment.getAppointmentTime() + " → " + appointment.getEndTime() + ")";
+            } else {
+                timeAndDate = appointment.getAppointmentDate().format(appointmentDateFormatter) + " "
+                        + appointment.getAppointmentTime();
+            }
+
             activityModel.addRow(new Object[]{
                     appointment.getPetName(),
                     appointment.getServiceName(),
                     appointment.getOwnerName(),
-                    appointment.getAppointmentDate().format(appointmentDateFormatter) + " "
-                            + appointment.getAppointmentTime(),
+                    timeAndDate,
                     appointment.getStatus()
             });
         }
@@ -743,8 +781,22 @@ public final class HomeDashboardPanel extends JPanel {
         addDetailRow(panel, gbc, "Propietario", appointment.getOwnerName());
         addDetailRow(panel, gbc, "Mascota", appointment.getPetName());
         addDetailRow(panel, gbc, "Servicio", appointment.getServiceName());
-        addDetailRow(panel, gbc, "Fecha", String.valueOf(appointment.getAppointmentDate()));
-        addDetailRow(panel, gbc, "Hora", String.valueOf(appointment.getAppointmentTime()));
+
+        if (appointment.getEndDate() != null && !appointment.getEndDate().equals(appointment.getAppointmentDate())) {
+            addDetailRow(panel, gbc, "Fecha Inicio", String.valueOf(appointment.getAppointmentDate()));
+            addDetailRow(panel, gbc, "Hora Inicio", String.valueOf(appointment.getAppointmentTime()));
+            addDetailRow(panel, gbc, "Fecha Fin", String.valueOf(appointment.getEndDate()));
+            addDetailRow(panel, gbc, "Hora Fin", String.valueOf(appointment.getEndTime()));
+            String dur = secureauth.shared.util.ServiceScheduleHelper.calculateDurationString(
+                    appointment.getServiceName(), appointment.getAppointmentDate(), appointment.getAppointmentTime(),
+                    appointment.getEndDate(), appointment.getEndTime()
+            );
+            addDetailRow(panel, gbc, "Duración", dur);
+        } else {
+            addDetailRow(panel, gbc, "Fecha", String.valueOf(appointment.getAppointmentDate()));
+            addDetailRow(panel, gbc, "Hora", String.valueOf(appointment.getAppointmentTime()));
+        }
+
         addDetailRow(panel, gbc, "Estado", displayStatus(appointment.getStatus()));
         addDetailRow(panel, gbc, "Veterinario", emptyAs(appointment.getCreatedBy(), "-"));
         addDetailRow(panel, gbc, "Observaciones", emptyAs(appointment.getNotes(), "-"));

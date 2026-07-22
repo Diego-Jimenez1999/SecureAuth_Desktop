@@ -39,7 +39,7 @@ public class DatabaseConnection {
 
     private static final String URL      = setting("SECUREAUTH_DB_URL",      "jdbc:mysql://localhost:3306/secureauth");
     private static final String USER     = setting("SECUREAUTH_DB_USER",     "root");
-    private static final String PASSWORD = setting("SECUREAUTH_DB_PASSWORD", "");
+    private static final String PASSWORD = setting("SECUREAUTH_DB_PASSWORD", "1234");
 
     private static final long CONNECTION_TIMEOUT_MS = 5_000L;
     private static final long VALIDATION_TIMEOUT_MS = 3_000L;
