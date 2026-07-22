@@ -44,6 +44,7 @@ public class InventoryService {
     }
 
     public void upsert(InventoryItem item) throws SQLException {
+        new secureauth.service.enterprise.AuthorizationService().checkPermission(4, "Inventario", "Guardar Item de Inventario");
         dao.upsert(item);
     }
 
@@ -72,6 +73,7 @@ public class InventoryService {
     }
 
     public void importRows(List<String[]> rows) throws SQLException {
+        new secureauth.service.enterprise.AuthorizationService().checkPermission(4, "Inventario", "Importar Items de Inventario");
         for (String[] row : rows) {
             InventoryItem item = new InventoryItem(0, context.getActiveBusinessId(), context.getActiveBranchId(),
                     row[0], row[1], row[2], parseInt(row[3]), parseInt(row[4]), row[5], parseDouble(row[6]),

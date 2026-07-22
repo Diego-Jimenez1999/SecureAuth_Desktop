@@ -113,6 +113,63 @@ public class EnterpriseBootstrapDAO {
                 )
                 """);
 
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS permissions (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  name VARCHAR(120) NOT NULL UNIQUE
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS role_permissions (
+                  role_id INT NOT NULL,
+                  permission_id INT NOT NULL,
+                  PRIMARY KEY (role_id, permission_id),
+                  CONSTRAINT fk_rp_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+                  CONSTRAINT fk_rp_perm FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS app_settings (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  business_id INT NOT NULL,
+                  clave VARCHAR(100) NOT NULL UNIQUE,
+                  valor TEXT NOT NULL,
+                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_settings_business FOREIGN KEY (business_id) REFERENCES business(id) ON DELETE CASCADE
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS business_modules (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  business_type_id INT NOT NULL,
+                  module_name VARCHAR(100) NOT NULL,
+                  active TINYINT(1) NOT NULL DEFAULT 1,
+                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_modules_bus_type FOREIGN KEY (business_type_id) REFERENCES business_type(id) ON DELETE CASCADE,
+                  UNIQUE KEY uq_bus_type_mod (business_type_id, module_name)
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS security_activity_log (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  business_id INT,
+                  branch_id INT,
+                  user_id INT,
+                  role_id INT,
+                  module_name VARCHAR(100),
+                  action_name VARCHAR(100),
+                  status VARCHAR(30) NOT NULL,
+                  description TEXT,
+                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+
             if (!SchemaInspector.columnExists(conn, "users", "created_at")) {
                 st.execute("ALTER TABLE users ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
             }
@@ -146,7 +203,88 @@ public class EnterpriseBootstrapDAO {
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (2,'Supervisor') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (3,'Recepcionista') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (4,'Médico') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
+            st.execute("INSERT INTO roles(id, nombre_rol) VALUES (5,'Cajero') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
+            st.execute("INSERT INTO roles(id, nombre_rol) VALUES (6,'Invitado') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
+
+            // Seed Permissions
+            st.execute("INSERT INTO permissions(id, name) VALUES (1, 'MENU_HOME') ON DUPLICATE KEY UPDATE name=VALUES(name)");
+            st.execute("INSERT INTO permissions(id, name) VALUES (2, 'MENU_PERSONAL') ON DUPLICATE KEY UPDATE name=VALUES(name)");
+            st.execute("INSERT INTO permissions(id, name) VALUES (3, 'MENU_MASCOTAS') ON DUPLICATE KEY UPDATE name=VALUES(name)");
+            st.execute("INSERT INTO permissions(id, name) VALUES (4, 'MENU_INVENTARIO') ON DUPLICATE KEY UPDATE name=VALUES(name)");
+            st.execute("INSERT INTO permissions(id, name) VALUES (5, 'MENU_VENTAS') ON DUPLICATE KEY UPDATE name=VALUES(name)");
+            st.execute("INSERT INTO permissions(id, name) VALUES (6, 'MENU_REPORTES') ON DUPLICATE KEY UPDATE name=VALUES(name)");
+            st.execute("INSERT INTO permissions(id, name) VALUES (7, 'MENU_CONFIGURACION') ON DUPLICATE KEY UPDATE name=VALUES(name)");
+
+            // Seed Role Permissions
+            // Admin gets all (1 to 7)
+            for (int p = 1; p <= 7; p++) {
+                st.execute("INSERT INTO role_permissions(role_id, permission_id) VALUES (1, " + p + ") ON DUPLICATE KEY UPDATE role_id=role_id");
+            }
+            // Supervisor gets most
+            for (int p : new int[]{1, 3, 4, 5, 6}) {
+                st.execute("INSERT INTO role_permissions(role_id, permission_id) VALUES (2, " + p + ") ON DUPLICATE KEY UPDATE role_id=role_id");
+            }
+            // Recepcionista: Home, Mascotas (Clientes), Ventas
+            for (int p : new int[]{1, 3, 5}) {
+                st.execute("INSERT INTO role_permissions(role_id, permission_id) VALUES (3, " + p + ") ON DUPLICATE KEY UPDATE role_id=role_id");
+            }
+            // Médico: Home, Mascotas
+            for (int p : new int[]{1, 3}) {
+                st.execute("INSERT INTO role_permissions(role_id, permission_id) VALUES (4, " + p + ") ON DUPLICATE KEY UPDATE role_id=role_id");
+            }
+            // Cajero: Home, Ventas
+            for (int p : new int[]{1, 5}) {
+                st.execute("INSERT INTO role_permissions(role_id, permission_id) VALUES (5, " + p + ") ON DUPLICATE KEY UPDATE role_id=role_id");
+            }
+            // Invitado: Home only
+            st.execute("INSERT INTO role_permissions(role_id, permission_id) VALUES (6, 1) ON DUPLICATE KEY UPDATE role_id=role_id");
+
+            // Seed App Settings for default business (ID 1)
+            st.execute("INSERT INTO app_settings(id, business_id, clave, valor) VALUES (1, 1, 'system_name', 'SecureAuth ERP') ON DUPLICATE KEY UPDATE valor=VALUES(valor)");
+            st.execute("INSERT INTO app_settings(id, business_id, clave, valor) VALUES (2, 1, 'theme', 'dark') ON DUPLICATE KEY UPDATE valor=VALUES(valor)");
+
+            // Seed Business Modules for each business type
+            // First let's get business type IDs from names, but since we know the standard database seeding, we can query active business types
+            try (ResultSet rs = st.executeQuery("SELECT id, name FROM business_type")) {
+                List<Object[]> types = new ArrayList<>();
+                while (rs.next()) {
+                    types.add(new Object[]{rs.getInt("id"), rs.getString("name")});
+                }
+                for (Object[] type : types) {
+                    int typeId = (int) type[0];
+                    String typeName = (String) type[1];
+
+                    // Standard modules: Mascotas, Inventario, Ventas, Reportes, Personal, Configuración
+                    if ("Veterinaria".equalsIgnoreCase(typeName) || "Guardería".equalsIgnoreCase(typeName) || "Clínica".equalsIgnoreCase(typeName)) {
+                        seedModule(st, typeId, "Mascotas", 1);
+                        seedModule(st, typeId, "Inventario", 1);
+                        seedModule(st, typeId, "Ventas", 1);
+                        seedModule(st, typeId, "Reportes", 1);
+                        seedModule(st, typeId, "Personal", 1);
+                        seedModule(st, typeId, "Configuración", 1);
+                    } else if ("Tienda".equalsIgnoreCase(typeName) || "Restaurante".equalsIgnoreCase(typeName)) {
+                        seedModule(st, typeId, "Mascotas", 0); // No veterinary modules
+                        seedModule(st, typeId, "Inventario", 1);
+                        seedModule(st, typeId, "Ventas", 1);
+                        seedModule(st, typeId, "Reportes", 1);
+                        seedModule(st, typeId, "Personal", 1);
+                        seedModule(st, typeId, "Configuración", 1);
+                    } else {
+                        // Default
+                        seedModule(st, typeId, "Mascotas", 1);
+                        seedModule(st, typeId, "Inventario", 1);
+                        seedModule(st, typeId, "Ventas", 1);
+                        seedModule(st, typeId, "Reportes", 1);
+                        seedModule(st, typeId, "Personal", 1);
+                        seedModule(st, typeId, "Configuración", 1);
+                    }
+                }
+            }
         }
+    }
+
+    private void seedModule(Statement st, int typeId, String moduleName, int active) throws SQLException {
+        st.execute("INSERT INTO business_modules(business_type_id, module_name, active) VALUES (" + typeId + ", '" + moduleName + "', " + active + ") ON DUPLICATE KEY UPDATE active=VALUES(active)");
     }
 
     public int ensureDefaultBusinessAndBranch() throws SQLException {

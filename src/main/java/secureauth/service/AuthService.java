@@ -125,6 +125,9 @@ public class AuthService {
         User user = userRepository.findByEmail(normalizedEmail);
 
         if (user == null) {
+            new secureauth.service.enterprise.AuthorizationService().logSecurityEvent(
+                0, normalizedEmail, 1, 1, "Autenticación", "Login", "FAILED", "Usuario no encontrado."
+            );
             return null;
         }
 
@@ -134,9 +137,15 @@ public class AuthService {
             if (PasswordHasher.needsRehash(user.getPassword())) {
                 userRepository.updatePassword(user.getId(), PasswordHasher.hash(password));
             }
+            new secureauth.service.enterprise.AuthorizationService().logSecurityEvent(
+                user.getId(), normalizedEmail, 1, 1, "Autenticación", "Login", "SUCCESS", "Inicio de sesión exitoso."
+            );
             return user;
         }
 
+        new secureauth.service.enterprise.AuthorizationService().logSecurityEvent(
+            user.getId(), normalizedEmail, 1, 1, "Autenticación", "Login", "FAILED", "Contraseña incorrecta."
+        );
         return null;
     }
 

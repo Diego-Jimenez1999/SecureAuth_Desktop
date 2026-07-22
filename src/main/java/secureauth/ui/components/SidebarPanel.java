@@ -111,54 +111,61 @@ public class SidebarPanel extends JPanel {
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 5));
         menuPanel.setOpaque(false);
 
-        JButton btnHome = createSidebarButton("  Home", true, "/icon/home.png");
-        JButton btnUsuarios = createSidebarButton("  Personal", false, "/icon/usuario.png");
-        JButton btnMascotas = createSidebarButton("   Mascotas", false, "/icon/huella.png");
-        JButton btnInventario = createSidebarButton("  Inventario", false, "/icon/inventario.png");
-        JButton btnVentas = createSidebarButton("  Ventas", false, "/icon/ventas.png");
-        JButton btnReportes = createSidebarButton("  Reportes", false, "/icon/reportes.png");
-        JButton btnConfig = createSidebarButton("  Configuración", false, "/icon/config.png");
-
-        menuPanel.add(btnHome);
-        menuPanel.add(btnUsuarios);
-        menuPanel.add(btnMascotas);
-        menuPanel.add(btnVentas);
-        menuPanel.add(btnInventario);
-        menuPanel.add(btnReportes);
-        menuPanel.add(btnConfig);
-
-        botonActivo = btnHome;
-
-        btnHome.addActionListener(e -> {
-            cambiarBotonActivo(btnHome);
-            if (onHomeClick != null) onHomeClick.run();
-        });
-        btnUsuarios.addActionListener(e -> {
-            cambiarBotonActivo(btnUsuarios);
-            if (onUsersClick != null) onUsersClick.run();
-        });
-        btnMascotas.addActionListener(e -> {
-            cambiarBotonActivo(btnMascotas);
-            if (onPetsClick != null) onPetsClick.run();
-        });
-        btnInventario.addActionListener(e -> {
-            cambiarBotonActivo(btnInventario);
-            if (onInventoryClick != null) onInventoryClick.run();
-        });
-        btnVentas.addActionListener(e -> {
-            cambiarBotonActivo(btnVentas);
-            if (onSalesClick != null) onSalesClick.run();
-        });
-        btnConfig.addActionListener(e -> {
-            cambiarBotonActivo(btnConfig);
-            if (onSettingsClick != null) onSettingsClick.run();
-        });
-        btnReportes.addActionListener(e -> {
-            cambiarBotonActivo(btnReportes);
-            if (onReportesClick != null) onReportesClick.run();
-        });
+        // Agrega botones de menú condicionalmente según tipo de negocio y permisos del rol actual
+        addMenuItemIfAllowed(menuPanel, "  Home", 1, "Home", "/icon/home.png", onHomeClick, true);
+        addMenuItemIfAllowed(menuPanel, "  Personal", 2, "Personal", "/icon/usuario.png", onUsersClick, false);
+        addMenuItemIfAllowed(menuPanel, "   Mascotas", 3, "Mascotas", "/icon/huella.png", onPetsClick, false);
+        addMenuItemIfAllowed(menuPanel, "  Ventas", 5, "Ventas", "/icon/ventas.png", onSalesClick, false);
+        addMenuItemIfAllowed(menuPanel, "  Inventario", 4, "Inventario", "/icon/inventario.png", onInventoryClick, false);
+        addMenuItemIfAllowed(menuPanel, "  Reportes", 6, "Reportes", "/icon/reportes.png", onReportesClick, false);
+        addMenuItemIfAllowed(menuPanel, "  Configuración", 7, "Configuración", "/icon/config.png", onSettingsClick, false);
 
         return menuPanel;
+    }
+
+    /**
+     * Helper para verificar permisos y activar dinámicamente opciones del menú en el Sidebar.
+     */
+    private void addMenuItemIfAllowed(JPanel menuPanel, String text, int permissionId, String moduleName, String iconPath, Runnable onClick, boolean isHome) {
+        secureauth.service.enterprise.SessionManager session = secureauth.service.enterprise.SessionManager.getInstance();
+
+        // 1. Validar si el módulo se encuentra activo para el tipo de negocio
+        if (!isHome && session.getActiveBusiness() != null) {
+            secureauth.service.enterprise.ModuleConfigurationService modService = new secureauth.service.enterprise.ModuleConfigurationService();
+            if (!modService.isModuleActive(session.getActiveBusiness().businessTypeId(), moduleName)) {
+                return; // Módulo inactivo para este rubro comercial
+            }
+        }
+
+        // 2. Validar si el rol del usuario cuenta con permiso asignado
+        boolean hasPerm = false;
+        if (session.getCurrentUser() != null) {
+            if (session.getCurrentUser().getRolId() == 1) {
+                hasPerm = true; // El Administrador tiene acceso a todo
+            } else {
+                hasPerm = session.hasPermission(permissionId);
+            }
+        } else {
+            if (isHome) {
+                hasPerm = true; // Permitir visualización de Home como invitado
+            }
+        }
+
+        if (!hasPerm) {
+            return; // Acceso no autorizado
+        }
+
+        JButton btn = createSidebarButton(text, isHome, iconPath);
+        if (isHome) {
+            botonActivo = btn;
+        }
+        btn.addActionListener(e -> {
+            cambiarBotonActivo(btn);
+            if (onClick != null) {
+                onClick.run();
+            }
+        });
+        menuPanel.add(btn);
     }
 
     private JPanel buildBottomPanel() {

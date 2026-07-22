@@ -47,7 +47,86 @@ public class DatabaseConnection {
     /** Pool HikariCP compartido por toda la aplicacion. */
     private static final HikariDataSource DATA_SOURCE = buildHikariPool();
 
+    private static boolean currentlyConnected = true;
+    private static Thread monitorThread;
+
+    static {
+        startConnectionMonitor();
+    }
+
     private DatabaseConnection() {}
+
+    /**
+     * Inicia un hilo de monitoreo en segundo plano que periódicamente verifica
+     * la disponibilidad de la conexión a MySQL sin bloquear el Event Dispatch Thread (EDT).
+     */
+    private static void startConnectionMonitor() {
+        monitorThread = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(8000); // Verificar cada 8 segundos
+                    checkConnectionState();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        });
+        monitorThread.setDaemon(true);
+        monitorThread.setName("DatabaseConnectionMonitor-Thread");
+        monitorThread.start();
+    }
+
+    /**
+     * Comprueba activamente el estado de la conexión a MySQL.
+     * Si detecta un cambio de estado, alerta al usuario mediante Swing de forma asíncrona.
+     */
+    private static synchronized void checkConnectionState() {
+        boolean alive = false;
+        try (Connection conn = getConnectionDirect()) {
+            if (conn != null && !conn.isClosed()) {
+                try (java.sql.Statement stmt = conn.createStatement()) {
+                    stmt.executeQuery("SELECT 1");
+                    alive = true;
+                }
+            }
+        } catch (Exception e) {
+            alive = false;
+        }
+
+        if (alive != currentlyConnected) {
+            currentlyConnected = alive;
+            if (!currentlyConnected) {
+                LOGGER.warning("CONEXIÓN CON EL SERVIDOR MYSQL PERDIDA.");
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    javax.swing.JOptionPane.showMessageDialog(null,
+                        "Se ha detectado una desconexión del servidor de base de datos MySQL.\nEl sistema intentará reconectarse de forma automática en segundo plano.",
+                        "Conexión de Base de Datos Perdida",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                });
+            } else {
+                LOGGER.info("CONEXIÓN CON EL SERVIDOR MYSQL RESTABLECIDA.");
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    javax.swing.JOptionPane.showMessageDialog(null,
+                        "La conexión con el servidor de base de datos MySQL ha sido restablecida correctamente.",
+                        "Conexión Restablecida",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                });
+            }
+        }
+    }
+
+    /**
+     * Intenta abrir una conexión directa rápida para verificar el estado de la red.
+     */
+    private static Connection getConnectionDirect() throws SQLException {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            return java.sql.DriverManager.getConnection(URL, USER, PASSWORD);
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+    }
 
     /**
      * Devuelve una conexión del pool (o una conexión directa si HikariCP no está disponible).

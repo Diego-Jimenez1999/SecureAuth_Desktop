@@ -84,6 +84,7 @@ public class UserService {
      * @param user usuario a actualizar
      */
     public void update(User user) {
+        new secureauth.service.enterprise.AuthorizationService().checkPermission(2, "Personal", "Actualizar Usuario");
         userRepository.update(user);
     }
 
@@ -93,6 +94,7 @@ public class UserService {
      * @param userId identificador del usuario
      */
     public void delete(int userId) {
+        new secureauth.service.enterprise.AuthorizationService().checkPermission(2, "Personal", "Eliminar Usuario");
         userRepository.delete(userId);
     }
 

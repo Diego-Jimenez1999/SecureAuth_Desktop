@@ -134,7 +134,11 @@ public class IngresoController {
      * @param user usuario actualizado
      */
     public void actualizarUsuario(User user) {
-        userService.update(user);
+        try {
+            userService.update(user);
+        } catch (secureauth.shared.error.AccessDeniedException e) {
+            javax.swing.JOptionPane.showMessageDialog(null, e.getMessage(), "Acceso Denegado", javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /**
@@ -143,6 +147,10 @@ public class IngresoController {
      * @param userId identificador del usuario
      */
     public void eliminarUsuario(int userId) {
-        userService.delete(userId);
+        try {
+            userService.delete(userId);
+        } catch (secureauth.shared.error.AccessDeniedException e) {
+            javax.swing.JOptionPane.showMessageDialog(null, e.getMessage(), "Acceso Denegado", javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
