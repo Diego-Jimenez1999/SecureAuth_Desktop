@@ -131,22 +131,38 @@ public class PetController {
 
     public void reloadOwners() {
         loadOwnersIntoCombo();
-        syncOwnerDetails();
     }
 
     private void loadOwnersIntoCombo() {
-        Object selected = view.getCbOwner().getSelectedItem();
-        Integer selectedId = selected instanceof Owner owner ? owner.getId() : null;
-        view.getCbOwner().removeAllItems();
-        for (Owner owner : ownerService.findAllOwners()) {
-            view.getCbOwner().addItem(owner);
-            if (selectedId != null && selectedId == owner.getId()) {
-                view.getCbOwner().setSelectedItem(owner);
+        final Object selected = view.getCbOwner().getSelectedItem();
+        final Integer selectedId = selected instanceof Owner owner ? owner.getId() : null;
+
+        new javax.swing.SwingWorker<java.util.List<Owner>, Void>() {
+            @Override
+            protected java.util.List<Owner> doInBackground() throws Exception {
+                return ownerService.findAllOwners();
             }
-        }
-        if (selectedId == null) {
-            view.getCbOwner().setSelectedItem(null);
-        }
+
+            @Override
+            protected void done() {
+                try {
+                    java.util.List<Owner> owners = get();
+                    view.getCbOwner().removeAllItems();
+                    for (Owner owner : owners) {
+                        view.getCbOwner().addItem(owner);
+                        if (selectedId != null && selectedId == owner.getId()) {
+                            view.getCbOwner().setSelectedItem(owner);
+                        }
+                    }
+                    if (selectedId == null) {
+                        view.getCbOwner().setSelectedItem(null);
+                    }
+                    syncOwnerDetails();
+                } catch (Exception ex) {
+                    // Silently fail or log if interrupted
+                }
+            }
+        }.execute();
     }
 
     private void selectOwnerById(int ownerId) {

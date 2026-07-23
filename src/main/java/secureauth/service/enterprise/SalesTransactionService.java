@@ -213,6 +213,7 @@ public class SalesTransactionService {
                     eventPublisher.publish(new InventoryConsumptionEvent(LocalDateTime.now(), consumedProductLines,
                             consumedUnits));
                 }
+                secureauth.shared.events.DashboardEventBus.notifyDataChanged();
             } catch (SQLException | RuntimeException ex) {
                 conn.rollback();
                 throw ex;

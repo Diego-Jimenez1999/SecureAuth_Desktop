@@ -57,18 +57,22 @@ public class IngresoFrame extends javax.swing.JFrame {
     /** Controlador maestro para la lógica de la sesión. */
     private final IngresoController controller;
     
+    /** Contenedor de servicios y estado inyectados. */
+    private final AppContext appContext;
+    private final SubServiceSelector subServiceSelector;
+
     /** Paneles de los módulos del sistema. */
-    private final UserPanel userPanel;
+    private UserPanel userPanel;
     private final HomeDashboardPanel homePanel;
-    private final ClientsPanel clientsPanel;
-    private final RegMascotaPanel mascotaRegistroPanel;
-    private final SalesPanel salesPanel;
-    private final PanelConfig configPanel;
-    private final PanelInventory inventoryPanel;
-    private final PanelReports panelReports;
-    private final PetController petController;
-    private final InventoryController inventoryController;
-    private final ReportController reportController;
+    private ClientsPanel clientsPanel;
+    private RegMascotaPanel mascotaRegistroPanel;
+    private SalesPanel salesPanel;
+    private PanelConfig configPanel;
+    private PanelInventory inventoryPanel;
+    private PanelReports panelReports;
+    private PetController petController;
+    private InventoryController inventoryController;
+    private ReportController reportController;
     
     /** Gestor de capas para el intercambio dinámico de vistas. */
     private final CardLayout contentLayout;
@@ -98,28 +102,20 @@ public class IngresoFrame extends javax.swing.JFrame {
             AppContext appContext) {
         this.controller = controller;
         this.usuarioActual = usuario;
+        this.subServiceSelector = subServiceSelector;
+        this.appContext = appContext;
         this.homePanel = new HomeDashboardPanel(usuario, appContext.getSalesTransactionService(),
                 appContext.getOwnerService(), appContext.getUserService(), appContext.getInventoryService(),
                 appContext.getActividadRecienteService(), appContext.getAppointmentService());
-        this.clientsPanel = new ClientsPanel();
-        this.mascotaRegistroPanel = new RegMascotaPanel();
-        this.petController = new PetController(mascotaRegistroPanel, appContext.getPetService(), appContext.getOwnerService());
-        this.userPanel = new UserPanel(this, appContext.getOwnerService(), this.petController::reloadOwners);
-        this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector,
-                appContext.getSalesTransactionService(), appContext.getAppointmentService(),
-                appContext.getOwnerService());
-        this.configPanel = new PanelConfig(appContext.getUserService(), this.controller);
-        this.inventoryPanel = new PanelInventory();
-        this.panelReports = new PanelReports();
-        this.inventoryController = new InventoryController(this.inventoryPanel, appContext.getInventoryService());
-        this.reportController = new ReportController(this.panelReports,
-                appContext.getSalesTransactionService(), appContext.getOwnerService());
-        this.reportController.loadMetrics();
         this.contentLayout = new CardLayout();
         this.contentPanel = new JPanel(contentLayout);
 
         initComponents();
         setupFrame();
+
+        // Carga inicial de datos para evitar pantalla vacía al inicio
+        this.homePanel.refresh();
+
         this.controller.bindView(this, usuario);
     }
 
@@ -147,13 +143,6 @@ public class IngresoFrame extends javax.swing.JFrame {
 
         contentPanel.setOpaque(false);
         contentPanel.add(homePanel, PANEL_HOME);
-        contentPanel.add(clientsPanel, PANEL_CLIENTES);
-        contentPanel.add(userPanel, PANEL_USUARIOS);
-        contentPanel.add(mascotaRegistroPanel, PANEL_MASCOTAS);
-        contentPanel.add(salesPanel, PANEL_VENTAS);
-        contentPanel.add(configPanel, PANEL_CONFIGURACION);
-        contentPanel.add(inventoryPanel, PANEL_INVENTARIO);
-        contentPanel.add(panelReports, PANEL_REPORTES);
         contentLayout.show(contentPanel, PANEL_HOME);
         panel.add(contentPanel, BorderLayout.CENTER);
         return panel;
@@ -170,13 +159,101 @@ public class IngresoFrame extends javax.swing.JFrame {
         setLocationRelativeTo(null);
     }
 
+    // =========================================================
+    // GETTERS PARA LAZY LOADING (CARGA PEREZOSA)
+    // =========================================================
+
+    private ClientsPanel getClientsPanel() {
+        if (clientsPanel == null) {
+            clientsPanel = new ClientsPanel();
+            contentPanel.add(clientsPanel, PANEL_CLIENTES);
+        }
+        return clientsPanel;
+    }
+
+    private UserPanel getUserPanel() {
+        if (userPanel == null) {
+            userPanel = new UserPanel(this, appContext.getOwnerService(), () -> {
+                getPetController().reloadOwners();
+            });
+            contentPanel.add(userPanel, PANEL_USUARIOS);
+        }
+        return userPanel;
+    }
+
+    private RegMascotaPanel getMascotaRegistroPanel() {
+        if (mascotaRegistroPanel == null) {
+            mascotaRegistroPanel = new RegMascotaPanel();
+            contentPanel.add(mascotaRegistroPanel, PANEL_MASCOTAS);
+        }
+        return mascotaRegistroPanel;
+    }
+
+    private PetController getPetController() {
+        if (petController == null) {
+            petController = new PetController(getMascotaRegistroPanel(), appContext.getPetService(), appContext.getOwnerService());
+        }
+        return petController;
+    }
+
+    private SalesPanel getSalesPanel() {
+        if (salesPanel == null) {
+            salesPanel = new SalesPanel(new SalesController(), subServiceSelector,
+                    appContext.getSalesTransactionService(), appContext.getAppointmentService(),
+                    appContext.getOwnerService());
+            contentPanel.add(salesPanel, PANEL_VENTAS);
+        }
+        return salesPanel;
+    }
+
+    private PanelConfig getConfigPanel() {
+        if (configPanel == null) {
+            configPanel = new PanelConfig(appContext.getUserService(), this.controller,
+                    appContext.getSalesTransactionService(), appContext.getOwnerService());
+            contentPanel.add(configPanel, PANEL_CONFIGURACION);
+        }
+        return configPanel;
+    }
+
+    private PanelInventory getInventoryPanel() {
+        if (inventoryPanel == null) {
+            inventoryPanel = new PanelInventory();
+            contentPanel.add(inventoryPanel, PANEL_INVENTARIO);
+        }
+        return inventoryPanel;
+    }
+
+    private InventoryController getInventoryController() {
+        if (inventoryController == null) {
+            inventoryController = new InventoryController(getInventoryPanel(), appContext.getInventoryService());
+        }
+        return inventoryController;
+    }
+
+    private PanelReports getPanelReports() {
+        if (panelReports == null) {
+            panelReports = new PanelReports();
+            contentPanel.add(panelReports, PANEL_REPORTES);
+        }
+        return panelReports;
+    }
+
+    private ReportController getReportController() {
+        if (reportController == null) {
+            reportController = new ReportController(getPanelReports(),
+                    appContext.getSalesTransactionService(), appContext.getOwnerService());
+            reportController.loadMetrics();
+        }
+        return reportController;
+    }
+
     /**
      * Retorna tabla para el controlador.
      *
      * @return JTable principal
      */
     public JTable getTable() {
-        return userPanel.getTable();
+        return getUserPanel().getTable();
     }
 
     /**
@@ -185,7 +262,7 @@ public class IngresoFrame extends javax.swing.JFrame {
      * @return texto de filtro
      */
     public String getTextoBusqueda() {
-        return userPanel.getTextoBusqueda();
+        return getUserPanel().getTextoBusqueda();
     }
 
     /**
@@ -204,11 +281,14 @@ public class IngresoFrame extends javax.swing.JFrame {
 
     /** Muestra el módulo de gestión de usuarios. */
     public void mostrarUsuarios() {
+        getUserPanel();
         contentLayout.show(contentPanel, PANEL_USUARIOS);
     }
 
     /** Muestra el módulo de registro de mascotas. */
     public void mostrarMascotas() {
+        getMascotaRegistroPanel();
+        getPetController();
         contentLayout.show(contentPanel, PANEL_MASCOTAS);
     }
 
@@ -217,6 +297,8 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     public void mostrarInventario() {
         System.out.println("[DEBUG] Navegando al módulo de Inventario");
+        getInventoryPanel();
+        getInventoryController();
         contentLayout.show(contentPanel, PANEL_INVENTARIO);
     }
 
@@ -225,6 +307,7 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     public void mostrarVentas() {
         System.out.println("[DEBUG] Navegando al módulo de Ventas desde IngresoFrame");
+        getSalesPanel();
         contentLayout.show(contentPanel, PANEL_VENTAS);
     }
 
@@ -233,6 +316,7 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     public void mostrarConfiguracion() {
         System.out.println("[DEBUG] Navegando a Panel de Configuración desde IngresoFrame");
+        getConfigPanel().loadConfigMetrics();
         contentLayout.show(contentPanel, PANEL_CONFIGURACION);
     }
 
@@ -240,6 +324,8 @@ public class IngresoFrame extends javax.swing.JFrame {
      * Cambia la vista al módulo de reportes.
      */
     public void mostrarReportes() {
+        getPanelReports();
+        getReportController();
         contentLayout.show(contentPanel, PANEL_REPORTES);
     }
 }
