@@ -3,6 +3,8 @@ package secureauth.ui.components;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Window;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -56,6 +58,14 @@ import secureauth.service.enterprise.ActividadRecienteService;
 import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.InventoryService;
 import secureauth.service.enterprise.SalesTransactionService;
+import secureauth.shared.events.DashboardEventBus;
+import secureauth.ui.components.dashboard.DashboardCard;
+import secureauth.ui.components.dashboard.DashboardCardConfig;
+import secureauth.ui.components.dashboard.DashboardCardRegistry;
+import secureauth.ui.dialogs.AppointmentHistoryDialog;
+import secureauth.ui.dialogs.AuditHistoryDialog;
+import secureauth.ui.dialogs.DashboardCardConfigDialog;
+import secureauth.ui.utils.UiTheme;
 
 /**
  * Panel Home del dashboard.
@@ -209,14 +219,7 @@ public final class HomeDashboardPanel extends JPanel {
                     });
                 }
                 long lowStock = inventoryService.findAll("").stream().filter(i -> i.stock() <= i.minStock()).count();
-                return new DashboardData(new long[]{
-                        (long)(stats.salesToday()  * 100),
-                        (long)(stats.salesMonth()  * 100),
-                        scheduledAppointments,
-                        newClients,
-                        finishedServices,
-                        newUsers
-                }, movements, activities, appointments, lowStock);
+                return new DashboardData(cardValues, movements, List.of(), appointments, lowStock);
             }
 
             @Override
