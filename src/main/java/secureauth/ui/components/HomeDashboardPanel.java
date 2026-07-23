@@ -65,6 +65,7 @@ import secureauth.ui.components.dashboard.DashboardCardRegistry;
 import secureauth.ui.dialogs.AppointmentHistoryDialog;
 import secureauth.ui.dialogs.AuditHistoryDialog;
 import secureauth.ui.dialogs.DashboardCardConfigDialog;
+import secureauth.ui.utils.UiTheme;
 
 /**
  * Panel Home del dashboard.
@@ -559,7 +560,7 @@ public final class HomeDashboardPanel extends JPanel {
     }
 
     private JLabel createSummaryImageLabel(String imagePath) {
-        JLabel imageLabel = new JLabel(loadOriginalIcon(imagePath));
+        JLabel imageLabel = new JLabel(UiTheme.scaleImage(imagePath, 150, 140));
         imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
         imageLabel.setVerticalAlignment(SwingConstants.CENTER);
         imageLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
@@ -591,7 +592,7 @@ public final class HomeDashboardPanel extends JPanel {
 
         card.add(Box.createVerticalGlue());
 
-        ImageIcon icon = loadOriginalIcon(imagePath);
+        ImageIcon icon = UiTheme.scaleImage(imagePath, SUMMARY_METRIC_ICON_WIDTH, SUMMARY_METRIC_ICON_HEIGHT);
         if (icon != null) {
             JLabel imageLabel = new JLabel(icon);
             imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -635,7 +636,7 @@ public final class HomeDashboardPanel extends JPanel {
                 new EmptyBorder(KPI_CARD_PADDING, KPI_CARD_PADDING, KPI_CARD_PADDING, KPI_CARD_PADDING)
         ));
 
-        ImageIcon icon = loadOriginalIcon(imagePath);
+        ImageIcon icon = UiTheme.scaleImage(imagePath, 64, 64);
         if (icon != null) {
             JLabel imageLabel = new JLabel(icon);
             imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -684,28 +685,6 @@ public final class HomeDashboardPanel extends JPanel {
         separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
         separator.setAlignmentX(Component.CENTER_ALIGNMENT);
         return separator;
-    }
-
-    private ImageIcon loadOriginalIcon(String imagePath) {
-        try {
-            java.net.URL resource = getClass().getResource(imagePath);
-            if (resource == null) {
-                LOGGER.log(Level.WARNING, "No se encontró el icono: {0}", imagePath);
-                return null;
-            }
-            ImageIcon original = new ImageIcon(resource);
-            int originalWidth = original.getIconWidth();
-            int originalHeight = original.getIconHeight();
-            if (originalWidth <= 0 || originalHeight <= 0) {
-                LOGGER.log(Level.WARNING, "Icono inválido o vacío: {0}", imagePath);
-                return null;
-            }
-
-            return original;
-        } catch (RuntimeException ex) {
-            LOGGER.log(Level.WARNING, "No se pudo cargar el icono: " + imagePath, ex);
-            return null;
-        }
     }
 
     private void setAllLabelsError() {

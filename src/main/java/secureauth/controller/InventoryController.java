@@ -30,12 +30,27 @@ public class InventoryController {
     }
 
     private void initialize() {
-        try {
-            service.initializeSchema();
-            loadInventory();
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(view, "No se pudo inicializar inventario: " + ex.getMessage());
-        }
+        new javax.swing.SwingWorker<Void, Void>() {
+            private String errorMsg = null;
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                try {
+                    service.initializeSchema();
+                } catch (SQLException ex) {
+                    errorMsg = ex.getMessage();
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                if (errorMsg != null) {
+                    JOptionPane.showMessageDialog(view, "No se pudo inicializar inventario: " + errorMsg);
+                }
+                loadInventory();
+            }
+        }.execute();
     }
 
     private void bindActions() {
@@ -45,11 +60,22 @@ public class InventoryController {
     }
 
     private void loadInventory() {
-        try {
-            view.renderItems(service.findAll(view.getSearchText()));
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(view, "Error cargando inventario: " + ex.getMessage());
-        }
+        final String searchText = view.getSearchText();
+        new javax.swing.SwingWorker<java.util.List<InventoryItem>, Void>() {
+            @Override
+            protected java.util.List<InventoryItem> doInBackground() throws Exception {
+                return service.findAll(searchText);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    view.renderItems(get());
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(view, "Error cargando inventario: " + ex.getMessage());
+                }
+            }
+        }.execute();
     }
 
     private void importFile() {
