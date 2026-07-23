@@ -47,6 +47,14 @@ public class SidebarPanel extends JPanel {
     /** Referencia al botón que se encuentra resaltado visualmente. */
     private JButton botonActivo;
 
+    private JButton btnHome;
+    private JButton btnUsuarios;
+    private JButton btnMascotas;
+    private JButton btnInventario;
+    private JButton btnVentas;
+    private JButton btnReportes;
+    private JButton btnConfig;
+
     public SidebarPanel(User user, IngresoController controller, Runnable onHome,
                         Runnable onUsers,
                         Runnable onPets, Runnable onInventory, Runnable onSales, Runnable onSettings, Runnable onReportes) {
@@ -111,13 +119,13 @@ public class SidebarPanel extends JPanel {
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 5));
         menuPanel.setOpaque(false);
 
-        JButton btnHome = createSidebarButton("  Home", true, "/icon/home.png");
-        JButton btnUsuarios = createSidebarButton("  Personal", false, "/icon/usuario.png");
-        JButton btnMascotas = createSidebarButton("   Mascotas", false, "/icon/huella.png");
-        JButton btnInventario = createSidebarButton("  Inventario", false, "/icon/inventario.png");
-        JButton btnVentas = createSidebarButton("  Ventas", false, "/icon/ventas.png");
-        JButton btnReportes = createSidebarButton("  Reportes", false, "/icon/reportes.png");
-        JButton btnConfig = createSidebarButton("  Configuración", false, "/icon/config.png");
+        btnHome = createSidebarButton("  Home", true, "/icon/home.png");
+        btnUsuarios = createSidebarButton("  Personal", false, "/icon/usuario.png");
+        btnMascotas = createSidebarButton("   Mascotas", false, "/icon/huella.png");
+        btnInventario = createSidebarButton("  Inventario", false, "/icon/inventario.png");
+        btnVentas = createSidebarButton("  Ventas", false, "/icon/ventas.png");
+        btnReportes = createSidebarButton("  Reportes", false, "/icon/reportes.png");
+        btnConfig = createSidebarButton("  Configuración", false, "/icon/config.png");
 
         menuPanel.add(btnHome);
         menuPanel.add(btnUsuarios);
@@ -259,5 +267,28 @@ public class SidebarPanel extends JPanel {
         nuevoBoton.setOpaque(true);
         
         botonActivo = nuevoBoton;
+    }
+
+    /**
+     * Sincroniza y fuerza el foco visual en el menú lateral de navegación.
+     *
+     * @param moduleName nombre identificador del módulo/panel
+     */
+    public void setFocusOnModule(String moduleName) {
+        if (moduleName == null) return;
+        String key = moduleName.toUpperCase().trim();
+        JButton target = switch (key) {
+            case "DASHBOARD", "HOME" -> btnHome;
+            case "USUARIOS", "PERSONAL" -> btnUsuarios;
+            case "MASCOTAS" -> btnMascotas;
+            case "INVENTARIO" -> btnInventario;
+            case "VENTAS" -> btnVentas;
+            case "CONFIGURACION", "CONFIG" -> btnConfig;
+            case "REPORTES" -> btnReportes;
+            default -> null;
+        };
+        if (target != null) {
+            cambiarBotonActivo(target);
+        }
     }
 }

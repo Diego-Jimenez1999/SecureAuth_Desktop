@@ -495,7 +495,22 @@ public class SalesPanel extends JPanel {
     }
 
     private String requestPaymentMethod() {
-        Object[] methods = {"Efectivo", "Tarjeta", "Transferencia", "Nequi", "Daviplata"};
+        String enabledSetting = secureauth.service.ConfigurationService.getInstance().getSetting(
+            "enabled_payment_methods",
+            "Efectivo,Tarjeta,Transferencia,Nequi,Daviplata"
+        );
+        String[] enabledArr = enabledSetting.split(",");
+        java.util.List<String> list = new java.util.ArrayList<>();
+        for (String method : enabledArr) {
+            String m = method.trim();
+            if (!m.isEmpty()) {
+                list.add(m);
+            }
+        }
+        if (list.isEmpty()) {
+            list.add("Efectivo");
+        }
+        Object[] methods = list.toArray();
         Object selected = JOptionPane.showInputDialog(this, "Método de pago", "POS", JOptionPane.PLAIN_MESSAGE,
                 null, methods, methods[0]);
         return selected == null ? null : selected.toString();

@@ -2,6 +2,15 @@ package secureauth.ui.components;
 
 
 import java.awt.BasicStroke;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import secureauth.config.DatabaseConnection;
+import secureauth.service.ConfigurationService;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -97,9 +106,18 @@ public class PanelConfig extends JPanel {
     private final UserService   userService;
     private final IngresoController ingresoController;
 
+    private static final Logger LOGGER = Logger.getLogger(PanelConfig.class.getName());
+
     // ─── Componentes de métricas ──────────────────────────────────────────────
-    private JLabel lblVentasValor;
-    private JLabel lblClientesValor;
+    private JLabel lblVentasMesValor;
+    private JLabel lblVentasDiaValor;
+    private JLabel lblClientesNuevosValor;
+    private JLabel lblCitasPendientesValor;
+    private JLabel lblStockBajoValor;
+
+    private final secureauth.service.enterprise.SalesTransactionService salesTxService = new secureauth.service.enterprise.SalesTransactionService();
+    private final secureauth.dao.enterprise.AppointmentDAO appointmentDAO = new secureauth.dao.enterprise.AppointmentDAO();
+    private final secureauth.dao.OwnerDAO ownerDAO = new secureauth.dao.OwnerDAO();
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -209,63 +227,197 @@ public class PanelConfig extends JPanel {
     //  SECCIÓN 2 — MÉTRICAS (4 TARJETAS)
     // ═════════════════════════════════════════════════════════════════════════
 
+    private JPanel metricsRowPanel;
+
     /**
      * Construye la fila de cuatro tarjetas de métricas del dashboard superior.
-     * Los valores son estáticos (placeholder); conectar al SettingsController para datos reales.
-     *
-     * @return JPanel con las 4 tarjetas de métricas
+     * Carga las preferencias de forma dinámica desde base de datos.
      */
     private JPanel buildMetricsSection() {
-        JPanel row = new JPanel(new GridLayout(1, 4, UiTheme.CARD_SPACING, 0));
-        row.setBackground(UiTheme.BG_PAGE);
+        metricsRowPanel = new JPanel();
+        metricsRowPanel.setBackground(UiTheme.BG_PAGE);
         // FIX: se amplía el alto (110 -> 140) porque el título ahora puede
         // hacer salto de línea en vez de truncarse con "...". Sin este
         // espacio extra, un título de 2 líneas quedaría recortado igual.
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
+        metricsRowPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
 
-        // Tarjeta 1 — Ventas Totales
-        lblVentasValor = new JLabel("$2,503.64");
-        lblVentasValor.setFont(UiTheme.CARD_VALUE_FONT);
-        lblVentasValor.setForeground(UiTheme.TEXT_PRIMARY);
-        JLabel ventasTrend = trendLabel("↑ 3 Crecimiento", UiTheme.SUCCESS_COLOR);
-        row.add(buildMetricCard("💰", "Ventas Totales (Este Mes)", lblVentasValor,
-                ventasTrend, UiTheme.ACCENT_BLUE));
+        rebuildMetricsRow();
+        return metricsRowPanel;
+    }
 
-        // Tarjeta 2 — Servicios Populares
-        JPanel servContent = new JPanel(new GridLayout(2, 3, 4, 2));
-        servContent.setBackground(UiTheme.PANEL_WHITE);
-        String[] sLabels = {"Hotel", "Consulta", "Consulta", "53%", "50%", "70%"};
-        for (int i = 0; i < sLabels.length; i++) {
-            JLabel l = new JLabel(sLabels[i], SwingConstants.CENTER);
-            l.setFont(i < 3 ? UiTheme.SMALL_FONT.deriveFont(Font.BOLD) : UiTheme.SMALL_FONT);
-            l.setForeground(i < 3 ? UiTheme.TEXT_PRIMARY : UiTheme.ACCENT_AMBER);
-            servContent.add(l);
+    public void rebuildMetricsRow() {
+        if (metricsRowPanel == null) return;
+        metricsRowPanel.removeAll();
+
+        String visibleSetting = ConfigurationService.getInstance().getSetting(
+            "visible_metrics_cards",
+            "VENTAS_MES,SERVICIOS_POPULARES,INGRESOS_CATEGORIA,CLIENTES_NUEVOS"
+        );
+        String[] cards = visibleSetting.split(",");
+
+        int visibleCount = Math.max(1, cards.length);
+        metricsRowPanel.setLayout(new GridLayout(1, visibleCount, UiTheme.CARD_SPACING, 0));
+
+        for (String card : cards) {
+            card = card.trim().toUpperCase();
+            switch (card) {
+                case "VENTAS_MES" -> {
+                    lblVentasMesValor = new JLabel("$0.00");
+                    lblVentasMesValor.setFont(UiTheme.CARD_VALUE_FONT);
+                    lblVentasMesValor.setForeground(UiTheme.TEXT_PRIMARY);
+                    JLabel trend = trendLabel("↑ Crecimiento", UiTheme.SUCCESS_COLOR);
+                    metricsRowPanel.add(buildMetricCard("💰", "Ventas Totales (Este Mes)", lblVentasMesValor, trend, UiTheme.ACCENT_BLUE));
+                }
+                case "VENTAS_DIA" -> {
+                    lblVentasDiaValor = new JLabel("$0.00");
+                    lblVentasDiaValor.setFont(UiTheme.CARD_VALUE_FONT);
+                    lblVentasDiaValor.setForeground(UiTheme.TEXT_PRIMARY);
+                    JLabel trend = trendLabel("Hoy", UiTheme.TEXT_SECONDARY);
+                    metricsRowPanel.add(buildMetricCard("💵", "Ventas de Hoy", lblVentasDiaValor, trend, UiTheme.ACCENT_BLUE));
+                }
+                case "CLIENTES_NUEVOS" -> {
+                    lblClientesNuevosValor = new JLabel("0");
+                    lblClientesNuevosValor.setFont(UiTheme.CARD_VALUE_FONT);
+                    lblClientesNuevosValor.setForeground(UiTheme.TEXT_PRIMARY);
+                    JLabel trend = trendLabel("↑ Este Mes", UiTheme.SUCCESS_COLOR);
+                    metricsRowPanel.add(buildMetricCard("👥", "Nuevos Clientes", lblClientesNuevosValor, trend, UiTheme.SUCCESS_COLOR));
+                }
+                case "CITAS_PENDIENTES" -> {
+                    lblCitasPendientesValor = new JLabel("0");
+                    lblCitasPendientesValor.setFont(UiTheme.CARD_VALUE_FONT);
+                    lblCitasPendientesValor.setForeground(UiTheme.TEXT_PRIMARY);
+                    JLabel trend = trendLabel("En Agenda", UiTheme.TEXT_SECONDARY);
+                    metricsRowPanel.add(buildMetricCard("📅", "Citas Pendientes", lblCitasPendientesValor, trend, UiTheme.ACCENT_AMBER));
+                }
+                case "STOCK_BAJO" -> {
+                    lblStockBajoValor = new JLabel("0");
+                    lblStockBajoValor.setFont(UiTheme.CARD_VALUE_FONT);
+                    lblStockBajoValor.setForeground(UiTheme.TEXT_PRIMARY);
+                    JLabel trend = trendLabel("Alerta de Stock", UiTheme.ERROR_COLOR);
+                    metricsRowPanel.add(buildMetricCard("⚠️", "Productos Stock Bajo", lblStockBajoValor, trend, UiTheme.ERROR_COLOR));
+                }
+                case "SERVICIOS_POPULARES" -> {
+                    JPanel servContent = new JPanel(new GridLayout(2, 3, 4, 2));
+                    servContent.setBackground(UiTheme.PANEL_WHITE);
+                    String[] sLabels = {"Hotel", "Consulta", "Baño", "53%", "50%", "70%"};
+                    for (int i = 0; i < sLabels.length; i++) {
+                        JLabel l = new JLabel(sLabels[i], SwingConstants.CENTER);
+                        l.setFont(i < 3 ? UiTheme.SMALL_FONT.deriveFont(Font.BOLD) : UiTheme.SMALL_FONT);
+                        l.setForeground(i < 3 ? UiTheme.TEXT_PRIMARY : UiTheme.ACCENT_AMBER);
+                        servContent.add(l);
+                    }
+                    metricsRowPanel.add(buildMetricCardCustom("⭐", "Servicios Más Populares", servContent, UiTheme.ACCENT_AMBER));
+                }
+                case "INGRESOS_CATEGORIA" -> {
+                    JPanel ingContent = new JPanel(new GridLayout(2, 2, 8, 4));
+                    ingContent.setBackground(UiTheme.PANEL_WHITE);
+                    String[] cats = {"Alimentos", "53%", "Accesorios", "47%"};
+                    Color[] catClr = {UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR, UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR};
+                    for (int i = 0; i < cats.length; i++) {
+                        JLabel l = new JLabel(cats[i]);
+                        l.setFont(UiTheme.BODY_FONT);
+                        l.setForeground(catClr[i]);
+                        ingContent.add(l);
+                    }
+                    metricsRowPanel.add(buildMetricCardCustom("📊", "Ingresos por Categoría", ingContent, UiTheme.ACCENT_PURPLE));
+                }
+            }
         }
-        // "Baño" en la primera posición de la segunda fila (ajuste visual)
-        row.add(buildMetricCardCustom("⭐", "Servicios Más Populares", servContent, UiTheme.ACCENT_AMBER));
 
-        // Tarjeta 3 — Ingresos por Categoría
-        JPanel ingContent = new JPanel(new GridLayout(2, 2, 8, 4));
-        ingContent.setBackground(UiTheme.PANEL_WHITE);
-        String[] cats   = {"Alimentos", "$3%", "Accesorios", "$3%"};
-        Color[]  catClr = {UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR, UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR};
-        for (int i = 0; i < cats.length; i++) {
-            JLabel l = new JLabel(cats[i]);
-            l.setFont(UiTheme.BODY_FONT);
-            l.setForeground(catClr[i]);
-            ingContent.add(l);
+        metricsRowPanel.revalidate();
+        metricsRowPanel.repaint();
+
+        // Carga real de estadísticas en background hilos de forma asíncrona
+        loadRealMetrics();
+    }
+
+    private void loadRealMetrics() {
+        javax.swing.SwingWorker<Map<String, Object>, Void> worker = new javax.swing.SwingWorker<>() {
+            @Override
+            protected Map<String, Object> doInBackground() throws Exception {
+                Map<String, Object> stats = new HashMap<>();
+                int bizId = secureauth.service.enterprise.EnterpriseContext.getInstance().getActiveBusinessId();
+                int branchId = secureauth.service.enterprise.EnterpriseContext.getInstance().getActiveBranchId();
+
+                try {
+                    secureauth.service.enterprise.SalesTransactionService.DashboardStats dStats = salesTxService.loadStats();
+                    stats.put("sales_month", dStats.salesMonth());
+                    stats.put("sales_today", dStats.salesToday());
+                } catch (Exception e) {
+                    stats.put("sales_month", 0.0);
+                    stats.put("sales_today", 0.0);
+                }
+
+                try {
+                    int newClientsVal = ownerDAO.countNewThisMonth();
+                    stats.put("new_clients", newClientsVal);
+                } catch (Exception e) {
+                    stats.put("new_clients", 0);
+                }
+
+                try {
+                    int pendingApptsVal = appointmentDAO.countScheduled();
+                    stats.put("pending_appts", pendingApptsVal);
+                } catch (Exception e) {
+                    stats.put("pending_appts", 0);
+                }
+
+                try {
+                    int lowStockVal = countLowStock(bizId, branchId);
+                    stats.put("low_stock", lowStockVal);
+                } catch (Exception e) {
+                    stats.put("low_stock", 0);
+                }
+
+                return stats;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    Map<String, Object> stats = get();
+                    java.text.NumberFormat nf = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("es", "CO"));
+
+                    if (lblVentasMesValor != null) {
+                        double val = (double) stats.getOrDefault("sales_month", 0.0);
+                        lblVentasMesValor.setText(nf.format(val));
+                    }
+                    if (lblVentasDiaValor != null) {
+                        double val = (double) stats.getOrDefault("sales_today", 0.0);
+                        lblVentasDiaValor.setText(nf.format(val));
+                    }
+                    if (lblClientesNuevosValor != null) {
+                        int val = (int) stats.getOrDefault("new_clients", 0);
+                        lblClientesNuevosValor.setText(String.valueOf(val));
+                    }
+                    if (lblCitasPendientesValor != null) {
+                        int val = (int) stats.getOrDefault("pending_appts", 0);
+                        lblCitasPendientesValor.setText(String.valueOf(val));
+                    }
+                    if (lblStockBajoValor != null) {
+                        int val = (int) stats.getOrDefault("low_stock", 0);
+                        lblStockBajoValor.setText(String.valueOf(val));
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Error al actualizar métricas en UI", e);
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    private int countLowStock(int bizId, int branchId) {
+        String sql = "SELECT COUNT(*) FROM inventory_items WHERE business_id=? AND branch_id=? AND stock <= min_stock";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bizId);
+            ps.setInt(2, branchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        } catch (Exception e) {
+            return 0;
         }
-        row.add(buildMetricCardCustom("📊", "Ingresos por Categoría", ingContent, UiTheme.ACCENT_PURPLE));
-
-        // Tarjeta 4 — Nuevos Clientes
-        lblClientesValor = new JLabel("3");
-        lblClientesValor.setFont(UiTheme.CARD_VALUE_FONT);
-        lblClientesValor.setForeground(UiTheme.TEXT_PRIMARY);
-        JLabel clientesTrend = trendLabel("↑ Crecimiento", UiTheme.SUCCESS_COLOR);
-        row.add(buildMetricCard("👥", "Nuevos Clientes", lblClientesValor,
-                clientesTrend, UiTheme.SUCCESS_COLOR));
-
-        return row;
     }
 
     /**
@@ -773,18 +925,40 @@ public class PanelConfig extends JPanel {
         title.setFont(new Font("Segoe UI", Font.BOLD, 13));
         title.setForeground(UiTheme.TEXT_PRIMARY);
 
-        // Placeholder — conectar a PaymentMethodDAO.getAll()
-        String[] methods = {"Efectivo", "Tarjeta", "Nequi", "Daviplata"};
+        String[] methods = {"Efectivo", "Tarjeta", "Transferencia", "Nequi", "Daviplata"};
+        String enabledSetting = ConfigurationService.getInstance().getSetting(
+            "enabled_payment_methods",
+            "Efectivo,Tarjeta,Transferencia,Nequi,Daviplata"
+        );
+        java.util.List<String> enabledList = java.util.Arrays.stream(enabledSetting.split(","))
+                .map(String::trim)
+                .map(String::toUpperCase)
+                .toList();
+
         panel.add(title);
         panel.add(new JLabel()); // spacer
-        for (String method : methods) {
-            JCheckBox cb = new JCheckBox(method, true);
+
+        final JCheckBox[] checkBoxes = new JCheckBox[methods.length];
+        for (int i = 0; i < methods.length; i++) {
+            String method = methods[i];
+            boolean isChecked = enabledList.contains(method.toUpperCase());
+            JCheckBox cb = new JCheckBox(method, isChecked);
             cb.setFont(UiTheme.BODY_FONT);
             cb.setBackground(UiTheme.PANEL_WHITE);
             cb.setForeground(UiTheme.TEXT_PRIMARY);
-            cb.addActionListener(e ->
-                System.out.println("[Placeholder] Método " + method + " activo: " + cb.isSelected())
-            );
+            checkBoxes[i] = cb;
+
+            cb.addActionListener(e -> {
+                java.util.List<String> activeList = new java.util.ArrayList<>();
+                for (JCheckBox check : checkBoxes) {
+                    if (check != null && check.isSelected()) {
+                        activeList.add(check.getText());
+                    }
+                }
+                String newVal = String.join(",", activeList);
+                ConfigurationService.getInstance().setSetting("enabled_payment_methods", newVal, "Métodos de pago habilitados");
+            });
+
             panel.add(cb);
         }
         return panel;
@@ -912,12 +1086,41 @@ public class PanelConfig extends JPanel {
     /** Abre el visor de inventario.
      * @code InventoryController.show()
     */
-    private void onVerInventarioClick()     { System.out.println("[DEBUG] Abriendo visor de inventario..."); }
+    private void onVerInventarioClick() {
+        secureauth.ui.WindowManager.getInstance().showModule("INVENTARIO");
+    }
 
     /** Abre el importador CSV/Excel.
      * @code InventoryController.importCSV()
      */
-    private void onImportarCSVClick()       { System.out.println("[DEBUG] Abriendo importador CSV..."); }
+    private void onImportarCSVClick() {
+        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Inventario CSV/XLSX", "csv", "xlsx"));
+        Window window = SwingUtilities.getWindowAncestor(this);
+        int result = chooser.showOpenDialog(window);
+        if (result != javax.swing.JFileChooser.APPROVE_OPTION) return;
+
+        java.io.File file = chooser.getSelectedFile();
+        try {
+            secureauth.service.enterprise.InventoryService invService = new secureauth.service.enterprise.InventoryService();
+            secureauth.service.enterprise.InventoryService.ImportPreview preview = invService.previewImport(file);
+            if (!preview.errors().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Errores detectados en la importación:\n" + String.join("\n", preview.errors()), "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Se importarán " + preview.validRows().size() + " filas válidas de inventario.\n¿Deseas continuar?",
+                    "Preview de importación", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                invService.importRows(preview.validRows());
+                JOptionPane.showMessageDialog(this, "Inventario importado con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                // Reload metrics to reflect new products/stocks
+                rebuildMetricsRow();
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "No se pudo importar el archivo: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
     /** Abre la lista de trabajadores (tabla users) dentro de Configuración. */
     private void onListaTrabajadoresClick() {

@@ -75,6 +75,9 @@ public class IngresoFrame extends javax.swing.JFrame {
     /** Contenedor principal donde se apilan los módulos. */
     private final JPanel contentPanel;
 
+    /** Panel lateral de navegación con botones de foco centralizados. */
+    private SidebarPanel sidebarPanel;
+
     /**
      * Constructor del dashboard con dependencias inyectadas desde MainApp.
      *
@@ -129,9 +132,9 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     private void initComponents() {
         setLayout(new BorderLayout());
-        add(new SidebarPanel(usuarioActual, controller, this::mostrarHome, this::mostrarUsuarios,
-                this::mostrarMascotas, this::mostrarInventario, this::mostrarVentas, this::mostrarConfiguracion, this::mostrarReportes),
-                BorderLayout.WEST);
+        this.sidebarPanel = new SidebarPanel(usuarioActual, controller, this::mostrarHome, this::mostrarUsuarios,
+                this::mostrarMascotas, this::mostrarInventario, this::mostrarVentas, this::mostrarConfiguracion, this::mostrarReportes);
+        add(sidebarPanel, BorderLayout.WEST);
         add(buildMainPanel(), BorderLayout.CENTER);
     }
 
@@ -256,6 +259,9 @@ public class IngresoFrame extends javax.swing.JFrame {
             case "VENTAS" -> mostrarVentas();
             case "CONFIGURACION", "CONFIG" -> mostrarConfiguracion();
             case "REPORTES" -> mostrarReportes();
+        }
+        if (sidebarPanel != null) {
+            sidebarPanel.setFocusOnModule(moduleName);
         }
     }
 }

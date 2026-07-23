@@ -1,0 +1,5 @@
+sku,producto,categoria,stock,min_stock,proveedor,costo,precio,estado
+ALM-001,Concentrado Adulto,Alimentos,25,5,Proveedor Uno,42000,58000,ACTIVO
+MED-010,Antipulgas 10kg,Medicamentos,8,3,Proveedor Vet,18000,26000,ACTIVO
+JUG-002,Juguete Mordedor Hueso,Accesorios,15,4,Distribuidora Mascotas,8500,14000,ACTIVO
+SHA-005,Shampoo Antiparasitario 250ml,Baños,20,5,Proveedor Químicos,12000,21000,ACTIVO

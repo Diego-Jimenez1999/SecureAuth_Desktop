@@ -125,6 +125,7 @@ public class ConfigurationService {
             case "inventario_stock_min" -> String.valueOf(localSettings.getInventarioStockMin());
             case "usuarios_roles" -> localSettings.getUsuariosRoles();
             case "usuarios_permisos" -> localSettings.getUsuariosPermisos();
+            case "visible_metrics_cards" -> localSettings.getVisibleMetricsCards();
             case "ai_model" -> localSettings.getAiModel();
             case "ai_active" -> String.valueOf(localSettings.isAiActive());
             default -> defaultValue;
@@ -133,6 +134,7 @@ public class ConfigurationService {
 
     private void updateLocalSetting(String key, String value) {
         switch (key) {
+            case "visible_metrics_cards" -> localSettings.setVisibleMetricsCards(value);
             case "branding" -> localSettings.setBranding(value);
             case "primary_color" -> localSettings.setPrimaryColor(value);
             case "secondary_color" -> localSettings.setSecondaryColor(value);

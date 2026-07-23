@@ -80,6 +80,9 @@ public final class ApplicationVisualSettings {
     private String sistemaFormatFecha = "yyyy-MM-dd";
     private String sistemaFormatHora = "HH:mm:ss";
 
+    // Tarjetas visibles configurables
+    private String visibleMetricsCards = "VENTAS_MES,SERVICIOS_POPULARES,INGRESOS_CATEGORIA,CLIENTES_NUEVOS";
+
     // IA / Ollama
     private String aiModel = "qwen2.5-coder:3b";
     private double aiTemp = 0.2;
@@ -148,6 +151,7 @@ public final class ApplicationVisualSettings {
         settings.sistemaZonaHoraria = text(props.getProperty("sistema_zona_horaria"), settings.sistemaZonaHoraria);
         settings.sistemaFormatFecha = text(props.getProperty("sistema_format_fecha"), settings.sistemaFormatFecha);
         settings.sistemaFormatHora = text(props.getProperty("sistema_format_hora"), settings.sistemaFormatHora);
+        settings.visibleMetricsCards = text(props.getProperty("visible_metrics_cards"), settings.visibleMetricsCards);
 
         settings.aiModel = text(props.getProperty("ai_model"), settings.aiModel);
         settings.aiTemp = parseDouble(props.getProperty("ai_temp"), settings.aiTemp);
@@ -210,6 +214,7 @@ public final class ApplicationVisualSettings {
         append(content, "sistema_zona_horaria", sistemaZonaHoraria);
         append(content, "sistema_format_fecha", sistemaFormatFecha);
         append(content, "sistema_format_hora", sistemaFormatHora);
+        append(content, "visible_metrics_cards", visibleMetricsCards);
 
         append(content, "ai_model", aiModel);
         append(content, "ai_temp", String.valueOf(aiTemp));
@@ -361,6 +366,9 @@ public final class ApplicationVisualSettings {
     public void setSistemaFormatFecha(String sistemaFormatFecha) { this.sistemaFormatFecha = sistemaFormatFecha; }
     public String getSistemaFormatHora() { return sistemaFormatHora; }
     public void setSistemaFormatHora(String sistemaFormatHora) { this.sistemaFormatHora = sistemaFormatHora; }
+
+    public String getVisibleMetricsCards() { return visibleMetricsCards; }
+    public void setVisibleMetricsCards(String visibleMetricsCards) { this.visibleMetricsCards = visibleMetricsCards; }
 
     public String getAiModel() { return aiModel; }
     public void setAiModel(String aiModel) { this.aiModel = aiModel; }
