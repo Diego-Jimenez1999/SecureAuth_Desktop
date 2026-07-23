@@ -1201,22 +1201,66 @@ public class PanelConfig extends JPanel {
 
     private static record ServicePopularity(String name, int count) {}
     private static record CategoryIncome(String category, double income) {}
-    private static record ConfigMetricsData(double salesMonth, int newClients, List<String[]> servicesData, List<String[]> incomeData) {}
+    private static record ConfigMetricsData(
+            double salesToday, double salesWeek, double salesMonth, double salesYear,
+            int clientsToday, int clientsWeek, int clientsMonth,
+            List<String[]> servicesData, List<String[]> incomeData) {}
 
     public void loadConfigMetrics() {
         new SwingWorker<ConfigMetricsData, Void>() {
             @Override
             protected ConfigMetricsData doInBackground() throws Exception {
                 salesService.initializeSchema();
-                double salesMonth = salesService.loadStats().salesMonth();
-                int newClients = ownerService.countNewThisMonth();
+                ownerService.countNewThisMonth(); // to trigger ensureSchema on owners
 
-                // Servicios más populares
+                double salesToday = 0;
+                double salesWeek = 0;
+                double salesMonth = 0;
+                double salesYear = 0;
+
+                try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                    String sqlToday = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE DATE(created_at) = CURRENT_DATE()";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlToday); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) salesToday = rs.getDouble(1);
+                    }
+                    String sqlWeek = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURRENT_DATE(), 1)";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlWeek); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) salesWeek = rs.getDouble(1);
+                    }
+                    String sqlMonth = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEAR(created_at) = YEAR(CURRENT_DATE()) AND MONTH(created_at) = MONTH(CURRENT_DATE())";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlMonth); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) salesMonth = rs.getDouble(1);
+                    }
+                    String sqlYear = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEAR(created_at) = YEAR(CURRENT_DATE())";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlYear); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) salesYear = rs.getDouble(1);
+                    }
+                }
+
+                int clientsToday = 0;
+                int clientsWeek = 0;
+                int clientsMonth = 0;
+
+                try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                    String sqlClientsToday = "SELECT COUNT(*) FROM owners WHERE DATE(fecha_registro) = CURRENT_DATE()";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsToday); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) clientsToday = rs.getInt(1);
+                    }
+                    String sqlClientsWeek = "SELECT COUNT(*) FROM owners WHERE YEARWEEK(fecha_registro, 1) = YEARWEEK(CURRENT_DATE(), 1)";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsWeek); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) clientsWeek = rs.getInt(1);
+                    }
+                    String sqlClientsMonth = "SELECT COUNT(*) FROM owners WHERE YEAR(fecha_registro) = YEAR(CURRENT_DATE()) AND MONTH(fecha_registro) = MONTH(CURRENT_DATE())";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsMonth); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) clientsMonth = rs.getInt(1);
+                    }
+                }
+
+                // Servicios más populares (por citas)
                 List<ServicePopularity> popularServices = new ArrayList<>();
                 String sqlServices = """
                         SELECT service_name, COUNT(*) as qty
                         FROM appointments
-                        WHERE status IN ('PENDIENTE', 'CONFIRMADA', 'EN_PROCESO', 'FINALIZADO', 'FINALIZADA', 'REALIZADO')
                         GROUP BY service_name
                         ORDER BY qty DESC
                         LIMIT 3
@@ -1262,6 +1306,21 @@ public class PanelConfig extends JPanel {
                     }
                 }
 
+                // Fallback to existing categories if empty
+                if (incomeList.isEmpty()) {
+                    try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                        if (secureauth.config.SchemaInspector.tableExists(conn, "sales_categories")) {
+                            String sqlCatFallback = "SELECT DISTINCT category_name FROM sales_categories LIMIT 2";
+                            try (PreparedStatement ps = conn.prepareStatement(sqlCatFallback);
+                                 ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    incomeList.add(new CategoryIncome(rs.getString(1), 0.0));
+                                }
+                            }
+                        }
+                    }
+                }
+
                 double totalIncome = incomeList.stream().mapToDouble(c -> c.income).sum();
                 List<String[]> incomeData = new ArrayList<>();
                 for (CategoryIncome ci : incomeList) {
@@ -1269,7 +1328,10 @@ public class PanelConfig extends JPanel {
                     incomeData.add(new String[]{ci.category, String.format(Locale.US, "%.0f%%", pct)});
                 }
 
-                return new ConfigMetricsData(salesMonth, newClients, servicesData, incomeData);
+                return new ConfigMetricsData(
+                        salesToday, salesWeek, salesMonth, salesYear,
+                        clientsToday, clientsWeek, clientsMonth,
+                        servicesData, incomeData);
             }
 
             @Override
@@ -1280,12 +1342,12 @@ public class PanelConfig extends JPanel {
 
                     lblVentasValor.setText(curFmt.format(data.salesMonth));
                     if (lblVentasTrend != null) {
-                        lblVentasTrend.setText("Mes actual");
+                        lblVentasTrend.setText("<html>Día: " + curFmt.format(data.salesToday) + " | Sem: " + curFmt.format(data.salesWeek) + "<br>Año: " + curFmt.format(data.salesYear) + "</html>");
                     }
 
-                    lblClientesValor.setText(String.valueOf(data.newClients));
+                    lblClientesValor.setText(String.valueOf(data.clientsMonth));
                     if (lblClientesTrend != null) {
-                        lblClientesTrend.setText("Mes actual");
+                        lblClientesTrend.setText("<html>Hoy: " + data.clientsToday + " | Sem: " + data.clientsWeek + "</html>");
                     }
 
                     if (pnlServContent != null) {
