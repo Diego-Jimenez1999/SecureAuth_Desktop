@@ -3,6 +3,8 @@ package secureauth.ui.components;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Window;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -17,12 +19,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.JButton;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JComponent;
@@ -43,6 +47,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
+import secureauth.config.AppContext;
 import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.model.Appointment;
 import secureauth.model.AppointmentStatus;
@@ -53,22 +58,23 @@ import secureauth.service.enterprise.ActividadRecienteService;
 import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.InventoryService;
 import secureauth.service.enterprise.SalesTransactionService;
+import secureauth.shared.events.DashboardEventBus;
+import secureauth.ui.components.dashboard.DashboardCard;
+import secureauth.ui.components.dashboard.DashboardCardConfig;
+import secureauth.ui.components.dashboard.DashboardCardRegistry;
+import secureauth.ui.dialogs.AppointmentHistoryDialog;
+import secureauth.ui.dialogs.AuditHistoryDialog;
+import secureauth.ui.dialogs.DashboardCardConfigDialog;
+import secureauth.ui.utils.UiTheme;
 
 /**
  * Panel Home del dashboard.
  *
  * <p>Muestra KPIs del día y del mes obtenidos en tiempo real desde la base de
- * datos. La carga de datos se realiza en un {@link SwingWorker} para no
- * bloquear la interfaz.</p>
- *
- * <ul>
- *   <li>Saludo dinámico con el nombre del usuario autenticado</li>
- *   <li>Ventas del día, ventas del mes, ítems vendidos en el mes</li>
- *   <li>Clientes nuevos este mes</li>
- * </ul>
+ * datos de manera totalmente dinámica y extensible (OCP).</p>
  *
  * @author Diego
- * @version 2.1 — datos reales, SwingWorker, usuario dinámico.
+ * @version 3.0 — Arquitectura OCP de tarjetas dinámicas, EventBus.
  */
 public final class HomeDashboardPanel extends JPanel {
 
@@ -83,12 +89,6 @@ public final class HomeDashboardPanel extends JPanel {
     private static final int SUMMARY_METRIC_ICON_WIDTH = 150;
     private static final int SUMMARY_METRIC_ICON_HEIGHT = 64;
 
-    // KPI labels — actualizados desde el EDT tras carga en background
-    private final JLabel salesTodayLabel   = new JLabel("Cargando...");
-    private final JLabel salesMonthLabel   = new JLabel("Cargando...");
-    private final JLabel itemsMonthLabel   = new JLabel("Cargando...");
-    private final JLabel newClientsLabel   = new JLabel("Cargando...");
-    private final JLabel newClientsSummaryLabel = new JLabel("Cargando...");
     private final JLabel welcomeLabel      = new JLabel("¡Bienvenido!");
 
     private final SalesTransactionService salesService;
@@ -105,6 +105,9 @@ public final class HomeDashboardPanel extends JPanel {
     private JTable appointmentsTable;
     private List<Appointment> appointmentRows = new ArrayList<>();
     private JLabel lowStockText;
+
+    private JPanel summaryCardsContainer;
+    private JPanel monthCardsContainer;
 
     /**
      * Constructor sin usuario (compatibilidad con código existente en IngresoFrame).
@@ -150,7 +153,21 @@ public final class HomeDashboardPanel extends JPanel {
         this.appointmentService = appointmentService;
         setCurrentUser(currentUser);
         build();
+
+        // Registrar listeners para actualizaciones en tiempo real
         AppointmentService.addAppointmentChangeListener(evt -> SwingUtilities.invokeLater(this::refresh));
+        DashboardEventBus.addListener(evt -> SwingUtilities.invokeLater(this::refresh));
+    }
+
+    private AppContext createLocalAppContext() {
+        return new AppContext() {
+            @Override public SalesTransactionService getSalesTransactionService() { return salesService; }
+            @Override public OwnerService getOwnerService() { return ownerService; }
+            @Override public UserService getUserService() { return userService; }
+            @Override public InventoryService getInventoryService() { return inventoryService; }
+            @Override public ActividadRecienteService getActividadRecienteService() { return actividadService; }
+            @Override public AppointmentService getAppointmentService() { return appointmentService; }
+        };
     }
 
     /**
@@ -169,13 +186,6 @@ public final class HomeDashboardPanel extends JPanel {
      * Llamar al navegar al Home para mantener datos actualizados.
      */
     public final void refresh() {
-        // Indicar que está cargando
-        salesTodayLabel.setText("...");
-        salesMonthLabel.setText("...");
-        itemsMonthLabel.setText("...");
-        newClientsLabel.setText("...");
-        newClientsSummaryLabel.setText("...");
-
         new SwingWorker<DashboardData, Void>() {
             @Override
             protected DashboardData doInBackground() throws Exception {
@@ -183,53 +193,76 @@ public final class HomeDashboardPanel extends JPanel {
                 inventoryService.initializeSchema();
                 actividadService.initializeSchema();
                 appointmentService.initializeSchema();
-                var stats = salesService.loadStats();
-                int newClients = ownerService.countNewThisMonth();
-                int newUsers = userService.countNewThisMonth();
-                int scheduledAppointments = appointmentService.countScheduledAppointments();
-                int finishedServices = appointmentService.countFinishedServices();
+
+                AppContext localContext = createLocalAppContext();
+                Map<String, String> cardValues = new java.util.HashMap<>();
+                for (DashboardCard card : DashboardCardRegistry.getCards()) {
+                    if (DashboardCardConfig.isVisible(card.getId(), true)) {
+                        try {
+                            String value = card.getValue(localContext);
+                            cardValues.put(card.getId(), value);
+                        } catch (Exception ex) {
+                            LOGGER.log(Level.WARNING, "Error loading card value for " + card.getId(), ex);
+                            cardValues.put(card.getId(), "--");
+                        }
+                    }
+                }
+
                 List<Appointment> appointments = appointmentService.findDashboardAppointments(12);
                 List<Object[]> movements = new ArrayList<>();
-                
-                for (var sale : salesService.recentSales(8)) {
-                        movements.add(new Object[]{
-                        emptyAs(sale.itemsSummary(), sale.itemsCount() + " item(s)"),
-                        emptyAs(sale.paymentMethod(), "-"),
-                        sale.itemsCount(),
-                        currency.format(sale.total()),
-                        sale.createdAt().format(dateFormatter)
-                });
-}
-                List<Object[]> activities = new ArrayList<>();
-                for (var activity : actividadService.recientes(10)) {
-                    activities.add(new Object[]{
-                            activity.fechaHora().format(DateTimeFormatter.ofPattern("hh:mm a")),
-                            activity.descripcion(),
-                            activity.tipo(),
-                            emptyAs(activity.usuario(), "Sistema")
+                for (var act : actividadService.recientes(8)) {
+                    movements.add(new Object[]{
+                            act.timestampReal(),
+                            emptyAs(act.usuario(), "Sistema"),
+                            act.tipo(),
+                            act.descripcion()
                     });
                 }
                 long lowStock = inventoryService.findAll("").stream().filter(i -> i.stock() <= i.minStock()).count();
-                return new DashboardData(new long[]{
-                        (long)(stats.salesToday()  * 100),
-                        (long)(stats.salesMonth()  * 100),
-                        scheduledAppointments,
-                        newClients,
-                        finishedServices,
-                        newUsers
-                }, movements, activities, appointments, lowStock);
+                return new DashboardData(cardValues, movements, List.of(), appointments, lowStock);
             }
 
             @Override
             protected void done() {
                 try {
                     DashboardData data = get();
-                    long[] d = data.metrics();
-                    salesTodayLabel.setText(currency.format(d[0] / 100.0));
-                    salesMonthLabel.setText(currency.format(d[1] / 100.0));
-                    itemsMonthLabel.setText(String.valueOf(d[2]));
-                    newClientsLabel.setText(String.valueOf(d[3]));
-                    newClientsSummaryLabel.setText(String.valueOf(d[4]));
+                    Map<String, String> cardValues = data.cardValues();
+
+                    // Rebuild Summary Cards panel
+                    summaryCardsContainer.removeAll();
+                    summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));
+
+                    List<DashboardCard> allCards = DashboardCardRegistry.getCards();
+                    for (DashboardCard card : allCards) {
+                        if (card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
+                            summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+                            summaryCardsContainer.add(createSummarySeparator());
+                            summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+
+                            String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
+                            String val = cardValues.getOrDefault(card.getId(), "--");
+                            JLabel valLbl = new JLabel(val);
+
+                            summaryCardsContainer.add(createSummaryCard(card.getIconPath(), title, valLbl));
+                        }
+                    }
+                    summaryCardsContainer.revalidate();
+                    summaryCardsContainer.repaint();
+
+                    // Rebuild Month Cards panel
+                    monthCardsContainer.removeAll();
+                    for (DashboardCard card : allCards) {
+                        if (!card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
+                            String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
+                            String val = cardValues.getOrDefault(card.getId(), "--");
+                            JLabel valLbl = new JLabel(val);
+
+                            monthCardsContainer.add(createKpiCard(card.getIconPath(), title, valLbl));
+                        }
+                    }
+                    monthCardsContainer.revalidate();
+                    monthCardsContainer.repaint();
+
                     renderMovements(data.movements());
                     renderAppointments(data.appointments());
                     if (lowStockText != null) {
@@ -257,10 +290,30 @@ public final class HomeDashboardPanel extends JPanel {
         setBackground(new Color(240, 242, 245));
         setBorder(new EmptyBorder(22, 28, 22, 28));
 
-        // Saludo superior
+        // Saludo superior con botón de configuración de tarjetas
+        JPanel topHeaderPanel = new JPanel(new BorderLayout());
+        topHeaderPanel.setOpaque(false);
+
         welcomeLabel.setFont(new Font("Segoe UI", Font.BOLD, 26));
         welcomeLabel.setForeground(Color.BLACK);
-        add(welcomeLabel, BorderLayout.NORTH);
+        topHeaderPanel.add(welcomeLabel, BorderLayout.WEST);
+
+        JButton btnConfigure = new JButton("⚙ Configurar Tarjetas");
+        btnConfigure.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnConfigure.setBackground(new Color(31, 41, 55));
+        btnConfigure.setForeground(Color.WHITE);
+        btnConfigure.setBorderPainted(false);
+        btnConfigure.setFocusPainted(false);
+        btnConfigure.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnConfigure.setBorder(new EmptyBorder(8, 14, 8, 14));
+        btnConfigure.addActionListener(e -> {
+            Window window = SwingUtilities.getWindowAncestor(this);
+            DashboardCardConfigDialog dlg = new DashboardCardConfigDialog(window);
+            dlg.setVisible(true);
+        });
+        topHeaderPanel.add(btnConfigure, BorderLayout.EAST);
+
+        add(topHeaderPanel, BorderLayout.NORTH);
 
         JPanel centerContent = new JPanel(new BorderLayout(0, 16));
         centerContent.setOpaque(false);
@@ -330,53 +383,46 @@ public final class HomeDashboardPanel extends JPanel {
         content.setOpaque(false);
         content.setBorder(new EmptyBorder(4, 0, 0, 0));
 
-        content.add(createSummaryImageLabel("/icon/H10101.png"));
-        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-        content.add(createSummarySeparator());
-        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-        content.add(createSummaryCard("/icon/H10102.png", "Citas Programadas", itemsMonthLabel));
-        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-        content.add(createSummarySeparator());
-        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-        content.add(createSummaryCard("/icon/H10103.png", "Servicios Finalizados", newClientsSummaryLabel));
-        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-        content.add(createSummarySeparator());
-        content.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-        content.add(createSummaryCard("/icon/H10104.png", "Ingresos del Día", salesTodayLabel));
-
+        this.summaryCardsContainer = content;
         panel.add(content, BorderLayout.CENTER);
         return panel;
     }
 
-    /*
-        * Crea el panel de KPIs del mes con un diseño similar al de los KPIs del día pero con colores diferentes para diferenciarlos visualmente.
-         * Incluye métricas clave como ventas del mes y clientes nuevos, cada una con su propio indicador de color para facilitar la identificación rápida.
-         * El panel se integra perfectamente con el diseño general del dashboard, manteniendo la coherencia visual y la facilidad de lectura.
-    */
     private JPanel createMesCard() {
         JPanel panel = card();
-        panel.setLayout(new GridLayout(1, 2, KPI_CARD_GAP, 0));
+        panel.setLayout(new GridLayout(1, 0, KPI_CARD_GAP, 0));
         panel.setMinimumSize(new Dimension(240, 0));
-
-        panel.add(createKpiCard("/icon/H10104.png", "Ventas del Mes", salesMonthLabel));
-        panel.add(createKpiCard("/icon/H10102.png", "Clientes Nuevos/Mes", newClientsLabel));
-
+        this.monthCardsContainer = panel;
         return panel;
     }
 
-    /*
-        * Crea la tarjeta de actividad reciente con un diseño limpio y moderno.
-        * Muestra una lista de las actividades más recientes en el sistema.
-        * El panel se adapta al tamaño disponible y mantiene una estética consistente con el resto del dashboard.
-    */
     private JPanel createActivityCard() {
         JPanel panel = card();
         panel.setLayout(new BorderLayout(0, 10));
 
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+
         JLabel lbl = new JLabel("Citas Agendadas");
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
         lbl.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 0));
-        panel.add(lbl, BorderLayout.NORTH);
+        headerPanel.add(lbl, BorderLayout.WEST);
+
+        JButton btnHistory = new JButton("Ver Historial Completo");
+        btnHistory.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnHistory.setBackground(new Color(31, 41, 55));
+        btnHistory.setForeground(Color.WHITE);
+        btnHistory.setBorderPainted(false);
+        btnHistory.setFocusPainted(false);
+        btnHistory.addActionListener(e -> {
+            Window window = SwingUtilities.getWindowAncestor(this);
+            AppointmentHistoryDialog dlg = new AppointmentHistoryDialog(window, appointmentService);
+            dlg.setVisible(true);
+            refresh();
+        });
+        headerPanel.add(btnHistory, BorderLayout.EAST);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
 
         activityModel = new DefaultTableModel(new String[]{
                 "Mascota", "Tipo de Servicio", "Dueño", "Hora Citada", "Estado"
@@ -385,7 +431,7 @@ public final class HomeDashboardPanel extends JPanel {
         };
 
         appointmentsTable = new JTable(activityModel);
-        applyModernTableStyle(appointmentsTable); // <- Aplicamos el estilo
+        applyModernTableStyle(appointmentsTable);
         appointmentsTable.getColumnModel().getColumn(4).setCellRenderer(new AppointmentStatusRenderer());
         appointmentsTable.setComponentPopupMenu(createAppointmentsPopupMenu());
         appointmentsTable.addMouseListener(new MouseAdapter() {
@@ -400,32 +446,45 @@ public final class HomeDashboardPanel extends JPanel {
             }
         });
 
-        panel.add(createModernScrollPane(appointmentsTable), BorderLayout.CENTER); // <- Usamos el ScrollPane limpio
+        panel.add(createModernScrollPane(appointmentsTable), BorderLayout.CENTER);
         return panel;
     }
 
-    /**
-     * Crea la tarjeta de movimientos recientes con un diseño limpio y moderno.
-     * Muestra una lista de los últimos movimientos en el sistema.
-     * El panel se adapta al tamaño disponible y mantiene una estética consistente con el resto del dashboard.
-     */
     private JPanel createMovementsCard() {
         JPanel panel = card();
         panel.setLayout(new BorderLayout(0, 10));
 
-        JLabel lbl = new JLabel("Últimos Movimientos de inventario");
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+
+        JLabel lbl = new JLabel("Auditoría de Actividad (Últimos Movimientos)");
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
         lbl.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 0));
-        panel.add(lbl, BorderLayout.NORTH);
+        headerPanel.add(lbl, BorderLayout.WEST);
 
-        movementsModel = new DefaultTableModel(new String[]{"Producto", "Metodo de Pago", "Cantidad", "Valor pago", "Fecha"}, 0) {
+        JButton btnAudit = new JButton("📋 Abrir Auditoría");
+        btnAudit.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnAudit.setBackground(new Color(15, 23, 42));
+        btnAudit.setForeground(Color.WHITE);
+        btnAudit.setBorderPainted(false);
+        btnAudit.setFocusPainted(false);
+        btnAudit.addActionListener(e -> {
+            Window window = SwingUtilities.getWindowAncestor(this);
+            AuditHistoryDialog dlg = new AuditHistoryDialog(window, actividadService);
+            dlg.setVisible(true);
+            refresh();
+        });
+        headerPanel.add(btnAudit, BorderLayout.EAST);
+        panel.add(headerPanel, BorderLayout.NORTH);
+
+        movementsModel = new DefaultTableModel(new String[]{"Fecha / Hora Real", "Usuario", "Módulo", "Descripción"}, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
 
         JTable table = new JTable(movementsModel);
-        applyModernTableStyle(table); // <- Aplicamos el estilo
+        applyModernTableStyle(table);
 
-        panel.add(createModernScrollPane(table), BorderLayout.CENTER); // <- Usamos el ScrollPane limpio
+        panel.add(createModernScrollPane(table), BorderLayout.CENTER);
         return panel;
     }
 
@@ -464,12 +523,20 @@ public final class HomeDashboardPanel extends JPanel {
         appointmentRows = new ArrayList<>(rows);
         activityModel.setRowCount(0);
         for (Appointment appointment : rows) {
+            String timeAndDate;
+            if (appointment.getEndDate() != null && !appointment.getEndDate().equals(appointment.getAppointmentDate())) {
+                String interval = secureauth.shared.util.ServiceScheduleHelper.formatInterval(appointment.getAppointmentDate(), appointment.getEndDate());
+                timeAndDate = interval + " (" + appointment.getAppointmentTime() + " → " + appointment.getEndTime() + ")";
+            } else {
+                timeAndDate = appointment.getAppointmentDate().format(appointmentDateFormatter) + " "
+                        + appointment.getAppointmentTime();
+            }
+
             activityModel.addRow(new Object[]{
                     appointment.getPetName(),
                     appointment.getServiceName(),
                     appointment.getOwnerName(),
-                    appointment.getAppointmentDate().format(appointmentDateFormatter) + " "
-                            + appointment.getAppointmentTime(),
+                    timeAndDate,
                     appointment.getStatus()
             });
         }
@@ -492,13 +559,8 @@ public final class HomeDashboardPanel extends JPanel {
         return panel;
     }
 
-    /**
-     * Crea un JLabel con un icono centrado y un tamaño preferido para usarlo como separador visual en el panel de resumen.
-     * @param imagePath
-     * @return
-     */
     private JLabel createSummaryImageLabel(String imagePath) {
-        JLabel imageLabel = new JLabel(loadOriginalIcon(imagePath));
+        JLabel imageLabel = new JLabel(UiTheme.scaleImage(imagePath, 150, 140));
         imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
         imageLabel.setVerticalAlignment(SwingConstants.CENTER);
         imageLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
@@ -530,7 +592,7 @@ public final class HomeDashboardPanel extends JPanel {
 
         card.add(Box.createVerticalGlue());
 
-        ImageIcon icon = loadOriginalIcon(imagePath);
+        ImageIcon icon = UiTheme.scaleImage(imagePath, SUMMARY_METRIC_ICON_WIDTH, SUMMARY_METRIC_ICON_HEIGHT);
         if (icon != null) {
             JLabel imageLabel = new JLabel(icon);
             imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -574,7 +636,7 @@ public final class HomeDashboardPanel extends JPanel {
                 new EmptyBorder(KPI_CARD_PADDING, KPI_CARD_PADDING, KPI_CARD_PADDING, KPI_CARD_PADDING)
         ));
 
-        ImageIcon icon = loadOriginalIcon(imagePath);
+        ImageIcon icon = UiTheme.scaleImage(imagePath, 64, 64);
         if (icon != null) {
             JLabel imageLabel = new JLabel(icon);
             imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -617,7 +679,6 @@ public final class HomeDashboardPanel extends JPanel {
         return card;
     }
 
-    /** Separador horizontal fino usado entre título/valor de cada tarjeta KPI (Cambio 3 y 4). */
     private JSeparator kpiSeparator() {
         JSeparator separator = new JSeparator(SwingConstants.HORIZONTAL);
         separator.setForeground(new Color(235, 238, 242));
@@ -626,43 +687,18 @@ public final class HomeDashboardPanel extends JPanel {
         return separator;
     }
 
-    /**
-     * Carga un icono en su tamaño original. Cualquier error de carga se registra
-     * y retorna {@code null} en vez de propagar la excepción, para no romper el
-     * resto del panel.
-     */
-    private ImageIcon loadOriginalIcon(String imagePath) {
-        try {
-            java.net.URL resource = getClass().getResource(imagePath);
-            if (resource == null) {
-                LOGGER.log(Level.WARNING, "No se encontró el icono: {0}", imagePath);
-                return null;
-            }
-            ImageIcon original = new ImageIcon(resource);
-            int originalWidth = original.getIconWidth();
-            int originalHeight = original.getIconHeight();
-            if (originalWidth <= 0 || originalHeight <= 0) {
-                LOGGER.log(Level.WARNING, "Icono inválido o vacío: {0}", imagePath);
-                return null;
-            }
-
-            return original;
-        } catch (RuntimeException ex) {
-            LOGGER.log(Level.WARNING, "No se pudo cargar el icono: " + imagePath, ex);
-            return null;
-        }
-    }
-
-
     private void setAllLabelsError() {
-        salesTodayLabel.setText("--");
-        salesMonthLabel.setText("--");
-        itemsMonthLabel.setText("--");
-        newClientsLabel.setText("--");
-        newClientsSummaryLabel.setText("--");
+        summaryCardsContainer.removeAll();
+        summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));
+        summaryCardsContainer.revalidate();
+        summaryCardsContainer.repaint();
+
+        monthCardsContainer.removeAll();
+        monthCardsContainer.revalidate();
+        monthCardsContainer.repaint();
     }
 
-    private record DashboardData(long[] metrics, List<Object[]> movements, List<Object[]> activities,
+    private record DashboardData(Map<String, String> cardValues, List<Object[]> movements, List<Object[]> activities,
                                 List<Appointment> appointments,
                                 long lowStockCount) { }
 
@@ -743,8 +779,22 @@ public final class HomeDashboardPanel extends JPanel {
         addDetailRow(panel, gbc, "Propietario", appointment.getOwnerName());
         addDetailRow(panel, gbc, "Mascota", appointment.getPetName());
         addDetailRow(panel, gbc, "Servicio", appointment.getServiceName());
-        addDetailRow(panel, gbc, "Fecha", String.valueOf(appointment.getAppointmentDate()));
-        addDetailRow(panel, gbc, "Hora", String.valueOf(appointment.getAppointmentTime()));
+
+        if (appointment.getEndDate() != null && !appointment.getEndDate().equals(appointment.getAppointmentDate())) {
+            addDetailRow(panel, gbc, "Fecha Inicio", String.valueOf(appointment.getAppointmentDate()));
+            addDetailRow(panel, gbc, "Hora Inicio", String.valueOf(appointment.getAppointmentTime()));
+            addDetailRow(panel, gbc, "Fecha Fin", String.valueOf(appointment.getEndDate()));
+            addDetailRow(panel, gbc, "Hora Fin", String.valueOf(appointment.getEndTime()));
+            String dur = secureauth.shared.util.ServiceScheduleHelper.calculateDurationString(
+                    appointment.getServiceName(), appointment.getAppointmentDate(), appointment.getAppointmentTime(),
+                    appointment.getEndDate(), appointment.getEndTime()
+            );
+            addDetailRow(panel, gbc, "Duración", dur);
+        } else {
+            addDetailRow(panel, gbc, "Fecha", String.valueOf(appointment.getAppointmentDate()));
+            addDetailRow(panel, gbc, "Hora", String.valueOf(appointment.getAppointmentTime()));
+        }
+
         addDetailRow(panel, gbc, "Estado", displayStatus(appointment.getStatus()));
         addDetailRow(panel, gbc, "Veterinario", emptyAs(appointment.getCreatedBy(), "-"));
         addDetailRow(panel, gbc, "Observaciones", emptyAs(appointment.getNotes(), "-"));
@@ -784,32 +834,25 @@ public final class HomeDashboardPanel extends JPanel {
                 .orElse(status == null || status.isBlank() ? "-" : status);
     }
 
-
-    /**
-     * Aplica un diseño moderno y limpio a los JTable.
-     */
     private void applyModernTableStyle(JTable table) {
-        // 1. Estilo general de la tabla
-        table.setRowHeight(38); // Más espacio entre filas
-        table.setShowVerticalLines(false); // Fuera líneas robóticas
+        table.setRowHeight(38);
+        table.setShowVerticalLines(false);
         table.setShowHorizontalLines(true);
-        table.setGridColor(new Color(235, 238, 242)); // Línea separadora muy suave
+        table.setGridColor(new Color(235, 238, 242));
         table.setIntercellSpacing(new Dimension(0, 0));
         table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         table.setForeground(new Color(50, 50, 50));
-        table.setSelectionBackground(new Color(240, 245, 255)); // Azul muy claro al seleccionar
+        table.setSelectionBackground(new Color(240, 245, 255));
         table.setSelectionForeground(Color.BLACK);
         table.setFillsViewportHeight(true);
         table.setBackground(Color.WHITE);
 
-        // 2. Estilo de la cabecera (Header)
         JTableHeader header = table.getTableHeader();
         header.setBackground(Color.WHITE);
-        header.setForeground(new Color(120, 130, 140)); // Texto grisáceo
+        header.setForeground(new Color(120, 130, 140));
         header.setFont(new Font("Segoe UI", Font.BOLD, 13));
         header.setReorderingAllowed(false);
 
-        // Renderizador personalizado para la cabecera (quitar bordes 3D y añadir padding)
         header.setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -817,20 +860,18 @@ public final class HomeDashboardPanel extends JPanel {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 c.setBackground(Color.WHITE);
                 setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(220, 225, 230)), // Solo línea inferior
-                        BorderFactory.createEmptyBorder(10, 15, 10, 15) // Padding interior
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(220, 225, 230)),
+                        BorderFactory.createEmptyBorder(10, 15, 10, 15)
                 ));
                 return c;
             }
         });
 
-        // 3. Renderizador personalizado para las celdas del cuerpo (añadir padding lateral)
         table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
                     boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                // Quitar el borde de foco (focus) punteado por defecto y añadir padding
                 ((JComponent) c).setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
                 return c;
             }
@@ -869,13 +910,10 @@ public final class HomeDashboardPanel extends JPanel {
         }
     }
 
-    /**
-     * Aplica estilo moderno al JScrollPane que envuelve a la tabla.
-     */
     private JScrollPane createModernScrollPane(JTable table) {
         JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder()); // Quitar borde oscuro
-        scrollPane.getViewport().setBackground(Color.WHITE); // Fondo blanco limpio
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getViewport().setBackground(Color.WHITE);
         return scrollPane;
     }
 

@@ -57,4 +57,19 @@ public class ActividadRecienteService {
         dao.ensureSchema();
         return dao.findRecent(limit);
     }
+
+    /**
+     * Consulta registros de auditoría avanzados.
+     *
+     * @param query búsqueda textual
+     * @param moduleFilter filtro de módulo
+     * @param dateFilter filtro de fecha
+     * @param userFilter filtro de usuario
+     * @return registros de auditoría correspondientes
+     * @throws SQLException si falla la base de datos
+     */
+    public List<ActividadReciente> findAdvanced(String query, String moduleFilter, String dateFilter, String userFilter) throws SQLException {
+        dao.ensureSchema();
+        return dao.findAdvanced(query, moduleFilter, dateFilter, userFilter);
+    }
 }

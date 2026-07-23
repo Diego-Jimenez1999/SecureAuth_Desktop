@@ -93,7 +93,8 @@ public class AppointmentService {
         prepareForRegistration(appointment);
         Appointment saved = appointmentDAO.insert(appointment);
         actividadDAO.ensureSchema();
-        actividadDAO.insert("Cita agendada para " + saved.getPetName(), "CITA", saved.getCreatedBy());
+        String auditDesc = "Cita agendada | Mascota: " + saved.getPetName() + " | Servicio: " + saved.getServiceName() + " (" + saved.getAppointmentDate() + " " + saved.getAppointmentTime() + ")";
+        actividadDAO.insert(auditDesc, "CITAS", saved.getCreatedBy());
         fireChanged();
         return saved;
     }
@@ -125,6 +126,42 @@ public class AppointmentService {
      */
     public List<Appointment> findDashboardAppointments(int limit) throws SQLException {
         return appointmentDAO.findForDashboard(limit);
+    }
+
+    /**
+     * Consulta avanzada de citas con filtros.
+     *
+     * @param query búsqueda textual
+     * @param dateFilter filtro de fecha
+     * @param statusFilter filtro de estado
+     * @return lista de citas correspondientes
+     * @throws SQLException si falla la base de datos
+     */
+    public List<Appointment> findAdvanced(String query, String dateFilter, String statusFilter) throws SQLException {
+        return appointmentDAO.findAdvanced(query, dateFilter, statusFilter);
+    }
+
+    /**
+     * Consulta avanzada de citas filtrada.
+     */
+    public List<Appointment> findAdvancedAppointments(String query, String dateFilter, String statusFilter) throws SQLException {
+        return appointmentDAO.findAdvanced(query, dateFilter, statusFilter);
+    }
+
+    /**
+     * Actualiza los datos de una cita completa en base de datos.
+     *
+     * @param appointment la cita a actualizar
+     * @throws SQLException si falla la base de datos
+     */
+    public void updateAppointment(Appointment appointment) throws SQLException {
+        validate(appointment);
+        if (appointmentDAO.update(appointment)) {
+            actividadDAO.ensureSchema();
+            String auditDesc = "Cita editada | Mascota: " + appointment.getPetName() + " | Servicio: " + appointment.getServiceName() + " (" + appointment.getAppointmentDate() + " " + appointment.getAppointmentTime() + ") | Estado: " + appointment.getStatus();
+            actividadDAO.insert(auditDesc, "CITAS", appointment.getCreatedBy());
+            fireChanged();
+        }
     }
 
     /**
@@ -196,6 +233,15 @@ public class AppointmentService {
                 || appointment.getAppointmentTime() == null) {
             throw new IllegalArgumentException("Completa los datos obligatorios de la cita.");
         }
+
+        // Validar el intervalo temporal (fecha/hora fin no menores a fecha/hora inicio)
+        if (appointment.getEndDate() != null && appointment.getEndTime() != null) {
+            secureauth.shared.util.ServiceScheduleHelper.validateInterval(
+                appointment.getAppointmentDate(), appointment.getAppointmentTime(),
+                appointment.getEndDate(), appointment.getEndTime()
+            );
+        }
+
         LocalDateTime appointmentDateTime = LocalDateTime.of(appointment.getAppointmentDate(),
                 appointment.getAppointmentTime());
         if (appointmentDateTime.isBefore(LocalDateTime.now())) {
@@ -218,12 +264,12 @@ public class AppointmentService {
         String displayStatus = AppointmentStatus.fromDatabaseValue(status)
                 .map(AppointmentStatus::displayName)
                 .orElse(status);
-        String description = "Cita de " + appointment.getPetName() + " actualizada a " + displayStatus;
+        String description = "Cita actualizada | Mascota: " + appointment.getPetName() + " | Estado: " + displayStatus;
         if (!isBlank(reason)) {
             description += ". Motivo: " + reason.trim();
         }
         actividadDAO.ensureSchema();
-        actividadDAO.insert(description, "CITA", appointment.getCreatedBy());
+        actividadDAO.insert(description, "CITAS", appointment.getCreatedBy());
     }
 
     public static void notifyAppointmentsChanged() {
@@ -232,6 +278,7 @@ public class AppointmentService {
 
     private static void fireChanged() {
         EVENTS.firePropertyChange("appointments", null, null);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
     }
 
     private boolean isBlank(String value) {

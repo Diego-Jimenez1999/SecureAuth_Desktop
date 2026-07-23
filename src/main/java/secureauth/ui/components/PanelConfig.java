@@ -48,9 +48,18 @@ import secureauth.controller.AuthController;
 import secureauth.controller.IngresoController;
 import secureauth.dao.UserDAO;
 import secureauth.repository.UserRepositoryImpl;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import javax.swing.SwingWorker;
+import secureauth.service.OwnerService;
+import secureauth.service.enterprise.SalesTransactionService;
 import secureauth.service.AuthService;
 import secureauth.service.UserService;
-import secureauth.ui.dialogs.ApplicationVisualConfigDialog;
+import secureauth.ui.dialogs.AdvancedConfigDialog;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
 import secureauth.ui.dialogs.PreciosPorTamanoDialog;
 import secureauth.ui.dialogs.RegistroTrabajadores;
@@ -96,10 +105,16 @@ public class PanelConfig extends JPanel {
 
     private final UserService   userService;
     private final IngresoController ingresoController;
+    private final SalesTransactionService salesService;
+    private final OwnerService ownerService;
 
     // ─── Componentes de métricas ──────────────────────────────────────────────
     private JLabel lblVentasValor;
     private JLabel lblClientesValor;
+    private JLabel lblVentasTrend;
+    private JLabel lblClientesTrend;
+    private JPanel pnlServContent;
+    private JPanel pnlIngContent;
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -110,8 +125,15 @@ public class PanelConfig extends JPanel {
      * @param ingresoController controlador principal para acciones de usuario
      */
     public PanelConfig(UserService userService, IngresoController ingresoController) {
+        this(userService, ingresoController, new SalesTransactionService(), new OwnerService(new secureauth.dao.OwnerDAO()));
+    }
+
+    public PanelConfig(UserService userService, IngresoController ingresoController,
+                       SalesTransactionService salesService, OwnerService ownerService) {
         this.userService = userService;
         this.ingresoController = ingresoController;
+        this.salesService = salesService;
+        this.ownerService = ownerService;
         initComponents();
     }
 
@@ -211,59 +233,42 @@ public class PanelConfig extends JPanel {
 
     /**
      * Construye la fila de cuatro tarjetas de métricas del dashboard superior.
-     * Los valores son estáticos (placeholder); conectar al SettingsController para datos reales.
+     * Los valores son dinámicos y se obtienen de la base de datos MySQL.
      *
      * @return JPanel con las 4 tarjetas de métricas
      */
     private JPanel buildMetricsSection() {
         JPanel row = new JPanel(new GridLayout(1, 4, UiTheme.CARD_SPACING, 0));
         row.setBackground(UiTheme.BG_PAGE);
-        // FIX: se amplía el alto (110 -> 140) porque el título ahora puede
-        // hacer salto de línea en vez de truncarse con "...". Sin este
-        // espacio extra, un título de 2 líneas quedaría recortado igual.
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
 
         // Tarjeta 1 — Ventas Totales
-        lblVentasValor = new JLabel("$2,503.64");
+        lblVentasValor = new JLabel("Cargando...");
         lblVentasValor.setFont(UiTheme.CARD_VALUE_FONT);
         lblVentasValor.setForeground(UiTheme.TEXT_PRIMARY);
-        JLabel ventasTrend = trendLabel("↑ 3 Crecimiento", UiTheme.SUCCESS_COLOR);
+        lblVentasTrend = trendLabel("Cargando...", UiTheme.SUCCESS_COLOR);
         row.add(buildMetricCard("💰", "Ventas Totales (Este Mes)", lblVentasValor,
-                ventasTrend, UiTheme.ACCENT_BLUE));
+                lblVentasTrend, UiTheme.ACCENT_BLUE));
 
         // Tarjeta 2 — Servicios Populares
-        JPanel servContent = new JPanel(new GridLayout(2, 3, 4, 2));
-        servContent.setBackground(UiTheme.PANEL_WHITE);
-        String[] sLabels = {"Hotel", "Consulta", "Consulta", "53%", "50%", "70%"};
-        for (int i = 0; i < sLabels.length; i++) {
-            JLabel l = new JLabel(sLabels[i], SwingConstants.CENTER);
-            l.setFont(i < 3 ? UiTheme.SMALL_FONT.deriveFont(Font.BOLD) : UiTheme.SMALL_FONT);
-            l.setForeground(i < 3 ? UiTheme.TEXT_PRIMARY : UiTheme.ACCENT_AMBER);
-            servContent.add(l);
-        }
-        // "Baño" en la primera posición de la segunda fila (ajuste visual)
-        row.add(buildMetricCardCustom("⭐", "Servicios Más Populares", servContent, UiTheme.ACCENT_AMBER));
+        pnlServContent = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        pnlServContent.setBackground(UiTheme.PANEL_WHITE);
+        pnlServContent.add(new JLabel("Cargando..."));
+        row.add(buildMetricCardCustom("⭐", "Servicios Más Populares", pnlServContent, UiTheme.ACCENT_AMBER));
 
         // Tarjeta 3 — Ingresos por Categoría
-        JPanel ingContent = new JPanel(new GridLayout(2, 2, 8, 4));
-        ingContent.setBackground(UiTheme.PANEL_WHITE);
-        String[] cats   = {"Alimentos", "$3%", "Accesorios", "$3%"};
-        Color[]  catClr = {UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR, UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR};
-        for (int i = 0; i < cats.length; i++) {
-            JLabel l = new JLabel(cats[i]);
-            l.setFont(UiTheme.BODY_FONT);
-            l.setForeground(catClr[i]);
-            ingContent.add(l);
-        }
-        row.add(buildMetricCardCustom("📊", "Ingresos por Categoría", ingContent, UiTheme.ACCENT_PURPLE));
+        pnlIngContent = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        pnlIngContent.setBackground(UiTheme.PANEL_WHITE);
+        pnlIngContent.add(new JLabel("Cargando..."));
+        row.add(buildMetricCardCustom("📊", "Ingresos por Categoría", pnlIngContent, UiTheme.ACCENT_PURPLE));
 
         // Tarjeta 4 — Nuevos Clientes
-        lblClientesValor = new JLabel("3");
+        lblClientesValor = new JLabel("Cargando...");
         lblClientesValor.setFont(UiTheme.CARD_VALUE_FONT);
         lblClientesValor.setForeground(UiTheme.TEXT_PRIMARY);
-        JLabel clientesTrend = trendLabel("↑ Crecimiento", UiTheme.SUCCESS_COLOR);
+        lblClientesTrend = trendLabel("Cargando...", UiTheme.SUCCESS_COLOR);
         row.add(buildMetricCard("👥", "Nuevos Clientes", lblClientesValor,
-                clientesTrend, UiTheme.SUCCESS_COLOR));
+                lblClientesTrend, UiTheme.SUCCESS_COLOR));
 
         return row;
     }
@@ -934,7 +939,7 @@ public class PanelConfig extends JPanel {
     private void onConfigAppClick() {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame parent = (window instanceof Frame) ? (Frame) window : null;
-        new ApplicationVisualConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+        new AdvancedConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
     }
 
     /** Abre el formulario de registro de usuarios existente. */
@@ -1190,6 +1195,217 @@ public class PanelConfig extends JPanel {
         @Override public Component getTableCellEditorComponent(
                 JTable t, Object v, boolean sel, int row, int col) { return panel; }
         @Override public Object getCellEditorValue() { return ""; }
+    }
+
+    // ─── LÓGICA DE MÉTRICAS REALES DESDE DB (MÓDULO CONFIGURACIÓN) ───────────
+
+    private static record ServicePopularity(String name, int count) {}
+    private static record CategoryIncome(String category, double income) {}
+    private static record ConfigMetricsData(
+            double salesToday, double salesWeek, double salesMonth, double salesYear,
+            int clientsToday, int clientsWeek, int clientsMonth,
+            List<String[]> servicesData, List<String[]> incomeData) {}
+
+    public void loadConfigMetrics() {
+        new SwingWorker<ConfigMetricsData, Void>() {
+            @Override
+            protected ConfigMetricsData doInBackground() throws Exception {
+                salesService.initializeSchema();
+                ownerService.countNewThisMonth(); // to trigger ensureSchema on owners
+
+                double salesToday = 0;
+                double salesWeek = 0;
+                double salesMonth = 0;
+                double salesYear = 0;
+
+                try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                    String sqlToday = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE DATE(created_at) = CURRENT_DATE()";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlToday); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) salesToday = rs.getDouble(1);
+                    }
+                    String sqlWeek = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURRENT_DATE(), 1)";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlWeek); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) salesWeek = rs.getDouble(1);
+                    }
+                    String sqlMonth = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEAR(created_at) = YEAR(CURRENT_DATE()) AND MONTH(created_at) = MONTH(CURRENT_DATE())";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlMonth); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) salesMonth = rs.getDouble(1);
+                    }
+                    String sqlYear = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEAR(created_at) = YEAR(CURRENT_DATE())";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlYear); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) salesYear = rs.getDouble(1);
+                    }
+                }
+
+                int clientsToday = 0;
+                int clientsWeek = 0;
+                int clientsMonth = 0;
+
+                try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                    String sqlClientsToday = "SELECT COUNT(*) FROM owners WHERE DATE(fecha_registro) = CURRENT_DATE()";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsToday); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) clientsToday = rs.getInt(1);
+                    }
+                    String sqlClientsWeek = "SELECT COUNT(*) FROM owners WHERE YEARWEEK(fecha_registro, 1) = YEARWEEK(CURRENT_DATE(), 1)";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsWeek); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) clientsWeek = rs.getInt(1);
+                    }
+                    String sqlClientsMonth = "SELECT COUNT(*) FROM owners WHERE YEAR(fecha_registro) = YEAR(CURRENT_DATE()) AND MONTH(fecha_registro) = MONTH(CURRENT_DATE())";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsMonth); ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) clientsMonth = rs.getInt(1);
+                    }
+                }
+
+                // Servicios más populares (por citas)
+                List<ServicePopularity> popularServices = new ArrayList<>();
+                String sqlServices = """
+                        SELECT service_name, COUNT(*) as qty
+                        FROM appointments
+                        GROUP BY service_name
+                        ORDER BY qty DESC
+                        LIMIT 3
+                        """;
+                try (Connection conn = secureauth.config.DatabaseConnection.getConnection();
+                     PreparedStatement ps = conn.prepareStatement(sqlServices)) {
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            popularServices.add(new ServicePopularity(rs.getString(1), rs.getInt(2)));
+                        }
+                    }
+                }
+
+                int totalServicesCount = popularServices.stream().mapToInt(s -> s.count).sum();
+                List<String[]> servicesData = new ArrayList<>();
+                for (ServicePopularity sp : popularServices) {
+                    double pct = totalServicesCount == 0 ? 0.0 : (sp.count * 100.0 / totalServicesCount);
+                    servicesData.add(new String[]{sp.name, String.format(Locale.US, "%.0f%%", pct)});
+                }
+
+                // Ingresos por categoría
+                List<CategoryIncome> incomeList = new ArrayList<>();
+                String sqlIncome = """
+                        SELECT category, SUM(subtotal) AS income
+                        FROM (
+                            SELECT COALESCE(si.category_name, ii.category_name, 'Otros') AS category, dv.subtotal
+                            FROM detalle_venta dv
+                            LEFT JOIN sales_items si ON dv.id_producto = si.id
+                            LEFT JOIN inventory_items ii ON dv.id_producto = ii.id
+                        ) AS t
+                        GROUP BY category
+                        ORDER BY income DESC
+                        LIMIT 2
+                        """;
+                try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                    if (secureauth.config.SchemaInspector.tableExists(conn, "detalle_venta")) {
+                        try (PreparedStatement ps = conn.prepareStatement(sqlIncome);
+                             ResultSet rs = ps.executeQuery()) {
+                            while (rs.next()) {
+                                incomeList.add(new CategoryIncome(rs.getString(1), rs.getDouble(2)));
+                            }
+                        }
+                    }
+                }
+
+                // Fallback to existing categories if empty
+                if (incomeList.isEmpty()) {
+                    try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                        if (secureauth.config.SchemaInspector.tableExists(conn, "sales_categories")) {
+                            String sqlCatFallback = "SELECT DISTINCT category_name FROM sales_categories LIMIT 2";
+                            try (PreparedStatement ps = conn.prepareStatement(sqlCatFallback);
+                                 ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    incomeList.add(new CategoryIncome(rs.getString(1), 0.0));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                double totalIncome = incomeList.stream().mapToDouble(c -> c.income).sum();
+                List<String[]> incomeData = new ArrayList<>();
+                for (CategoryIncome ci : incomeList) {
+                    double pct = totalIncome == 0.0 ? 0.0 : (ci.income * 100.0 / totalIncome);
+                    incomeData.add(new String[]{ci.category, String.format(Locale.US, "%.0f%%", pct)});
+                }
+
+                return new ConfigMetricsData(
+                        salesToday, salesWeek, salesMonth, salesYear,
+                        clientsToday, clientsWeek, clientsMonth,
+                        servicesData, incomeData);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    ConfigMetricsData data = get();
+                    java.text.NumberFormat curFmt = java.text.NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
+
+                    lblVentasValor.setText(curFmt.format(data.salesMonth));
+                    if (lblVentasTrend != null) {
+                        lblVentasTrend.setText("<html>Día: " + curFmt.format(data.salesToday) + " | Sem: " + curFmt.format(data.salesWeek) + "<br>Año: " + curFmt.format(data.salesYear) + "</html>");
+                    }
+
+                    lblClientesValor.setText(String.valueOf(data.clientsMonth));
+                    if (lblClientesTrend != null) {
+                        lblClientesTrend.setText("<html>Hoy: " + data.clientsToday + " | Sem: " + data.clientsWeek + "</html>");
+                    }
+
+                    if (pnlServContent != null) {
+                        pnlServContent.removeAll();
+                        if (data.servicesData.isEmpty()) {
+                            pnlServContent.setLayout(new FlowLayout(FlowLayout.CENTER));
+                            JLabel lblEmpty = new JLabel("Sin servicios agendados");
+                            lblEmpty.setFont(UiTheme.SMALL_FONT);
+                            pnlServContent.add(lblEmpty);
+                        } else {
+                            pnlServContent.setLayout(new GridLayout(2, data.servicesData.size(), 4, 2));
+                            for (String[] row : data.servicesData) {
+                                JLabel l = new JLabel(row[0], SwingConstants.CENTER);
+                                l.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+                                l.setForeground(UiTheme.TEXT_PRIMARY);
+                                pnlServContent.add(l);
+                            }
+                            for (String[] row : data.servicesData) {
+                                JLabel l = new JLabel(row[1], SwingConstants.CENTER);
+                                l.setFont(UiTheme.SMALL_FONT);
+                                l.setForeground(UiTheme.ACCENT_AMBER);
+                                pnlServContent.add(l);
+                            }
+                        }
+                        pnlServContent.revalidate();
+                        pnlServContent.repaint();
+                    }
+
+                    if (pnlIngContent != null) {
+                        pnlIngContent.removeAll();
+                        if (data.incomeData.isEmpty()) {
+                            pnlIngContent.setLayout(new FlowLayout(FlowLayout.CENTER));
+                            JLabel lblEmpty = new JLabel("Sin ventas registradas");
+                            lblEmpty.setFont(UiTheme.SMALL_FONT);
+                            pnlIngContent.add(lblEmpty);
+                        } else {
+                            pnlIngContent.setLayout(new GridLayout(2, data.incomeData.size(), 8, 4));
+                            for (String[] row : data.incomeData) {
+                                JLabel l = new JLabel(row[0], SwingConstants.CENTER);
+                                l.setFont(UiTheme.BODY_FONT.deriveFont(Font.BOLD));
+                                l.setForeground(UiTheme.TEXT_PRIMARY);
+                                pnlIngContent.add(l);
+                            }
+                            for (String[] row : data.incomeData) {
+                                JLabel l = new JLabel(row[1], SwingConstants.CENTER);
+                                l.setFont(UiTheme.BODY_FONT);
+                                l.setForeground(UiTheme.SUCCESS_COLOR);
+                                pnlIngContent.add(l);
+                            }
+                        }
+                        pnlIngContent.revalidate();
+                        pnlIngContent.repaint();
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }.execute();
     }
 
 }
