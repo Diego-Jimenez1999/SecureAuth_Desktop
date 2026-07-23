@@ -108,13 +108,15 @@ public class IngresoFrame extends javax.swing.JFrame {
         this.salesPanel = new SalesPanel(new SalesController(), subServiceSelector,
                 appContext.getSalesTransactionService(), appContext.getAppointmentService(),
                 appContext.getOwnerService());
-        this.configPanel = new PanelConfig(appContext.getUserService(), this.controller);
+        this.configPanel = new PanelConfig(appContext.getUserService(), this.controller,
+                appContext.getSalesTransactionService(), appContext.getOwnerService());
         this.inventoryPanel = new PanelInventory();
         this.panelReports = new PanelReports();
         this.inventoryController = new InventoryController(this.inventoryPanel, appContext.getInventoryService());
         this.reportController = new ReportController(this.panelReports,
                 appContext.getSalesTransactionService(), appContext.getOwnerService());
         this.reportController.loadMetrics();
+        this.configPanel.loadConfigMetrics();
         this.contentLayout = new CardLayout();
         this.contentPanel = new JPanel(contentLayout);
 
@@ -233,6 +235,7 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     public void mostrarConfiguracion() {
         System.out.println("[DEBUG] Navegando a Panel de Configuración desde IngresoFrame");
+        configPanel.loadConfigMetrics();
         contentLayout.show(contentPanel, PANEL_CONFIGURACION);
     }
 
