@@ -242,4 +242,20 @@ public class IngresoFrame extends javax.swing.JFrame {
     public void mostrarReportes() {
         contentLayout.show(contentPanel, PANEL_REPORTES);
     }
+
+    /**
+     * Muestra el módulo según el nombre centralizado.
+     */
+    public void showModule(String moduleName) {
+        if (moduleName == null) return;
+        switch (moduleName.toUpperCase().trim()) {
+            case "DASHBOARD", "HOME" -> mostrarHome();
+            case "USUARIOS" -> mostrarUsuarios();
+            case "MASCOTAS" -> mostrarMascotas();
+            case "INVENTARIO" -> mostrarInventario();
+            case "VENTAS" -> mostrarVentas();
+            case "CONFIGURACION", "CONFIG" -> mostrarConfiguracion();
+            case "REPORTES" -> mostrarReportes();
+        }
+    }
 }

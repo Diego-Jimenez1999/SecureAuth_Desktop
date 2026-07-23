@@ -32,6 +32,16 @@ public final class MainApp {
         this.appContext = new AppContext();
         this.appContext.initialize();
 
+        // Registrar el AppContext en el WindowManager global
+        secureauth.ui.WindowManager.getInstance().setAppContext(this.appContext);
+
+        // Registrar listener de monitor de base de datos para alertar en caso de pérdida de conexión
+        secureauth.config.DatabaseConnection.addConnectionStatusListener((connected, message) -> {
+            if (!connected) {
+                secureauth.shared.error.ErrorHandler.showWarning(message, "Conexión de Base de Datos");
+            }
+        });
+
         // Factory de edición de usuario
         this.editUserDialogFactory = (parent, user, controller) ->
                 new secureauth.ui.frames.EditUserFrame(parent, user, controller)

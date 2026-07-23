@@ -66,6 +66,53 @@ public class EnterpriseBootstrapDAO {
                 """);
 
             st.execute("""
+                CREATE TABLE IF NOT EXISTS permissions (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  name VARCHAR(80) NOT NULL UNIQUE,
+                  description VARCHAR(255)
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS role_permissions (
+                  role_id INT NOT NULL,
+                  permission_id INT NOT NULL,
+                  PRIMARY KEY (role_id, permission_id),
+                  CONSTRAINT fk_role_permissions_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+                  CONSTRAINT fk_role_permissions_permission FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS security_activity_log (
+                  id INT AUTO_INCREMENT PRIMARY KEY,
+                  user_id INT NULL,
+                  username VARCHAR(180) NOT NULL,
+                  action VARCHAR(255) NOT NULL,
+                  details VARCHAR(500) NULL,
+                  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS app_settings (
+                  setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+                  setting_value TEXT NULL,
+                  description VARCHAR(255) NULL
+                )
+                """);
+
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS branding_config (
+                  business_id INT NOT NULL PRIMARY KEY,
+                  primary_color VARCHAR(20) NULL,
+                  secondary_color VARCHAR(20) NULL,
+                  tertiary_color VARCHAR(20) NULL,
+                  logo_path VARCHAR(500) NULL
+                )
+                """);
+
+            st.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                   id INT AUTO_INCREMENT PRIMARY KEY,
                   email VARCHAR(160) NOT NULL UNIQUE,
@@ -146,6 +193,40 @@ public class EnterpriseBootstrapDAO {
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (2,'Supervisor') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (3,'Recepcionista') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
             st.execute("INSERT INTO roles(id, nombre_rol) VALUES (4,'Médico') ON DUPLICATE KEY UPDATE nombre_rol=VALUES(nombre_rol)");
+
+            // Seed Permissions
+            String[] perms = {
+                "MODULO_DASHBOARD", "MODULO_VENTAS", "MODULO_INVENTARIO", "MODULO_REPORTES",
+                "MODULO_CONFIGURACION", "MODULO_USUARIOS", "ACCION_CREAR", "ACCION_EDITAR",
+                "ACCION_ELIMINAR", "ACCION_EXPORTAR", "ACCION_CONFIGURACION_CRITICA"
+            };
+            for (String p : perms) {
+                st.execute("INSERT INTO permissions(name, description) VALUES ('" + p + "', 'Permiso para " + p + "') ON DUPLICATE KEY UPDATE description=VALUES(description)");
+            }
+
+            // Map Admin Permissions (Role ID 1)
+            for (String p : perms) {
+                st.execute("INSERT IGNORE INTO role_permissions(role_id, permission_id) SELECT 1, id FROM permissions WHERE name='" + p + "'");
+            }
+
+            // Map Supervisor Permissions (Role ID 2)
+            for (String p : perms) {
+                if (!p.equals("ACCION_CONFIGURACION_CRITICA") && !p.equals("MODULO_USUARIOS")) {
+                    st.execute("INSERT IGNORE INTO role_permissions(role_id, permission_id) SELECT 2, id FROM permissions WHERE name='" + p + "'");
+                }
+            }
+
+            // Map Recepcionista Permissions (Role ID 3)
+            String[] recepPerms = {"MODULO_DASHBOARD", "MODULO_VENTAS", "ACCION_CREAR", "ACCION_EDITAR"};
+            for (String p : recepPerms) {
+                st.execute("INSERT IGNORE INTO role_permissions(role_id, permission_id) SELECT 3, id FROM permissions WHERE name='" + p + "'");
+            }
+
+            // Map Medico Permissions (Role ID 4)
+            String[] medicoPerms = {"MODULO_DASHBOARD", "MODULO_VENTAS", "ACCION_CREAR", "ACCION_EDITAR"};
+            for (String p : medicoPerms) {
+                st.execute("INSERT IGNORE INTO role_permissions(role_id, permission_id) SELECT 4, id FROM permissions WHERE name='" + p + "'");
+            }
         }
     }
 

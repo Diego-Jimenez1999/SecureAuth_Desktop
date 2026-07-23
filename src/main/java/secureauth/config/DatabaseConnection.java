@@ -2,13 +2,16 @@ package secureauth.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -46,6 +49,80 @@ public class DatabaseConnection {
 
     /** Pool HikariCP compartido por toda la aplicacion. */
     private static final HikariDataSource DATA_SOURCE = buildHikariPool();
+
+    private static final List<ConnectionStatusListener> LISTENERS = new CopyOnWriteArrayList<>();
+    private static boolean lastKnownState = true;
+    private static Thread monitorThread;
+
+    static {
+        startConnectionMonitor();
+    }
+
+    public interface ConnectionStatusListener {
+        void onStatusChanged(boolean connected, String message);
+    }
+
+    public static void addConnectionStatusListener(ConnectionStatusListener listener) {
+        if (listener != null) {
+            LISTENERS.add(listener);
+            // Notify immediately on registration using a safe check
+            boolean healthy = isConnectionHealthy();
+            listener.onStatusChanged(healthy, healthy ? "Conectado" : "Conexión perdida con la base de datos");
+        }
+    }
+
+    public static void removeConnectionStatusListener(ConnectionStatusListener listener) {
+        if (listener != null) {
+            LISTENERS.remove(listener);
+        }
+    }
+
+    public static boolean isConnectionHealthy() {
+        if (DATA_SOURCE == null) {
+            return false;
+        }
+        try (Connection conn = DATA_SOURCE.getConnection()) {
+            return conn.isValid(2);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static void startConnectionMonitor() {
+        monitorThread = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(10000L); // Check every 10 seconds
+                    boolean currentHealth = isConnectionHealthy();
+                    if (currentHealth != lastKnownState) {
+                        lastKnownState = currentHealth;
+                        String msg = currentHealth ? "Conexión restaurada con la base de datos." : "Se ha perdido la conexión con la base de datos.";
+                        notifyListeners(currentHealth, msg);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Error en el monitor de conexión de base de datos", e);
+                }
+            }
+        });
+        monitorThread.setDaemon(true);
+        monitorThread.setName("DatabaseConnection-Monitor");
+        monitorThread.start();
+    }
+
+    private static void notifyListeners(boolean connected, String message) {
+        for (ConnectionStatusListener listener : LISTENERS) {
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    listener.onStatusChanged(connected, message);
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Error notificando listener de estado de conexión", e);
+                }
+            });
+        }
+    }
 
     private DatabaseConnection() {}
 

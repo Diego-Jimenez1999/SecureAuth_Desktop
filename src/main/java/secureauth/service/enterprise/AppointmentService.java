@@ -90,12 +90,17 @@ public class AppointmentService {
      * @throws SQLException si falla la persistencia
      */
     public Appointment registerAppointment(Appointment appointment) throws SQLException {
+        secureauth.service.AuthorizationService.getInstance().verifyPermission("MODULO_VENTAS");
         prepareForRegistration(appointment);
         Appointment saved = appointmentDAO.insert(appointment);
         actividadDAO.ensureSchema();
         String auditDesc = "Cita agendada | Mascota: " + saved.getPetName() + " | Servicio: " + saved.getServiceName() + " (" + saved.getAppointmentDate() + " " + saved.getAppointmentTime() + ")";
         actividadDAO.insert(auditDesc, "CITAS", saved.getCreatedBy());
         fireChanged();
+
+        // Play sound for appointment
+        secureauth.service.SoundService.getInstance().playSound(secureauth.service.SoundService.SoundEvent.CITA);
+
         return saved;
     }
 

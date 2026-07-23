@@ -34,6 +34,8 @@ public class RegisterSaleUseCase {
     }
 
     public SaleRegistrationResult register(RegisterSaleCommand command) throws SQLException {
+        secureauth.service.AuthorizationService.getInstance().verifyPermission("MODULO_VENTAS");
+
         saleValidator.validate(command.sale());
         List<secureauth.application.dto.AppointmentDTO> appointments = appointmentsFrom(command);
         appointments.forEach(appointmentValidator::validate);
@@ -45,6 +47,10 @@ public class RegisterSaleUseCase {
                 / (1d + SalesCartUseCase.TAX_RATE), itemsSummary, appointments);
         eventPublisher.publish(new SaleRegisteredEvent(command.sale().date(), command.sale().total(),
                 command.sale().items().size(), hasInventoryItems(command), !appointments.isEmpty()));
+
+        // Reproducir sonido de venta confirmada
+        secureauth.service.SoundService.getInstance().playSound(secureauth.service.SoundService.SoundEvent.VENTA);
+
         return new SaleRegistrationResult(gain, command.sale().total() * SalesCartUseCase.TAX_RATE
                 / (1d + SalesCartUseCase.TAX_RATE), itemsSummary);
     }
