@@ -61,7 +61,9 @@ public class OwnerService {
      */
     public Owner createOwner(Owner owner) {
         validateOwner(owner);
-        return ownerDAO.insert(owner);
+        Owner created = ownerDAO.insert(owner);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
+        return created;
     }
 
     /**
@@ -75,6 +77,7 @@ public class OwnerService {
         }
         validateOwner(owner);
         ownerDAO.update(owner);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
     }
 
     /**
@@ -87,6 +90,7 @@ public class OwnerService {
             throw new IllegalArgumentException("Selecciona un dueño válido.");
         }
         ownerDAO.delete(id);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
     }
 
     /**

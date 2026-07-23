@@ -278,6 +278,7 @@ public class AppointmentService {
 
     private static void fireChanged() {
         EVENTS.firePropertyChange("appointments", null, null);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
     }
 
     private boolean isBlank(String value) {

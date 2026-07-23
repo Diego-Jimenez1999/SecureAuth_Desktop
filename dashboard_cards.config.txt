@@ -1,0 +1,4 @@
+#Dashboard Cards Configuration
+#Thu Jul 23 15:28:49 UTC 2026
+card.test_custom_card.title=New Custom Title
+card.test_custom_card.visible=false
