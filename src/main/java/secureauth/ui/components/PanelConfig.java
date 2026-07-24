@@ -1210,51 +1210,19 @@ public class PanelConfig extends JPanel {
         new SwingWorker<ConfigMetricsData, Void>() {
             @Override
             protected ConfigMetricsData doInBackground() throws Exception {
-                salesService.initializeSchema();
-                ownerService.countNewThisMonth(); // to trigger ensureSchema on owners
+                ownerService.ensureSchema();
 
-                double salesToday = 0;
-                double salesWeek = 0;
-                double salesMonth = 0;
-                double salesYear = 0;
+                var salesStats = salesService.loadDetailedStats();
+                var ownerStats = ownerService.loadOwnerStats();
 
-                try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
-                    String sqlToday = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE DATE(created_at) = CURRENT_DATE()";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlToday); ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) salesToday = rs.getDouble(1);
-                    }
-                    String sqlWeek = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURRENT_DATE(), 1)";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlWeek); ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) salesWeek = rs.getDouble(1);
-                    }
-                    String sqlMonth = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEAR(created_at) = YEAR(CURRENT_DATE()) AND MONTH(created_at) = MONTH(CURRENT_DATE())";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlMonth); ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) salesMonth = rs.getDouble(1);
-                    }
-                    String sqlYear = "SELECT COALESCE(SUM(total), 0) FROM sales_tx WHERE YEAR(created_at) = YEAR(CURRENT_DATE())";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlYear); ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) salesYear = rs.getDouble(1);
-                    }
-                }
+                double salesToday = salesStats.salesToday();
+                double salesWeek = salesStats.salesWeek();
+                double salesMonth = salesStats.salesMonth();
+                double salesYear = salesStats.salesYear();
 
-                int clientsToday = 0;
-                int clientsWeek = 0;
-                int clientsMonth = 0;
-
-                try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
-                    String sqlClientsToday = "SELECT COUNT(*) FROM owners WHERE DATE(fecha_registro) = CURRENT_DATE()";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsToday); ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) clientsToday = rs.getInt(1);
-                    }
-                    String sqlClientsWeek = "SELECT COUNT(*) FROM owners WHERE YEARWEEK(fecha_registro, 1) = YEARWEEK(CURRENT_DATE(), 1)";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsWeek); ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) clientsWeek = rs.getInt(1);
-                    }
-                    String sqlClientsMonth = "SELECT COUNT(*) FROM owners WHERE YEAR(fecha_registro) = YEAR(CURRENT_DATE()) AND MONTH(fecha_registro) = MONTH(CURRENT_DATE())";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlClientsMonth); ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) clientsMonth = rs.getInt(1);
-                    }
-                }
+                int clientsToday = ownerStats.clientsToday();
+                int clientsWeek = ownerStats.clientsWeek();
+                int clientsMonth = ownerStats.clientsMonth();
 
                 // Servicios más populares (por citas)
                 List<ServicePopularity> popularServices = new ArrayList<>();

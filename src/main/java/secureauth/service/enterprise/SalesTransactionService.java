@@ -269,12 +269,17 @@ public class SalesTransactionService {
     public DashboardStats loadStats() throws SQLException {
         int businessId = context.getActiveBusinessId();
         int branchId = context.getActiveBranchId();
+        var stats = dao.loadDashboardStats(businessId, branchId);
         return new DashboardStats(
-                dao.salesToday(businessId, branchId),
-                dao.salesMonth(businessId, branchId),
-                dao.gainMonth(businessId, branchId),
-                dao.itemsMonth(businessId, branchId)
+                stats.salesToday(),
+                stats.salesMonth(),
+                stats.gainMonth(),
+                stats.itemsMonth()
         );
+    }
+
+    public SalesTransactionDAO.SalesStats loadDetailedStats() throws SQLException {
+        return dao.loadDashboardStats(context.getActiveBusinessId(), context.getActiveBranchId());
     }
 
     public record DashboardStats(double salesToday, double salesMonth, double gainMonth, int itemsMonth) { }

@@ -67,55 +67,55 @@ public class ReportController {
         this.view.setOnExport(this::exportSalesCsv);
     }
 
+    private static record ReportData(
+            String salesToday,
+            String salesMonth,
+            String itemsMonth,
+            String newClients,
+            List<Object[]> reportRows
+    ) {}
+
     /**
      * Carga todas las métricas del dashboard en un hilo de fondo.
      * Actualiza la vista cuando la carga termina.
      */
     public void loadMetrics() {
-        new SwingWorker<String[], Void>() {
+        new SwingWorker<ReportData, Void>() {
             @Override
-            protected String[] doInBackground() throws Exception {
-                salesService.initializeSchema();
+            protected ReportData doInBackground() throws Exception {
                 var stats = salesService.loadStats();
 
                 // Métrica real de clientes — antes hardcodeada en "0"
                 int newClients = ownerService.countNewThisMonth();
                 List<Object[]> rows = buildReportRows(salesService.recentSales(100));
 
-                return new String[]{
+                return new ReportData(
                         currency.format(stats.salesToday()),
                         currency.format(stats.salesMonth()),
                         String.valueOf(stats.itemsMonth()),
                         String.valueOf(newClients),
-                        String.valueOf(rows.size())
-                };
+                        rows
+                );
             }
 
             @Override
             protected void done() {
                 try {
-                    String[] metrics = get();
-                    view.updateMetrics(metrics[0], metrics[1], metrics[2], metrics[3]);
-                    refreshSalesTable();
+                    ReportData data = get();
+                    view.updateMetrics(data.salesToday(), data.salesMonth(), data.itemsMonth(), data.newClients());
+                    view.renderSalesRows(data.reportRows());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     LOGGER.log(Level.WARNING, "Carga de métricas interrumpida", e);
                     view.updateMetrics(currency.format(0), currency.format(0), "0", "0");
+                    view.renderSalesRows(List.of());
                 } catch (ExecutionException e) {
                     LOGGER.log(Level.WARNING, "Error cargando métricas de reportes", e.getCause());
                     view.updateMetrics(currency.format(0), currency.format(0), "0", "0");
+                    view.renderSalesRows(List.of());
                 }
             }
         }.execute();
-    }
-
-    private void refreshSalesTable() {
-        try {
-            view.renderSalesRows(buildReportRows(salesService.recentSales(100)));
-        } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "Error cargando tabla de ventas", ex);
-            view.renderSalesRows(List.of());
-        }
     }
 
     private List<Object[]> buildReportRows(List<secureauth.dao.enterprise.SalesTransactionDAO.SaleReportRow> rows) {

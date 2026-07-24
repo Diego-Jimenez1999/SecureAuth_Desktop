@@ -38,6 +38,9 @@ public class OwnerDAO {
         try (Connection conn = DatabaseConnection.getConnection();
              Statement st = conn.createStatement()) {
             st.execute(sql);
+            try {
+                st.execute("CREATE INDEX idx_owners_fecha_registro ON owners(fecha_registro)");
+            } catch (SQLException ignored) {}
             migrateOwnersTable(conn, st);
         } catch (SQLException e) {
             throw new RuntimeException("No se pudo inicializar la tabla de dueños: " + e.getMessage(), e);
@@ -321,5 +324,45 @@ public class OwnerDAO {
             return normalizedType;
         }
         return null;
+    }
+
+    public record OwnerStats(int clientsToday, int clientsWeek, int clientsMonth) {}
+
+    public OwnerStats loadOwnerStats() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.sql.Timestamp tsTodayStart = java.sql.Timestamp.valueOf(today.atStartOfDay());
+        java.sql.Timestamp tsTomorrowStart = java.sql.Timestamp.valueOf(today.plusDays(1).atStartOfDay());
+
+        java.sql.Timestamp tsWeekStart = java.sql.Timestamp.valueOf(today.with(java.time.DayOfWeek.MONDAY).atStartOfDay());
+        java.sql.Timestamp tsNextWeekStart = java.sql.Timestamp.valueOf(today.with(java.time.DayOfWeek.MONDAY).plusWeeks(1).atStartOfDay());
+
+        java.sql.Timestamp tsMonthStart = java.sql.Timestamp.valueOf(today.withDayOfMonth(1).atStartOfDay());
+        java.sql.Timestamp tsNextMonthStart = java.sql.Timestamp.valueOf(today.withDayOfMonth(1).plusMonths(1).atStartOfDay());
+
+        final String sql = """
+                SELECT
+                  COALESCE(SUM(CASE WHEN fecha_registro >= ? AND fecha_registro < ? THEN 1 ELSE 0 END), 0) AS clients_today,
+                  COALESCE(SUM(CASE WHEN fecha_registro >= ? AND fecha_registro < ? THEN 1 ELSE 0 END), 0) AS clients_week,
+                  COALESCE(SUM(CASE WHEN fecha_registro >= ? AND fecha_registro < ? THEN 1 ELSE 0 END), 0) AS clients_month
+                FROM owners
+                """;
+
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, tsTodayStart);
+            ps.setTimestamp(2, tsTomorrowStart);
+            ps.setTimestamp(3, tsWeekStart);
+            ps.setTimestamp(4, tsNextWeekStart);
+            ps.setTimestamp(5, tsMonthStart);
+            ps.setTimestamp(6, tsNextMonthStart);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new OwnerStats(rs.getInt(1), rs.getInt(2), rs.getInt(3));
+                }
+            }
+        } catch (SQLException e) {
+            // Se traga la excepción a propósito para robustez
+        }
+        return new OwnerStats(0, 0, 0);
     }
 }

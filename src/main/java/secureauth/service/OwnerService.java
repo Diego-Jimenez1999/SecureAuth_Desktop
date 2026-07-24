@@ -94,12 +94,28 @@ public class OwnerService {
     }
 
     /**
+     * Asegura que el esquema de la base de datos de dueños exista.
+     */
+    public void ensureSchema() {
+        ownerDAO.ensureSchema();
+    }
+
+    /**
      * Cuenta dueños registrados durante el mes actual.
      *
      * @return total de clientes nuevos del mes
      */
     public int countNewThisMonth() {
         return ownerDAO.countNewThisMonth();
+    }
+
+    /**
+     * Carga estadísticas de dueños registrados hoy, en la semana y en el mes.
+     *
+     * @return estadísticas de dueños
+     */
+    public OwnerDAO.OwnerStats loadOwnerStats() {
+        return ownerDAO.loadOwnerStats();
     }
 
     private void validateOwner(Owner owner) {
