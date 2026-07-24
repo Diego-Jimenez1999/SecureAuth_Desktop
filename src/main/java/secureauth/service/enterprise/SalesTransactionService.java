@@ -287,4 +287,12 @@ public class SalesTransactionService {
     public List<SaleReportRow> recentSales(int limit) throws SQLException {
         return dao.recentSales(context.getActiveBusinessId(), context.getActiveBranchId(), limit);
     }
+
+    public List<secureauth.dao.enterprise.AppointmentDAO.ServicePopularity> getPopularServices(int limit) throws SQLException {
+        return appointmentDAO.getPopularServices(limit);
+    }
+
+    public List<secureauth.dao.enterprise.SalesTransactionDAO.CategoryIncome> getIncomeByCategory(int limit) throws SQLException {
+        return dao.getIncomeByCategory(limit);
+    }
 }

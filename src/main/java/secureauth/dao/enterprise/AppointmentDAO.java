@@ -424,4 +424,35 @@ public class AppointmentDAO {
             st.execute("ALTER TABLE appointments ADD COLUMN " + column + " " + definition);
         }
     }
+
+    public record ServicePopularity(String name, int count) {}
+
+    /**
+     * Obtiene los servicios más populares basados en el conteo de citas.
+     *
+     * @param limit cantidad máxima de registros a retornar
+     * @return lista de objetos ServicePopularity
+     * @throws SQLException si ocurre un error en la base de datos
+     */
+    public List<ServicePopularity> getPopularServices(int limit) throws SQLException {
+        ensureSchema();
+        List<ServicePopularity> popularServices = new ArrayList<>();
+        String sql = """
+                SELECT service_name, COUNT(*) as qty
+                FROM appointments
+                GROUP BY service_name
+                ORDER BY qty DESC
+                LIMIT ?
+                """;
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    popularServices.add(new ServicePopularity(rs.getString(1), rs.getInt(2)));
+                }
+            }
+        }
+        return popularServices;
+    }
 }

@@ -48,9 +48,6 @@ import secureauth.controller.AuthController;
 import secureauth.controller.IngresoController;
 import secureauth.dao.UserDAO;
 import secureauth.repository.UserRepositoryImpl;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -1199,8 +1196,6 @@ public class PanelConfig extends JPanel {
 
     // ─── LÓGICA DE MÉTRICAS REALES DESDE DB (MÓDULO CONFIGURACIÓN) ───────────
 
-    private static record ServicePopularity(String name, int count) {}
-    private static record CategoryIncome(String category, double income) {}
     private static record ConfigMetricsData(
             double salesToday, double salesWeek, double salesMonth, double salesYear,
             int clientsToday, int clientsWeek, int clientsMonth,
@@ -1225,75 +1220,21 @@ public class PanelConfig extends JPanel {
                 int clientsMonth = ownerStats.clientsMonth();
 
                 // Servicios más populares (por citas)
-                List<ServicePopularity> popularServices = new ArrayList<>();
-                String sqlServices = """
-                        SELECT service_name, COUNT(*) as qty
-                        FROM appointments
-                        GROUP BY service_name
-                        ORDER BY qty DESC
-                        LIMIT 3
-                        """;
-                try (Connection conn = secureauth.config.DatabaseConnection.getConnection();
-                     PreparedStatement ps = conn.prepareStatement(sqlServices)) {
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            popularServices.add(new ServicePopularity(rs.getString(1), rs.getInt(2)));
-                        }
-                    }
-                }
-
-                int totalServicesCount = popularServices.stream().mapToInt(s -> s.count).sum();
+                var popularServices = salesService.getPopularServices(3);
+                int totalServicesCount = popularServices.stream().mapToInt(s -> s.count()).sum();
                 List<String[]> servicesData = new ArrayList<>();
-                for (ServicePopularity sp : popularServices) {
-                    double pct = totalServicesCount == 0 ? 0.0 : (sp.count * 100.0 / totalServicesCount);
-                    servicesData.add(new String[]{sp.name, String.format(Locale.US, "%.0f%%", pct)});
+                for (var sp : popularServices) {
+                    double pct = totalServicesCount == 0 ? 0.0 : (sp.count() * 100.0 / totalServicesCount);
+                    servicesData.add(new String[]{sp.name(), String.format(Locale.US, "%.0f%%", pct)});
                 }
 
                 // Ingresos por categoría
-                List<CategoryIncome> incomeList = new ArrayList<>();
-                String sqlIncome = """
-                        SELECT category, SUM(subtotal) AS income
-                        FROM (
-                            SELECT COALESCE(si.category_name, ii.category_name, 'Otros') AS category, dv.subtotal
-                            FROM detalle_venta dv
-                            LEFT JOIN sales_items si ON dv.id_producto = si.id
-                            LEFT JOIN inventory_items ii ON dv.id_producto = ii.id
-                        ) AS t
-                        GROUP BY category
-                        ORDER BY income DESC
-                        LIMIT 2
-                        """;
-                try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
-                    if (secureauth.config.SchemaInspector.tableExists(conn, "detalle_venta")) {
-                        try (PreparedStatement ps = conn.prepareStatement(sqlIncome);
-                             ResultSet rs = ps.executeQuery()) {
-                            while (rs.next()) {
-                                incomeList.add(new CategoryIncome(rs.getString(1), rs.getDouble(2)));
-                            }
-                        }
-                    }
-                }
-
-                // Fallback to existing categories if empty
-                if (incomeList.isEmpty()) {
-                    try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
-                        if (secureauth.config.SchemaInspector.tableExists(conn, "sales_categories")) {
-                            String sqlCatFallback = "SELECT DISTINCT category_name FROM sales_categories LIMIT 2";
-                            try (PreparedStatement ps = conn.prepareStatement(sqlCatFallback);
-                                 ResultSet rs = ps.executeQuery()) {
-                                while (rs.next()) {
-                                    incomeList.add(new CategoryIncome(rs.getString(1), 0.0));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                double totalIncome = incomeList.stream().mapToDouble(c -> c.income).sum();
+                var incomeList = salesService.getIncomeByCategory(2);
+                double totalIncome = incomeList.stream().mapToDouble(c -> c.income()).sum();
                 List<String[]> incomeData = new ArrayList<>();
-                for (CategoryIncome ci : incomeList) {
-                    double pct = totalIncome == 0.0 ? 0.0 : (ci.income * 100.0 / totalIncome);
-                    incomeData.add(new String[]{ci.category, String.format(Locale.US, "%.0f%%", pct)});
+                for (var ci : incomeList) {
+                    double pct = totalIncome == 0.0 ? 0.0 : (ci.income() * 100.0 / totalIncome);
+                    incomeData.add(new String[]{ci.category(), String.format(Locale.US, "%.0f%%", pct)});
                 }
 
                 return new ConfigMetricsData(
