@@ -40,12 +40,17 @@ public class AppointmentDAO {
     public static final String STATUS_CANCELLED = AppointmentStatus.CANCELLED.databaseValue();
     public static final String STATUS_ARCHIVED = AppointmentStatus.ARCHIVED.databaseValue();
 
+    private static boolean schemaInitialized = false;
+
     /**
      * Crea y migra la tabla {@code appointments} si no existe.
      *
      * @throws SQLException si falla la inicialización de esquema
      */
-    public void ensureSchema() throws SQLException {
+    public synchronized void ensureSchema() throws SQLException {
+        if (schemaInitialized) {
+            return;
+        }
         try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
             st.execute("""
                     CREATE TABLE IF NOT EXISTS appointments (
@@ -83,6 +88,7 @@ public class AppointmentDAO {
             addColumnIfMissing(conn, st, "notes", "VARCHAR(900) NULL");
             addColumnIfMissing(conn, st, "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
             addColumnIfMissing(conn, st, "created_by", "VARCHAR(120) NULL");
+            schemaInitialized = true;
         }
     }
 

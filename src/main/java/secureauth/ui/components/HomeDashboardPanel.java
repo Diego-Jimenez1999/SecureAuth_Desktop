@@ -108,6 +108,8 @@ public final class HomeDashboardPanel extends JPanel {
 
     private JPanel summaryCardsContainer;
     private JPanel monthCardsContainer;
+    private final java.util.Map<String, JLabel> valueLabelsMap = new java.util.HashMap<>();
+    private final java.util.List<String> currentVisibleCardIds = new java.util.ArrayList<>();
 
     /**
      * Constructor sin usuario (compatibilidad con código existente en IngresoFrame).
@@ -182,17 +184,86 @@ public final class HomeDashboardPanel extends JPanel {
     }
 
     /**
+     * Reconstruye los contenedores de tarjetas según la configuración actual.
+     * Si values es null, utiliza "..." como indicador de carga.
+     */
+    private void rebuildCardsUI(Map<String, String> values) {
+        valueLabelsMap.clear();
+        currentVisibleCardIds.clear();
+
+        List<DashboardCard> allCards = DashboardCardRegistry.getCards();
+        for (DashboardCard card : allCards) {
+            if (DashboardCardConfig.isVisible(card.getId(), true)) {
+                currentVisibleCardIds.add(card.getId());
+            }
+        }
+
+        // 1. Build Summary Cards panel
+        if (summaryCardsContainer != null) {
+            summaryCardsContainer.removeAll();
+            summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));
+
+            for (DashboardCard card : allCards) {
+                if (card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
+                    summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+                    summaryCardsContainer.add(createSummarySeparator());
+                    summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+
+                    String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
+                    String val = (values != null) ? values.getOrDefault(card.getId(), "...") : "...";
+                    JLabel valLbl = new JLabel(val);
+                    valueLabelsMap.put(card.getId(), valLbl);
+
+                    summaryCardsContainer.add(createSummaryCard(card.getIconPath(), title, valLbl));
+                }
+            }
+            summaryCardsContainer.revalidate();
+            summaryCardsContainer.repaint();
+        }
+
+        // 2. Build Month Cards panel
+        if (monthCardsContainer != null) {
+            monthCardsContainer.removeAll();
+            for (DashboardCard card : allCards) {
+                if (!card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
+                    String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
+                    String val = (values != null) ? values.getOrDefault(card.getId(), "...") : "...";
+                    JLabel valLbl = new JLabel(val);
+                    valueLabelsMap.put(card.getId(), valLbl);
+
+                    monthCardsContainer.add(createKpiCard(card.getIconPath(), title, valLbl));
+                }
+            }
+            monthCardsContainer.revalidate();
+            monthCardsContainer.repaint();
+        }
+    }
+
+    /**
      * Recarga los KPIs desde la base de datos en hilo de fondo.
      * Llamar al navegar al Home para mantener datos actualizados.
      */
     public final void refresh() {
+        List<String> activeConfigIds = new java.util.ArrayList<>();
+        for (DashboardCard card : DashboardCardRegistry.getCards()) {
+            if (DashboardCardConfig.isVisible(card.getId(), true)) {
+                activeConfigIds.add(card.getId());
+            }
+        }
+
+        if (!activeConfigIds.equals(currentVisibleCardIds)) {
+            rebuildCardsUI(null);
+        } else {
+            for (JLabel lbl : valueLabelsMap.values()) {
+                lbl.setText("...");
+            }
+        }
+
         new SwingWorker<DashboardData, Void>() {
             @Override
             protected DashboardData doInBackground() throws Exception {
-                salesService.initializeSchema();
-                inventoryService.initializeSchema();
-                actividadService.initializeSchema();
-                appointmentService.initializeSchema();
+                // REDUNDANT schema initializations removed for speed & query optimization.
+                // Database schema initializations are run exactly once inside AppContext.initialize() during startup.
 
                 AppContext localContext = createLocalAppContext();
                 Map<String, String> cardValues = new java.util.HashMap<>();
@@ -228,40 +299,23 @@ public final class HomeDashboardPanel extends JPanel {
                     DashboardData data = get();
                     Map<String, String> cardValues = data.cardValues();
 
-                    // Rebuild Summary Cards panel
-                    summaryCardsContainer.removeAll();
-                    summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));
-
-                    List<DashboardCard> allCards = DashboardCardRegistry.getCards();
-                    for (DashboardCard card : allCards) {
-                        if (card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
-                            summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-                            summaryCardsContainer.add(createSummarySeparator());
-                            summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-
-                            String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
-                            String val = cardValues.getOrDefault(card.getId(), "--");
-                            JLabel valLbl = new JLabel(val);
-
-                            summaryCardsContainer.add(createSummaryCard(card.getIconPath(), title, valLbl));
+                    List<String> finalConfigIds = new java.util.ArrayList<>();
+                    for (DashboardCard card : DashboardCardRegistry.getCards()) {
+                        if (DashboardCardConfig.isVisible(card.getId(), true)) {
+                            finalConfigIds.add(card.getId());
                         }
                     }
-                    summaryCardsContainer.revalidate();
-                    summaryCardsContainer.repaint();
 
-                    // Rebuild Month Cards panel
-                    monthCardsContainer.removeAll();
-                    for (DashboardCard card : allCards) {
-                        if (!card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
-                            String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
-                            String val = cardValues.getOrDefault(card.getId(), "--");
-                            JLabel valLbl = new JLabel(val);
-
-                            monthCardsContainer.add(createKpiCard(card.getIconPath(), title, valLbl));
+                    if (!finalConfigIds.equals(currentVisibleCardIds)) {
+                        rebuildCardsUI(cardValues);
+                    } else {
+                        for (Map.Entry<String, String> entry : cardValues.entrySet()) {
+                            JLabel lbl = valueLabelsMap.get(entry.getKey());
+                            if (lbl != null) {
+                                lbl.setText(entry.getValue());
+                            }
                         }
                     }
-                    monthCardsContainer.revalidate();
-                    monthCardsContainer.repaint();
 
                     renderMovements(data.movements());
                     renderAppointments(data.appointments());
@@ -298,6 +352,20 @@ public final class HomeDashboardPanel extends JPanel {
         welcomeLabel.setForeground(Color.BLACK);
         topHeaderPanel.add(welcomeLabel, BorderLayout.WEST);
 
+        JPanel headerActionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        headerActionsPanel.setOpaque(false);
+
+        JButton btnRefresh = new JButton("🔄 Actualizar Datos");
+        btnRefresh.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnRefresh.setBackground(new Color(31, 41, 55));
+        btnRefresh.setForeground(Color.WHITE);
+        btnRefresh.setBorderPainted(false);
+        btnRefresh.setFocusPainted(false);
+        btnRefresh.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnRefresh.setBorder(new EmptyBorder(8, 14, 8, 14));
+        btnRefresh.addActionListener(e -> refresh());
+        headerActionsPanel.add(btnRefresh);
+
         JButton btnConfigure = new JButton("⚙ Configurar Tarjetas");
         btnConfigure.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnConfigure.setBackground(new Color(31, 41, 55));
@@ -311,7 +379,9 @@ public final class HomeDashboardPanel extends JPanel {
             DashboardCardConfigDialog dlg = new DashboardCardConfigDialog(window);
             dlg.setVisible(true);
         });
-        topHeaderPanel.add(btnConfigure, BorderLayout.EAST);
+        headerActionsPanel.add(btnConfigure);
+
+        topHeaderPanel.add(headerActionsPanel, BorderLayout.EAST);
 
         add(topHeaderPanel, BorderLayout.NORTH);
 
@@ -365,6 +435,9 @@ public final class HomeDashboardPanel extends JPanel {
         centerContent.add(tablesRow, BorderLayout.CENTER);
 
         add(centerContent, BorderLayout.CENTER);
+
+        // Pre-build the cards with standard loading indicators ("...") so the UI displays immediately
+        rebuildCardsUI(null);
     }
 
     private JPanel createKpiPanel() {

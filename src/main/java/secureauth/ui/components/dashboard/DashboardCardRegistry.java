@@ -13,7 +13,6 @@ public final class DashboardCardRegistry {
         registerCard(new SalesTodayCard());
         registerCard(new SalesMonthCard());
         registerCard(new NewClientsMonthCard());
-        registerCard(new NewUsersMonthCard());
     }
 
     public static synchronized void registerCard(DashboardCard card) {

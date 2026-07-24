@@ -17,7 +17,12 @@ import secureauth.model.Venta;
 /** DAO de ventas POS para persistir totales y métricas por sucursal. */
 public class SalesTransactionDAO {
 
-    public void ensureSchema() throws SQLException {
+    private static boolean schemaInitialized = false;
+
+    public synchronized void ensureSchema() throws SQLException {
+        if (schemaInitialized) {
+            return;
+        }
         try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
             st.execute("""
                     CREATE TABLE IF NOT EXISTS sales_tx (
@@ -77,7 +82,7 @@ public class SalesTransactionDAO {
                         CONSTRAINT fk_detalle_venta FOREIGN KEY (id_venta) REFERENCES ventas(id_venta)
                     )
                     """);
-
+            schemaInitialized = true;
         } catch (SQLException e) {
             // Log as SEVERE as schema initialization is critical
             System.err.println("Error initializing SalesTransactionDAO schema: " + e.getMessage());

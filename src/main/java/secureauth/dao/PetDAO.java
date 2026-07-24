@@ -22,6 +22,7 @@ import secureauth.model.Pet;
 public class PetDAO {
 
     private static final Logger LOGGER = Logger.getLogger(PetDAO.class.getName());
+    private static boolean schemaInitialized = false;
 
     /**
      * Crea y migra la tabla de mascotas necesaria para el módulo de registro.
@@ -30,7 +31,10 @@ public class PetDAO {
      * {@code owners} pero no {@code pets}, el registro no dependerá de scripts
      * manuales externos.</p>
      */
-    public void ensureSchema() {
+    public synchronized void ensureSchema() {
+        if (schemaInitialized) {
+            return;
+        }
         try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
             st.execute("""
                     CREATE TABLE IF NOT EXISTS owners (
@@ -64,6 +68,7 @@ public class PetDAO {
                     )
                     """);
             migratePetsTable(conn, st);
+            schemaInitialized = true;
         } catch (SQLException e) {
             throw new PetDataAccessException("No se pudo inicializar la tabla de mascotas.", e);
         }

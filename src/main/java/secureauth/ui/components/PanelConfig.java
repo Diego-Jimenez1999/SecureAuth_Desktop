@@ -419,8 +419,7 @@ public class PanelConfig extends JPanel {
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
         // Tarjeta 1 — Gestión de Ventas y Servicios
-        ImageIcon serviceIcon = new ImageIcon(//
-        getClass().getResource("/icon/service.png"));
+        ImageIcon serviceIcon = UiTheme.scaleImage("/icon/service.png", 72, 72);
 
         row.add(buildActionCard(
             serviceIcon, "Gestión de Ventas y Servicios",
@@ -433,8 +432,7 @@ public class PanelConfig extends JPanel {
         ));
 
         // Tarjeta 2 — Control de Inventario y Productos
-        ImageIcon inventoryIcon = new ImageIcon(//dirección de icono de inventario
-        getClass().getResource("/icon/inventory.png"));
+        ImageIcon inventoryIcon = UiTheme.scaleImage("/icon/inventory.png", 72, 72);
         row.add(buildActionCard(
 
             inventoryIcon, "Control de Inventario y Productos",
@@ -447,8 +445,7 @@ public class PanelConfig extends JPanel {
         ));
 
         // Tarjeta 3 — Control de Usuarios (Trabajadores)
-        ImageIcon usersIcon = new ImageIcon( //direccion de icono de usuarios
-        getClass().getResource("/icon/users.png"));
+        ImageIcon usersIcon = UiTheme.scaleImage("/icon/users.png", 72, 72);
 
         row.add(buildActionCard(
             usersIcon, "Control de Usuarios (Trabajadores)",
@@ -461,8 +458,7 @@ public class PanelConfig extends JPanel {
         ));
 
         // Tarjeta 4 — Configuración de la Aplicación
-        ImageIcon configIcon = new ImageIcon( //direccion de icono de configuracion
-        getClass().getResource("/icon/config_1.png"));
+        ImageIcon configIcon = UiTheme.scaleImage("/icon/config_1.png", 72, 72);
 
         row.add(buildActionCard(
             configIcon, "Configuración de la Aplicación",
@@ -1210,8 +1206,6 @@ public class PanelConfig extends JPanel {
         new SwingWorker<ConfigMetricsData, Void>() {
             @Override
             protected ConfigMetricsData doInBackground() throws Exception {
-                ownerService.ensureSchema();
-
                 var salesStats = salesService.loadDetailedStats();
                 var ownerStats = ownerService.loadOwnerStats();
 
