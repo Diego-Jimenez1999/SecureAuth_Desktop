@@ -121,6 +121,30 @@ public class PetDAO {
     }
 
     /**
+     * Cuenta el total de mascotas registradas para un negocio/empresa.
+     *
+     * @param businessId identificador del negocio
+     * @return cantidad de mascotas registradas
+     */
+    public int countAll(int businessId) {
+        ensureSchema();
+        final String sql = "SELECT COUNT(*) FROM pets WHERE ? <= 0 OR business_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, businessId);
+            ps.setInt(2, businessId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "Error consultando cantidad total de mascotas.", e);
+        }
+        return 0;
+    }
+
+    /**
      * Busca las mascotas registradas para un dueño específico.
      *
      * @param ownerId identificador del dueño en la tabla {@code owners}

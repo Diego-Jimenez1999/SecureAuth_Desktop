@@ -1,4 +1,6 @@
 #Dashboard Cards Configuration
-#Fri Jul 24 02:47:20 UTC 2026
+#Sat Jul 25 04:34:12 UTC 2026
+card.db_test_card.title=DB Title
+card.db_test_card.visible=true
 card.test_custom_card.title=New Custom Title
 card.test_custom_card.visible=false

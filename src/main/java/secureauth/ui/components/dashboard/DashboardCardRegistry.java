@@ -14,6 +14,12 @@ public final class DashboardCardRegistry {
         registerCard(new SalesMonthCard());
         registerCard(new NewClientsMonthCard());
         registerCard(new NewUsersMonthCard());
+
+        // New configurable cards
+        registerCard(new ProfitMonthCard());
+        registerCard(new LowStockProductsCard());
+        registerCard(new RegisteredPetsCard());
+        registerCard(new SalesByBranchCard());
     }
 
     public static synchronized void registerCard(DashboardCard card) {

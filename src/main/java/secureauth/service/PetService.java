@@ -82,6 +82,15 @@ public class PetService {
         return petDAO.findByOwnerId(ownerId, enterpriseContext.getActiveBusinessId());
     }
 
+    /**
+     * Obtiene la cantidad total de mascotas registradas para el negocio activo.
+     *
+     * @return total de mascotas registradas
+     */
+    public int countAll() {
+        return petDAO.countAll(enterpriseContext.getActiveBusinessId());
+    }
+
     private void assignActiveBusinessIfMissing(Pet pet) {
         if (pet != null && pet.getBusinessId() <= 0) {
             pet.setBusinessId(enterpriseContext.getActiveBusinessId());
