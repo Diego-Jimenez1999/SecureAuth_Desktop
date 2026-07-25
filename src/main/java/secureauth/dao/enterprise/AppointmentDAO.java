@@ -424,4 +424,28 @@ public class AppointmentDAO {
             st.execute("ALTER TABLE appointments ADD COLUMN " + column + " " + definition);
         }
     }
+
+    public record ServicePopularity(String name, int count) {}
+
+    public List<ServicePopularity> findPopularServices(int limit) throws SQLException {
+        ensureSchema();
+        String sql = """
+                SELECT service_name, COUNT(*) as qty
+                FROM appointments
+                GROUP BY service_name
+                ORDER BY qty DESC
+                LIMIT ?
+                """;
+        List<ServicePopularity> list = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new ServicePopularity(rs.getString(1), rs.getInt(2)));
+                }
+            }
+        }
+        return list;
+    }
 }

@@ -281,6 +281,10 @@ public class AppointmentService {
         secureauth.shared.events.DashboardEventBus.notifyDataChanged();
     }
 
+    public List<AppointmentDAO.ServicePopularity> findPopularServices(int limit) throws SQLException {
+        return appointmentDAO.findPopularServices(limit);
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }

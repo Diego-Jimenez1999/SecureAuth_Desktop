@@ -304,6 +304,55 @@ public class SalesTransactionDAO {
         }
     }
 
+    public record CategoryIncome(String category, double income) {}
+
+    public List<CategoryIncome> loadIncomeByCategory(int limit) throws SQLException {
+        ensureSchema();
+        List<CategoryIncome> incomeList = new ArrayList<>();
+        String sqlIncome = """
+                SELECT category, SUM(subtotal) AS income
+                FROM (
+                    SELECT COALESCE(si.category_name, ii.category_name, 'Otros') AS category, dv.subtotal
+                    FROM detalle_venta dv
+                    LEFT JOIN sales_items si ON dv.id_producto = si.id
+                    LEFT JOIN inventory_items ii ON dv.id_producto = ii.id
+                ) AS t
+                GROUP BY category
+                ORDER BY income DESC
+                LIMIT ?
+                """;
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            if (SchemaInspector.tableExists(conn, "detalle_venta")) {
+                try (PreparedStatement ps = conn.prepareStatement(sqlIncome)) {
+                    ps.setInt(1, limit);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            incomeList.add(new CategoryIncome(rs.getString(1), rs.getDouble(2)));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback to existing categories if empty
+        if (incomeList.isEmpty()) {
+            try (Connection conn = DatabaseConnection.getConnection()) {
+                if (SchemaInspector.tableExists(conn, "sales_categories")) {
+                    String sqlCatFallback = "SELECT DISTINCT category_name FROM sales_categories LIMIT ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlCatFallback)) {
+                        ps.setInt(1, limit);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            while (rs.next()) {
+                                incomeList.add(new CategoryIncome(rs.getString(1), 0.0));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return incomeList;
+    }
+
     public record SaleReportRow(int id, java.time.LocalDateTime createdAt, String userName, String clientName,
                                 double total, String itemsSummary, int itemsCount, String paymentMethod) { }
 }

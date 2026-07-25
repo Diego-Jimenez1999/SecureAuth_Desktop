@@ -284,6 +284,10 @@ public class SalesTransactionService {
 
     public record DashboardStats(double salesToday, double salesMonth, double gainMonth, int itemsMonth) { }
 
+    public List<SalesTransactionDAO.CategoryIncome> loadIncomeByCategory(int limit) throws SQLException {
+        return dao.loadIncomeByCategory(limit);
+    }
+
     public List<SaleReportRow> recentSales(int limit) throws SQLException {
         return dao.recentSales(context.getActiveBusinessId(), context.getActiveBranchId(), limit);
     }
