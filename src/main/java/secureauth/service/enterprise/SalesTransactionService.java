@@ -83,11 +83,13 @@ public class SalesTransactionService {
     }
 
     public void registerSale(double total, double gain, double tax, int items, String paymentMethod) throws SQLException {
+        clearCache();
         dao.insertTx(context.getActiveBusinessId(), context.getActiveBranchId(), total, gain, tax, items, paymentMethod);
     }
 
     public void registerSale(double total, double gain, double tax, int items, String paymentMethod,
             String itemsSummary, String clientName, String userName) throws SQLException {
+        clearCache();
         dao.insertTx(context.getActiveBusinessId(), context.getActiveBranchId(), total, gain, tax, items, paymentMethod,
                 itemsSummary, clientName, userName);
     }
@@ -201,6 +203,7 @@ public class SalesTransactionService {
                     String auditCita = "Cita agendada | Mascota: " + appointment.getPetName() + " | Servicio: " + appointment.getServiceName() + " (" + appointment.getAppointmentDate() + " " + appointment.getAppointmentTime() + ")";
                     actividadDAO.insert(conn, auditCita, "CITAS", appointment.getCreatedBy());
                 }
+                clearCache();
                 conn.commit();
                 if (!appointments.isEmpty()) {
                     AppointmentService.notifyAppointmentsChanged();
@@ -266,20 +269,45 @@ public class SalesTransactionService {
                 .collect(Collectors.joining(", "));
     }
 
-    public DashboardStats loadStats() throws SQLException {
+    private DashboardStats cachedStats;
+    private long cachedStatsTime = 0;
+
+    private SalesTransactionDAO.SalesStats cachedDetailedStats;
+    private long cachedDetailedStatsTime = 0;
+
+    private synchronized void clearCache() {
+        cachedStats = null;
+        cachedStatsTime = 0;
+        cachedDetailedStats = null;
+        cachedDetailedStatsTime = 0;
+    }
+
+    public synchronized DashboardStats loadStats() throws SQLException {
+        long now = System.currentTimeMillis();
+        if (cachedStats != null && (now - cachedStatsTime < 2000)) {
+            return cachedStats;
+        }
         int businessId = context.getActiveBusinessId();
         int branchId = context.getActiveBranchId();
         var stats = dao.loadDashboardStats(businessId, branchId);
-        return new DashboardStats(
+        cachedStats = new DashboardStats(
                 stats.salesToday(),
                 stats.salesMonth(),
                 stats.gainMonth(),
                 stats.itemsMonth()
         );
+        cachedStatsTime = now;
+        return cachedStats;
     }
 
-    public SalesTransactionDAO.SalesStats loadDetailedStats() throws SQLException {
-        return dao.loadDashboardStats(context.getActiveBusinessId(), context.getActiveBranchId());
+    public synchronized SalesTransactionDAO.SalesStats loadDetailedStats() throws SQLException {
+        long now = System.currentTimeMillis();
+        if (cachedDetailedStats != null && (now - cachedDetailedStatsTime < 2000)) {
+            return cachedDetailedStats;
+        }
+        cachedDetailedStats = dao.loadDashboardStats(context.getActiveBusinessId(), context.getActiveBranchId());
+        cachedDetailedStatsTime = now;
+        return cachedDetailedStats;
     }
 
     public record DashboardStats(double salesToday, double salesMonth, double gainMonth, int itemsMonth) { }

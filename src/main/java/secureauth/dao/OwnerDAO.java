@@ -21,10 +21,17 @@ import secureauth.model.Owner;
  */
 public class OwnerDAO {
 
+    private static boolean schemaInitialized = false;
+
     /**
      * Garantiza que la tabla de dueños exista antes de consultar o insertar.
      */
     public void ensureSchema() {
+        synchronized (OwnerDAO.class) {
+            if (schemaInitialized) {
+                return;
+            }
+        }
         final String sql = """
                 CREATE TABLE IF NOT EXISTS owners (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -42,6 +49,9 @@ public class OwnerDAO {
                 st.execute("CREATE INDEX idx_owners_fecha_registro ON owners(fecha_registro)");
             } catch (SQLException ignored) {}
             migrateOwnersTable(conn, st);
+            synchronized (OwnerDAO.class) {
+                schemaInitialized = true;
+            }
         } catch (SQLException e) {
             throw new RuntimeException("No se pudo inicializar la tabla de dueños: " + e.getMessage(), e);
         }

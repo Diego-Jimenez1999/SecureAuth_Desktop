@@ -30,6 +30,8 @@ import secureauth.model.AppointmentStatus;
  */
 public class AppointmentDAO {
 
+    private static boolean schemaInitialized = false;
+
     /**
      * Estados operativos soportados por el módulo de citas.
      */
@@ -46,6 +48,11 @@ public class AppointmentDAO {
      * @throws SQLException si falla la inicialización de esquema
      */
     public void ensureSchema() throws SQLException {
+        synchronized (AppointmentDAO.class) {
+            if (schemaInitialized) {
+                return;
+            }
+        }
         try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
             st.execute("""
                     CREATE TABLE IF NOT EXISTS appointments (
@@ -83,6 +90,9 @@ public class AppointmentDAO {
             addColumnIfMissing(conn, st, "notes", "VARCHAR(900) NULL");
             addColumnIfMissing(conn, st, "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
             addColumnIfMissing(conn, st, "created_by", "VARCHAR(120) NULL");
+        }
+        synchronized (AppointmentDAO.class) {
+            schemaInitialized = true;
         }
     }
 

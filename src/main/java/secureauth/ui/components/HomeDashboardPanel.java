@@ -90,6 +90,7 @@ public final class HomeDashboardPanel extends JPanel {
     private static final int SUMMARY_METRIC_ICON_HEIGHT = 64;
 
     private final JLabel welcomeLabel      = new JLabel("¡Bienvenido!");
+    private final Map<String, JLabel> cardValueLabelsMap = new java.util.HashMap<>();
 
     private final SalesTransactionService salesService;
     private final OwnerService ownerService;
@@ -228,40 +229,30 @@ public final class HomeDashboardPanel extends JPanel {
                     DashboardData data = get();
                     Map<String, String> cardValues = data.cardValues();
 
-                    // Rebuild Summary Cards panel
-                    summaryCardsContainer.removeAll();
-                    summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));
-
-                    List<DashboardCard> allCards = DashboardCardRegistry.getCards();
-                    for (DashboardCard card : allCards) {
-                        if (card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
-                            summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-                            summaryCardsContainer.add(createSummarySeparator());
-                            summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-
-                            String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
-                            String val = cardValues.getOrDefault(card.getId(), "--");
-                            JLabel valLbl = new JLabel(val);
-
-                            summaryCardsContainer.add(createSummaryCard(card.getIconPath(), title, valLbl));
+                    boolean needsRebuild = false;
+                    List<DashboardCard> visibleCards = DashboardCardRegistry.getCards().stream()
+                            .filter(c -> DashboardCardConfig.isVisible(c.getId(), true))
+                            .toList();
+                    for (DashboardCard card : visibleCards) {
+                        if (!cardValueLabelsMap.containsKey(card.getId())) {
+                            needsRebuild = true;
+                            break;
                         }
                     }
-                    summaryCardsContainer.revalidate();
-                    summaryCardsContainer.repaint();
+                    if (cardValueLabelsMap.size() != visibleCards.size()) {
+                        needsRebuild = true;
+                    }
 
-                    // Rebuild Month Cards panel
-                    monthCardsContainer.removeAll();
-                    for (DashboardCard card : allCards) {
-                        if (!card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
-                            String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
-                            String val = cardValues.getOrDefault(card.getId(), "--");
-                            JLabel valLbl = new JLabel(val);
-
-                            monthCardsContainer.add(createKpiCard(card.getIconPath(), title, valLbl));
+                    if (needsRebuild) {
+                        rebuildCardsUI(cardValues);
+                    } else {
+                        for (Map.Entry<String, String> entry : cardValues.entrySet()) {
+                            JLabel label = cardValueLabelsMap.get(entry.getKey());
+                            if (label != null) {
+                                label.setText(entry.getValue());
+                            }
                         }
                     }
-                    monthCardsContainer.revalidate();
-                    monthCardsContainer.repaint();
 
                     renderMovements(data.movements());
                     renderAppointments(data.appointments());
@@ -298,6 +289,20 @@ public final class HomeDashboardPanel extends JPanel {
         welcomeLabel.setForeground(Color.BLACK);
         topHeaderPanel.add(welcomeLabel, BorderLayout.WEST);
 
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setOpaque(false);
+
+        JButton btnRefresh = new JButton("🔄 Actualizar");
+        btnRefresh.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnRefresh.setBackground(new Color(16, 185, 129));
+        btnRefresh.setForeground(Color.WHITE);
+        btnRefresh.setBorderPainted(false);
+        btnRefresh.setFocusPainted(false);
+        btnRefresh.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnRefresh.setBorder(new EmptyBorder(8, 14, 8, 14));
+        btnRefresh.addActionListener(e -> refresh());
+        buttonPanel.add(btnRefresh);
+
         JButton btnConfigure = new JButton("⚙ Configurar Tarjetas");
         btnConfigure.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnConfigure.setBackground(new Color(31, 41, 55));
@@ -311,7 +316,9 @@ public final class HomeDashboardPanel extends JPanel {
             DashboardCardConfigDialog dlg = new DashboardCardConfigDialog(window);
             dlg.setVisible(true);
         });
-        topHeaderPanel.add(btnConfigure, BorderLayout.EAST);
+        buttonPanel.add(btnConfigure);
+
+        topHeaderPanel.add(buttonPanel, BorderLayout.EAST);
 
         add(topHeaderPanel, BorderLayout.NORTH);
 
@@ -365,6 +372,49 @@ public final class HomeDashboardPanel extends JPanel {
         centerContent.add(tablesRow, BorderLayout.CENTER);
 
         add(centerContent, BorderLayout.CENTER);
+
+        rebuildCardsUI(null);
+    }
+
+    private void rebuildCardsUI(Map<String, String> cardValues) {
+        cardValueLabelsMap.clear();
+
+        // Rebuild Summary Cards panel
+        summaryCardsContainer.removeAll();
+        summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));
+
+        List<DashboardCard> allCards = DashboardCardRegistry.getCards();
+        for (DashboardCard card : allCards) {
+            if (card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
+                summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+                summaryCardsContainer.add(createSummarySeparator());
+                summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+
+                String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
+                String val = cardValues != null ? cardValues.getOrDefault(card.getId(), "...") : "...";
+                JLabel valLbl = new JLabel(val);
+                cardValueLabelsMap.put(card.getId(), valLbl);
+
+                summaryCardsContainer.add(createSummaryCard(card.getIconPath(), title, valLbl));
+            }
+        }
+        summaryCardsContainer.revalidate();
+        summaryCardsContainer.repaint();
+
+        // Rebuild Month Cards panel
+        monthCardsContainer.removeAll();
+        for (DashboardCard card : allCards) {
+            if (!card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
+                String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
+                String val = cardValues != null ? cardValues.getOrDefault(card.getId(), "...") : "...";
+                JLabel valLbl = new JLabel(val);
+                cardValueLabelsMap.put(card.getId(), valLbl);
+
+                monthCardsContainer.add(createKpiCard(card.getIconPath(), title, valLbl));
+            }
+        }
+        monthCardsContainer.revalidate();
+        monthCardsContainer.repaint();
     }
 
     private JPanel createKpiPanel() {
