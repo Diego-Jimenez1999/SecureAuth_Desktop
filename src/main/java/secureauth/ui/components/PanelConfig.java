@@ -224,6 +224,11 @@ public class PanelConfig extends JPanel {
         texts.add(subtitle);
 
         header.add(texts, BorderLayout.WEST);
+
+        JButton btnRefresh = buildDarkButton("🔄 Actualizar Estadísticas");
+        btnRefresh.addActionListener(e -> loadConfigMetrics());
+        header.add(btnRefresh, BorderLayout.EAST);
+
         return header;
     }
 
@@ -418,9 +423,8 @@ public class PanelConfig extends JPanel {
         // garantizando GridLayout a partir del preferredSize de las tarjetas.
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-        // Tarjeta 1 — Gestión de Ventas y Servicios
-        ImageIcon serviceIcon = new ImageIcon(//
-        getClass().getResource("/icon/service.png"));
+        // Tarjeta 1 — Gestión de Ventas y Servicios (cargada mediante caché centralizada)
+        ImageIcon serviceIcon = UiTheme.scaleImage("/icon/service.png", 72, 72);
 
         row.add(buildActionCard(
             serviceIcon, "Gestión de Ventas y Servicios",
@@ -432,11 +436,9 @@ public class PanelConfig extends JPanel {
             }
         ));
 
-        // Tarjeta 2 — Control de Inventario y Productos
-        ImageIcon inventoryIcon = new ImageIcon(//dirección de icono de inventario
-        getClass().getResource("/icon/inventory.png"));
+        // Tarjeta 2 — Control de Inventario y Productos (cargada mediante caché centralizada)
+        ImageIcon inventoryIcon = UiTheme.scaleImage("/icon/inventory.png", 72, 72);
         row.add(buildActionCard(
-
             inventoryIcon, "Control de Inventario y Productos",
             "Administra productos físicos, stock mínimo y alertas, importación masiva",
             new String[]{"Ver Inventario", "Importar CSV/Excel"},
@@ -446,9 +448,8 @@ public class PanelConfig extends JPanel {
             }
         ));
 
-        // Tarjeta 3 — Control de Usuarios (Trabajadores)
-        ImageIcon usersIcon = new ImageIcon( //direccion de icono de usuarios
-        getClass().getResource("/icon/users.png"));
+        // Tarjeta 3 — Control de Usuarios (Trabajadores) (cargada mediante caché centralizada)
+        ImageIcon usersIcon = UiTheme.scaleImage("/icon/users.png", 72, 72);
 
         row.add(buildActionCard(
             usersIcon, "Control de Usuarios (Trabajadores)",
@@ -460,9 +461,8 @@ public class PanelConfig extends JPanel {
             }
         ));
 
-        // Tarjeta 4 — Configuración de la Aplicación
-        ImageIcon configIcon = new ImageIcon( //direccion de icono de configuracion
-        getClass().getResource("/icon/config_1.png"));
+        // Tarjeta 4 — Configuración de la Aplicación (cargada mediante caché centralizada)
+        ImageIcon configIcon = UiTheme.scaleImage("/icon/config_1.png", 72, 72);
 
         row.add(buildActionCard(
             configIcon, "Configuración de la Aplicación",
@@ -1224,8 +1224,9 @@ public class PanelConfig extends JPanel {
                 int clientsWeek = ownerStats.clientsWeek();
                 int clientsMonth = ownerStats.clientsMonth();
 
-                // Servicios más populares (por citas)
+                // Servicios más populares (por citas) e ingresos por categoría agrupados bajo una misma conexión
                 List<ServicePopularity> popularServices = new ArrayList<>();
+                List<CategoryIncome> incomeList = new ArrayList<>();
                 String sqlServices = """
                         SELECT service_name, COUNT(*) as qty
                         FROM appointments
@@ -1233,24 +1234,6 @@ public class PanelConfig extends JPanel {
                         ORDER BY qty DESC
                         LIMIT 3
                         """;
-                try (Connection conn = secureauth.config.DatabaseConnection.getConnection();
-                     PreparedStatement ps = conn.prepareStatement(sqlServices)) {
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            popularServices.add(new ServicePopularity(rs.getString(1), rs.getInt(2)));
-                        }
-                    }
-                }
-
-                int totalServicesCount = popularServices.stream().mapToInt(s -> s.count).sum();
-                List<String[]> servicesData = new ArrayList<>();
-                for (ServicePopularity sp : popularServices) {
-                    double pct = totalServicesCount == 0 ? 0.0 : (sp.count * 100.0 / totalServicesCount);
-                    servicesData.add(new String[]{sp.name, String.format(Locale.US, "%.0f%%", pct)});
-                }
-
-                // Ingresos por categoría
-                List<CategoryIncome> incomeList = new ArrayList<>();
                 String sqlIncome = """
                         SELECT category, SUM(subtotal) AS income
                         FROM (
@@ -1263,7 +1246,17 @@ public class PanelConfig extends JPanel {
                         ORDER BY income DESC
                         LIMIT 2
                         """;
+
                 try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                    // 1. Servicios más populares
+                    try (PreparedStatement ps = conn.prepareStatement(sqlServices);
+                         ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            popularServices.add(new ServicePopularity(rs.getString(1), rs.getInt(2)));
+                        }
+                    }
+
+                    // 2. Ingresos por categoría
                     if (secureauth.config.SchemaInspector.tableExists(conn, "detalle_venta")) {
                         try (PreparedStatement ps = conn.prepareStatement(sqlIncome);
                              ResultSet rs = ps.executeQuery()) {
@@ -1272,11 +1265,9 @@ public class PanelConfig extends JPanel {
                             }
                         }
                     }
-                }
 
-                // Fallback to existing categories if empty
-                if (incomeList.isEmpty()) {
-                    try (Connection conn = secureauth.config.DatabaseConnection.getConnection()) {
+                    // 3. Fallback en caso de estar vacío
+                    if (incomeList.isEmpty()) {
                         if (secureauth.config.SchemaInspector.tableExists(conn, "sales_categories")) {
                             String sqlCatFallback = "SELECT DISTINCT category_name FROM sales_categories LIMIT 2";
                             try (PreparedStatement ps = conn.prepareStatement(sqlCatFallback);
@@ -1287,6 +1278,13 @@ public class PanelConfig extends JPanel {
                             }
                         }
                     }
+                }
+
+                int totalServicesCount = popularServices.stream().mapToInt(s -> s.count).sum();
+                List<String[]> servicesData = new ArrayList<>();
+                for (ServicePopularity sp : popularServices) {
+                    double pct = totalServicesCount == 0 ? 0.0 : (sp.count * 100.0 / totalServicesCount);
+                    servicesData.add(new String[]{sp.name, String.format(Locale.US, "%.0f%%", pct)});
                 }
 
                 double totalIncome = incomeList.stream().mapToDouble(c -> c.income).sum();

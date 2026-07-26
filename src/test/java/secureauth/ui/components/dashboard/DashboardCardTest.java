@@ -17,6 +17,11 @@ public class DashboardCardTest {
         boolean hasScheduled = cards.stream()
                 .anyMatch(c -> c.getId().equals("scheduled_appointments"));
         assertTrue(hasScheduled);
+
+        // Verify NewUsersMonthCard ("new_users_month") has been completely removed from default cards
+        boolean hasNewUsersCard = cards.stream()
+                .anyMatch(c -> c.getId().equals("new_users_month"));
+        assertFalse(hasNewUsersCard, "new_users_month should be completely removed");
     }
 
     @Test

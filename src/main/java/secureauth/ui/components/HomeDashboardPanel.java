@@ -108,6 +108,7 @@ public final class HomeDashboardPanel extends JPanel {
 
     private JPanel summaryCardsContainer;
     private JPanel monthCardsContainer;
+    private final Map<String, JLabel> cardValueLabels = new java.util.HashMap<>();
 
     /**
      * Constructor sin usuario (compatibilidad con código existente en IngresoFrame).
@@ -182,6 +183,51 @@ public final class HomeDashboardPanel extends JPanel {
     }
 
     /**
+     * Reconstruye visualmente la estructura de las tarjetas de métricas.
+     * Si cardValues es null, muestra un indicador de carga ("...") en los valores.
+     */
+    private void rebuildCardsUI(Map<String, String> cardValues) {
+        cardValueLabels.clear();
+
+        // Construir panel de tarjetas de resumen
+        summaryCardsContainer.removeAll();
+        summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));
+
+        List<DashboardCard> allCards = DashboardCardRegistry.getCards();
+        for (DashboardCard card : allCards) {
+            if (card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
+                summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+                summaryCardsContainer.add(createSummarySeparator());
+                summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
+
+                String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
+                String val = (cardValues != null) ? cardValues.getOrDefault(card.getId(), "...") : "...";
+                JLabel valLbl = new JLabel(val);
+                cardValueLabels.put(card.getId(), valLbl);
+
+                summaryCardsContainer.add(createSummaryCard(card.getIconPath(), title, valLbl));
+            }
+        }
+        summaryCardsContainer.revalidate();
+        summaryCardsContainer.repaint();
+
+        // Construir panel de tarjetas del mes
+        monthCardsContainer.removeAll();
+        for (DashboardCard card : allCards) {
+            if (!card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
+                String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
+                String val = (cardValues != null) ? cardValues.getOrDefault(card.getId(), "...") : "...";
+                JLabel valLbl = new JLabel(val);
+                cardValueLabels.put(card.getId(), valLbl);
+
+                monthCardsContainer.add(createKpiCard(card.getIconPath(), title, valLbl));
+            }
+        }
+        monthCardsContainer.revalidate();
+        monthCardsContainer.repaint();
+    }
+
+    /**
      * Recarga los KPIs desde la base de datos en hilo de fondo.
      * Llamar al navegar al Home para mantener datos actualizados.
      */
@@ -228,40 +274,19 @@ public final class HomeDashboardPanel extends JPanel {
                     DashboardData data = get();
                     Map<String, String> cardValues = data.cardValues();
 
-                    // Rebuild Summary Cards panel
-                    summaryCardsContainer.removeAll();
-                    summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));
+                    long expectedCardsCount = DashboardCardRegistry.getCards().stream()
+                            .filter(c -> DashboardCardConfig.isVisible(c.getId(), true))
+                            .count();
 
-                    List<DashboardCard> allCards = DashboardCardRegistry.getCards();
-                    for (DashboardCard card : allCards) {
-                        if (card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
-                            summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-                            summaryCardsContainer.add(createSummarySeparator());
-                            summaryCardsContainer.add(Box.createHorizontalStrut(KPI_CARD_GAP));
-
-                            String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
-                            String val = cardValues.getOrDefault(card.getId(), "--");
-                            JLabel valLbl = new JLabel(val);
-
-                            summaryCardsContainer.add(createSummaryCard(card.getIconPath(), title, valLbl));
+                    if (cardValueLabels.size() != expectedCardsCount) {
+                        rebuildCardsUI(cardValues);
+                    } else {
+                        // Actualizar directamente sólo las etiquetas de valor sin reconstruir los componentes
+                        for (Map.Entry<String, JLabel> entry : cardValueLabels.entrySet()) {
+                            String val = cardValues.getOrDefault(entry.getKey(), "--");
+                            entry.getValue().setText(val);
                         }
                     }
-                    summaryCardsContainer.revalidate();
-                    summaryCardsContainer.repaint();
-
-                    // Rebuild Month Cards panel
-                    monthCardsContainer.removeAll();
-                    for (DashboardCard card : allCards) {
-                        if (!card.isSummaryCard() && DashboardCardConfig.isVisible(card.getId(), true)) {
-                            String title = DashboardCardConfig.getTitle(card.getId(), card.getDefaultTitle());
-                            String val = cardValues.getOrDefault(card.getId(), "--");
-                            JLabel valLbl = new JLabel(val);
-
-                            monthCardsContainer.add(createKpiCard(card.getIconPath(), title, valLbl));
-                        }
-                    }
-                    monthCardsContainer.revalidate();
-                    monthCardsContainer.repaint();
 
                     renderMovements(data.movements());
                     renderAppointments(data.appointments());
@@ -298,6 +323,20 @@ public final class HomeDashboardPanel extends JPanel {
         welcomeLabel.setForeground(Color.BLACK);
         topHeaderPanel.add(welcomeLabel, BorderLayout.WEST);
 
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setOpaque(false);
+
+        JButton btnRefresh = new JButton("🔄 Actualizar");
+        btnRefresh.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnRefresh.setBackground(new Color(31, 41, 55));
+        btnRefresh.setForeground(Color.WHITE);
+        btnRefresh.setBorderPainted(false);
+        btnRefresh.setFocusPainted(false);
+        btnRefresh.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnRefresh.setBorder(new EmptyBorder(8, 14, 8, 14));
+        btnRefresh.addActionListener(e -> refresh());
+        buttonPanel.add(btnRefresh);
+
         JButton btnConfigure = new JButton("⚙ Configurar Tarjetas");
         btnConfigure.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnConfigure.setBackground(new Color(31, 41, 55));
@@ -310,8 +349,11 @@ public final class HomeDashboardPanel extends JPanel {
             Window window = SwingUtilities.getWindowAncestor(this);
             DashboardCardConfigDialog dlg = new DashboardCardConfigDialog(window);
             dlg.setVisible(true);
+            refresh();
         });
-        topHeaderPanel.add(btnConfigure, BorderLayout.EAST);
+        buttonPanel.add(btnConfigure);
+
+        topHeaderPanel.add(buttonPanel, BorderLayout.EAST);
 
         add(topHeaderPanel, BorderLayout.NORTH);
 
@@ -327,12 +369,12 @@ public final class HomeDashboardPanel extends JPanel {
         topGbc.weighty = 0;
 
         topGbc.gridx = 0;
-        topGbc.weightx = 0.72;
+        topGbc.weightx = 0.60;
         topRow.add(createKpiPanel(), topGbc);
 
         topGbc.gridx = 1;
         topGbc.insets = new Insets(0, 0, 0, 0);
-        topGbc.weightx = 0.28;
+        topGbc.weightx = 0.40;
         topRow.add(createMesCard(), topGbc);
 
         JPanel tablesRow = new JPanel(new GridBagLayout());
@@ -365,6 +407,9 @@ public final class HomeDashboardPanel extends JPanel {
         centerContent.add(tablesRow, BorderLayout.CENTER);
 
         add(centerContent, BorderLayout.CENTER);
+
+        // Pre-construir las tarjetas inmediatamente con indicadores de carga
+        rebuildCardsUI(null);
     }
 
     private JPanel createKpiPanel() {
