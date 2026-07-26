@@ -203,6 +203,10 @@ public class AppointmentService {
         return appointmentDAO.countScheduled();
     }
 
+    public List<AppointmentDAO.ServicePopularity> findMostRequestedServices(int limit) throws SQLException {
+        return appointmentDAO.findMostRequestedServices(limit);
+    }
+
     /**
      * Cuenta servicios realizados.
      *

@@ -8,6 +8,7 @@ import java.awt.FileDialog;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.HeadlessException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,7 +34,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.border.EmptyBorder;
 
 import secureauth.config.DatabaseConnection;
 import secureauth.ui.config.ApplicationVisualSettings;
@@ -458,6 +458,7 @@ public class AdvancedConfigDialog extends JDialog {
         }
     }
 
+    /** */
     private void onSave() {
         try {
             visualSettings.setBranding(txtBranding.getText().trim());
@@ -508,7 +509,7 @@ public class AdvancedConfigDialog extends JDialog {
             UiTheme.reloadThemeFromSettings();
             JOptionPane.showMessageDialog(this, "Configuraciones globales guardadas y persistidas.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
             dispose();
-        } catch (Exception ex) {
+        } catch (HeadlessException | IOException | NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Datos de entrada inválidos. Verifica los campos numéricos.", "Validación", JOptionPane.WARNING_MESSAGE);
         }
     }

@@ -113,4 +113,8 @@ public class UserService {
     public int countNewThisMonth() {
         return userDAO.countNewThisMonth();
     }
+
+    public int countActiveUsers() {
+        return userDAO.countAllUsers();
+    }
 }

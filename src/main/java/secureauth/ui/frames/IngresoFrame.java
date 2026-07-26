@@ -24,7 +24,6 @@ import secureauth.ui.components.SalesPanel;
 import secureauth.ui.components.SidebarPanel;
 import secureauth.ui.components.UserPanel;
 import secureauth.ui.dialogs.SubServiceSelector;
-import secureauth.ui.enterprise.ClientsPanel;
 
 /**
  * Orquestador principal de la interfaz de usuario (Dashboard).
@@ -41,7 +40,6 @@ import secureauth.ui.enterprise.ClientsPanel;
 public class IngresoFrame extends javax.swing.JFrame {
 
     private static final String PANEL_HOME = "home";
-    private static final String PANEL_CLIENTES = "clientes";
     private static final String PANEL_USUARIOS = "usuarios";
     private static final String PANEL_MASCOTAS = "mascotas";
     private static final String PANEL_VENTAS = "ventas";
@@ -64,7 +62,6 @@ public class IngresoFrame extends javax.swing.JFrame {
     /** Paneles de los módulos del sistema. */
     private UserPanel userPanel;
     private final HomeDashboardPanel homePanel;
-    private ClientsPanel clientsPanel;
     private RegMascotaPanel mascotaRegistroPanel;
     private SalesPanel salesPanel;
     private PanelConfig configPanel;
@@ -125,6 +122,7 @@ public class IngresoFrame extends javax.swing.JFrame {
      */
     private void initComponents() {
         setLayout(new BorderLayout());
+        
         add(new SidebarPanel(usuarioActual, controller, this::mostrarHome, this::mostrarUsuarios,
                 this::mostrarMascotas, this::mostrarInventario, this::mostrarVentas, this::mostrarConfiguracion, this::mostrarReportes),
                 BorderLayout.WEST);
@@ -162,14 +160,6 @@ public class IngresoFrame extends javax.swing.JFrame {
     // =========================================================
     // GETTERS PARA LAZY LOADING (CARGA PEREZOSA)
     // =========================================================
-
-    private ClientsPanel getClientsPanel() {
-        if (clientsPanel == null) {
-            clientsPanel = new ClientsPanel();
-            contentPanel.add(clientsPanel, PANEL_CLIENTES);
-        }
-        return clientsPanel;
-    }
 
     private UserPanel getUserPanel() {
         if (userPanel == null) {
@@ -209,7 +199,8 @@ public class IngresoFrame extends javax.swing.JFrame {
     private PanelConfig getConfigPanel() {
         if (configPanel == null) {
             configPanel = new PanelConfig(appContext.getUserService(), this.controller,
-                    appContext.getSalesTransactionService(), appContext.getOwnerService());
+                    appContext.getSalesTransactionService(), appContext.getOwnerService(),
+                    appContext.getInventoryService(), appContext.getAppointmentService());
             contentPanel.add(configPanel, PANEL_CONFIGURACION);
         }
         return configPanel;

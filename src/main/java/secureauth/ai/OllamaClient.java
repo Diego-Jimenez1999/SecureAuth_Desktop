@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import okhttp3.MediaType;
@@ -54,21 +55,32 @@ public class OllamaClient {
                     return "Error HTTP: " + response.code();
                 }
 
-                String responseBody = response.body().string();
+                // Obtener el cuerpo de la respuesta
+                var responseBodyObj = response.body();
+                // Verificar si el cuerpo de la respuesta es nulo
+                if (responseBodyObj == null) {
+                    return "Respuesta vacía del servidor";
+                }
 
-                Map<String, Object> result = mapper.readValue(responseBody, Map.class);
+                String responseBody = responseBodyObj.string();
 
-                // formato /api/chat
-                Map<String, Object> msg =
-                        (Map<String, Object>) result.get("message");
+                Map<String, Object> result = mapper.readValue(
+                        responseBody,
+                        new TypeReference<Map<String, Object>>() {
+                }
+                );
 
-                if (msg == null) {
+                Object messageObj = result.get("message");
+
+                if (!(messageObj instanceof Map<?, ?> messageMap)) {
                     return "Respuesta inválida del modelo";
                 }
 
-                Object content = msg.get("content");
+                Object content = messageMap.get("content");
 
-                return content != null ? content.toString() : "Respuesta vacía";
+                return content != null
+                        ? content.toString()
+                        : "Respuesta vacía";
 
             }
 

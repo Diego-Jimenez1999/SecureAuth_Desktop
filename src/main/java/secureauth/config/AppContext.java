@@ -81,6 +81,13 @@ public class AppContext {
 
     public void initialize() {
         enterpriseBootstrapService.initialize();
+        try {
+            getSalesTransactionService().initializeSchema();
+            getAppointmentService().initializeSchema();
+            getInventoryService().initializeSchema();
+            getActividadRecienteService().initializeSchema();
+            getOwnerService().ensureSchema();
+        } catch (Exception ignored) {}
     }
 
     public UserRepository getUserRepository() {

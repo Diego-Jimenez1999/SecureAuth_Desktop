@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
-import java.awt.Window;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -12,13 +11,12 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
@@ -26,9 +24,9 @@ import java.util.logging.Logger;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
-import javax.swing.JButton;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
@@ -73,7 +71,7 @@ import secureauth.ui.utils.UiTheme;
  * <p>Muestra KPIs del día y del mes obtenidos en tiempo real desde la base de
  * datos de manera totalmente dinámica y extensible (OCP).</p>
  *
- * @author Diego
+ * @author Diego Gaviria Jimenez
  * @version 3.0 — Arquitectura OCP de tarjetas dinámicas, EventBus.
  */
 public final class HomeDashboardPanel extends JPanel {
@@ -89,7 +87,7 @@ public final class HomeDashboardPanel extends JPanel {
     private static final int SUMMARY_METRIC_ICON_WIDTH = 150;
     private static final int SUMMARY_METRIC_ICON_HEIGHT = 64;
 
-    private final JLabel welcomeLabel      = new JLabel("¡Bienvenido!");
+    private final JLabel welcomeLabel = new JLabel("¡Bienvenido!");
 
     private final SalesTransactionService salesService;
     private final OwnerService ownerService;
@@ -97,8 +95,6 @@ public final class HomeDashboardPanel extends JPanel {
     private final InventoryService inventoryService;
     private final ActividadRecienteService actividadService;
     private final AppointmentService appointmentService;
-    private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
-    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm");
     private final DateTimeFormatter appointmentDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private DefaultTableModel activityModel;
     private DefaultTableModel movementsModel;
@@ -107,7 +103,7 @@ public final class HomeDashboardPanel extends JPanel {
     private JLabel lowStockText;
 
     private JPanel summaryCardsContainer;
-    private JPanel monthCardsContainer;
+    private JPanel monthCardsContainer; //
 
     /**
      * Constructor sin usuario (compatibilidad con código existente en IngresoFrame).
@@ -142,9 +138,21 @@ public final class HomeDashboardPanel extends JPanel {
                 new ActividadRecienteService(), new AppointmentService());
     }
 
+    /**
+     * Constructor principal con servicios inyectados desde el bootstrap.
+     *
+     * @param currentUser usuario que inició sesión
+     * @param salesService servicio de métricas de ventas
+     * @param ownerService servicio de dueños/clientes
+     * @param userService servicio de usuarios
+     * @param inventoryService servicio de inventario
+     * @param actividadService servicio de actividad reciente
+     * @param appointmentService servicio de citas
+     */
     public HomeDashboardPanel(User currentUser, SalesTransactionService salesService, OwnerService ownerService,
-            UserService userService, InventoryService inventoryService, ActividadRecienteService actividadService,
-            AppointmentService appointmentService) {
+                                UserService userService, InventoryService inventoryService, ActividadRecienteService actividadService,
+                                    AppointmentService appointmentService) {
+
         this.salesService = salesService;
         this.ownerService = ownerService;
         this.userService = userService;
@@ -159,6 +167,12 @@ public final class HomeDashboardPanel extends JPanel {
         DashboardEventBus.addListener(evt -> SwingUtilities.invokeLater(this::refresh));
     }
 
+    /**
+     * Crea un contexto de aplicación local para pasar a las tarjetas del dashboard.
+     * Esto permite que cada tarjeta tenga acceso a los servicios necesarios para obtener sus métricas.
+     *
+     * @return un AppContext con los servicios inyectados
+     */
     private AppContext createLocalAppContext() {
         return new AppContext() {
             @Override public SalesTransactionService getSalesTransactionService() { return salesService; }
@@ -477,7 +491,7 @@ public final class HomeDashboardPanel extends JPanel {
         headerPanel.add(btnAudit, BorderLayout.EAST);
         panel.add(headerPanel, BorderLayout.NORTH);
 
-        movementsModel = new DefaultTableModel(new String[]{"Fecha / Hora Real", "Usuario", "Módulo", "Descripción"}, 0) {
+        movementsModel = new DefaultTableModel(new String[]{"Fecha / Hora", "Usuario", "Módulo", "Descripción"}, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
 
@@ -626,6 +640,15 @@ public final class HomeDashboardPanel extends JPanel {
         return card;
     }
 
+    /**
+     * 
+     * crea una tarjeta KPI para mostrar indicadores clave de rendimiento.
+     *
+     * @param imagePath The path to the image for the card.
+     * @param title titulo de la tarjeta.
+     * @param valueLabel el label de valor que se mostrará en la tarjeta.
+     * @return The created KPI card.
+     */
     private JPanel createKpiCard(String imagePath, String title, JLabel valueLabel) {
         JPanel card = new JPanel();
         card.setVisible(true); 
@@ -687,6 +710,7 @@ public final class HomeDashboardPanel extends JPanel {
         return separator;
     }
 
+    /** */
     private void setAllLabelsError() {
         summaryCardsContainer.removeAll();
         summaryCardsContainer.add(createSummaryImageLabel("/icon/H10101.png"));

@@ -1,0 +1,16 @@
+#Dashboard Cards Configuration
+#Sat Jul 25 17:58:50 GMT-05:00 2026
+card.finished_services.title=Servicios Finalizados
+card.finished_services.visible=true
+card.new_clients_month.title=Clientes Nuevos/Mes
+card.new_clients_month.visible=true
+card.new_users_month.title=Usuarios Nuevos/Mes
+card.new_users_month.visible=false
+card.sales_month.title=Ventas del Mes
+card.sales_month.visible=true
+card.sales_today.title=Ingresos del Día
+card.sales_today.visible=true
+card.scheduled_appointments.title=Citas Programadas
+card.scheduled_appointments.visible=true
+card.test_custom_card.title=New Custom Title
+card.test_custom_card.visible=false

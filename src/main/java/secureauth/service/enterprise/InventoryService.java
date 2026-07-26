@@ -43,6 +43,10 @@ public class InventoryService {
         return dao.findAll(context.getActiveBusinessId(), context.getActiveBranchId(), query);
     }
 
+    public InventoryDAO.InventorySummary loadSummary() throws SQLException {
+        return dao.loadSummary(context.getActiveBusinessId(), context.getActiveBranchId());
+    }
+
     public void upsert(InventoryItem item) throws SQLException {
         dao.upsert(item);
         secureauth.shared.events.DashboardEventBus.notifyDataChanged();

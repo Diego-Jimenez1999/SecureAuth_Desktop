@@ -4,12 +4,12 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
 import java.awt.event.ItemEvent;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,6 +19,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
@@ -151,6 +152,12 @@ public class AgendaServicioDialog extends JDialog {
         gbc.insets = new Insets(0, 0, 10, 0);
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weightx = 1;
+        // IMPORTANTE: si ninguna fila tiene weighty, GridBagLayout reparte cualquier
+        // espacio vertical sobrante como huecos entre filas (aquí aparecía ese hueco
+        // en blanco tapando "Cliente"/"Mascota"). Cada fila fija va con weighty = 0
+        // explícito y solo la última (Observaciones) se queda con weighty = 1 para
+        // absorber el espacio extra que deja setMinimumSize más abajo.
+        gbc.weighty = 0;
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 4;
@@ -181,6 +188,7 @@ public class AgendaServicioDialog extends JDialog {
         gbc.gridwidth = 3;
         gbc.gridheight = 1;
         gbc.weightx = 1;
+        gbc.weighty = 1;
         gbc.insets = new Insets(0, 0, 0, 0);
         content.add(buildNotesSection(), gbc);
 
@@ -189,8 +197,12 @@ public class AgendaServicioDialog extends JDialog {
         getRootPane().setBorder(BorderFactory.createLineBorder(UiTheme.BORDER_COLOR));
         configureInputs();
         updateSummaryVisual();
-        setPreferredSize(new Dimension(1120, 720));
         pack();
+        // setMinimumSize (no setPreferredSize) evita forzar un tamaño mayor al contenido
+        // real antes de calcular el layout; ahora que las filas tienen weighty correcto,
+        // cualquier espacio extra por el mínimo se lo queda "Observaciones", no un hueco
+        // en medio del formulario.
+        setMinimumSize(new Dimension(1120, 720));
         setLocationRelativeTo(getOwner());
     }
 
@@ -409,9 +421,6 @@ public class AgendaServicioDialog extends JDialog {
         return panel;
     }
 
-    private javax.swing.border.Border sectionBorder(String title) {
-        return cardBorder();
-    }
 
     private JPanel cardPanel() {
         JPanel panel = new JPanel();
@@ -627,7 +636,7 @@ public class AgendaServicioDialog extends JDialog {
                     updateOwnerSuggestions(get(), query, showPopup);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
-                } catch (Exception ex) {
+                } catch (ExecutionException ex) {
                     showError("No se pudieron cargar clientes: " + ex.getMessage());
                 }
             }
@@ -700,7 +709,7 @@ public class AgendaServicioDialog extends JDialog {
                     }
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
-                } catch (Exception ex) {
+                } catch (ExecutionException ex) {
                     showError("No se pudieron cargar mascotas: " + ex.getMessage());
                 }
             }
@@ -757,7 +766,7 @@ public class AgendaServicioDialog extends JDialog {
             pet.setSexo(String.valueOf(sex.getSelectedItem()));
             petService.registerPet(pet);
             loadPetsAsync(owner.getId());
-        } catch (Exception ex) {
+        } catch (IOException | NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Mascota", JOptionPane.WARNING_MESSAGE);
         }
     }
@@ -816,7 +825,7 @@ public class AgendaServicioDialog extends JDialog {
                     boolean conflict = get();
                     availabilityLabel.setText(conflict ? "Conflicto detectado" : "Disponible");
                     availabilityLabel.setForeground(conflict ? Color.RED.darker() : UiTheme.FOREST_GREEN);
-                } catch (Exception ex) {
+                } catch (InterruptedException | ExecutionException ex) {
                     availabilityLabel.setText("No verificada");
                     availabilityLabel.setForeground(UiTheme.TEXT_SECONDARY);
                 }

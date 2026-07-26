@@ -9,8 +9,8 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionListener;
 import java.text.NumberFormat;
-import java.util.Locale;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -309,6 +309,11 @@ public class PanelInventory extends JPanel {
     // RENDER DATA
     // =====================================================
 
+    /**
+     * Renderiza los elementos del inventario en la tabla y actualiza las tarjetas métricas.
+     *
+     * @param items lista de objetos InventoryItem que representan los productos en el inventario
+     */
     public void renderItems(List<InventoryItem> items) {
 
         tableModel.setRowCount(0);
@@ -348,7 +353,8 @@ public class PanelInventory extends JPanel {
         lblTotalProducts.setText(String.valueOf(items.size()));
         lblLowStock.setText(String.valueOf(lowStock));
         lblCategories.setText(String.valueOf(categories.size()));
-        lblTotalValue.setText(NumberFormat.getCurrencyInstance(new Locale("es", "CO")).format(totalValue));
+        Locale colombia = Locale.of("es", "CO");
+        lblTotalValue.setText(NumberFormat.getCurrencyInstance(colombia).format(totalValue));
     }
 
     // =====================================================

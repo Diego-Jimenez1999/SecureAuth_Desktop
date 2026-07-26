@@ -19,6 +19,7 @@ import secureauth.application.dto.ServiceOrderDTO;
 import secureauth.infrastructure.persistence.JdbcServiceOrderRepository;
 import secureauth.infrastructure.repository.ServiceOrderRepository;
 import secureauth.model.Appointment;
+import secureauth.model.ReportChartPoint;
 import secureauth.model.SaleItem;
 import secureauth.model.Venta;
 import secureauth.shared.events.EventPublisher;
@@ -269,17 +270,45 @@ public class SalesTransactionService {
     public DashboardStats loadStats() throws SQLException {
         int businessId = context.getActiveBusinessId();
         int branchId = context.getActiveBranchId();
+        var stats = dao.loadDashboardStats(businessId, branchId);
         return new DashboardStats(
-                dao.salesToday(businessId, branchId),
-                dao.salesMonth(businessId, branchId),
-                dao.gainMonth(businessId, branchId),
-                dao.itemsMonth(businessId, branchId)
+                stats.salesToday(),
+                stats.salesMonth(),
+                stats.gainMonth(),
+                stats.itemsMonth()
         );
+    }
+
+    public SalesTransactionDAO.SalesStats loadDetailedStats() throws SQLException {
+        return dao.loadDashboardStats(context.getActiveBusinessId(), context.getActiveBranchId());
     }
 
     public record DashboardStats(double salesToday, double salesMonth, double gainMonth, int itemsMonth) { }
 
     public List<SaleReportRow> recentSales(int limit) throws SQLException {
         return dao.recentSales(context.getActiveBusinessId(), context.getActiveBranchId(), limit);
+    }
+
+    /**
+     * Serie de ventas totales agrupadas por día para el gráfico de tendencia.
+     * Se limita a la sucursal/negocio activos en {@link EnterpriseContext}.
+     *
+     * @param days cantidad de días hacia atrás a incluir (máx. 365)
+     * @return puntos agregados en la base de datos, listos para graficar
+     * @throws SQLException si falla la consulta
+     */
+    public List<ReportChartPoint> salesTrend(int days) throws SQLException {
+        return dao.salesByDay(context.getActiveBusinessId(), context.getActiveBranchId(), days);
+    }
+
+    /**
+     * Productos/servicios con mayor cantidad de unidades vendidas.
+     *
+     * @param limit cantidad máxima de elementos a retornar (máx. 20)
+     * @return puntos ordenados de mayor a menor por unidades vendidas
+     * @throws SQLException si falla la consulta
+     */
+    public List<ReportChartPoint> topProducts(int limit) throws SQLException {
+        return dao.topSoldItems(limit);
     }
 }

@@ -98,6 +98,7 @@ public class InventoryController {
                 service.importRows(preview.validRows());
                 loadInventory();
                 SalesServiceCatalog.getInstance().reload();
+                JOptionPane.showMessageDialog(view, "Inventario importado correctamente.");
             }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(view, "No se pudo importar: " + ex.getMessage());

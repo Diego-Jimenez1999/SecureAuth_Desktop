@@ -251,6 +251,20 @@ public class UserDAO {
         }
     }
 
+    public int countAllUsers() {
+        String sql = "SELECT COUNT(*) FROM users";
+        try (Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery()) {
+
+            return rs.next() ? rs.getInt(1) : 0;
+
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "Error contando usuarios activos", e);
+            return 0;
+        }
+    }
+
     // =========================================================
     // ESCRITURA
     // =========================================================
@@ -263,7 +277,7 @@ public class UserDAO {
      */
     public boolean insert(User user) {
         Objects.requireNonNull(user, "El usuario no puede ser nulo para la inserción");
-        String sql = "INSERT INTO users (nombre, apellido, email, password, genero, fecha_nacimiento, rol_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO users (nombre, apellido, email, password, genero, fecha_nacimiento, rol_id, business_id, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -276,6 +290,12 @@ public class UserDAO {
             ps.setDate(6, user.getFechaNacimiento() != null
                     ? Date.valueOf(user.getFechaNacimiento()) : null);
             ps.setInt(7, user.getRolId());
+            // El negocio y la sucursal activos se toman del contexto enterprise, igual que en
+            // PetService/SalesTransactionDAO, para que el trabajador quede asociado correctamente.
+            secureauth.service.enterprise.EnterpriseContext context =
+                    secureauth.service.enterprise.EnterpriseContext.getInstance();
+            ps.setInt(8, context.getActiveBusinessId());
+            ps.setInt(9, context.getActiveBranchId());
 
             return ps.executeUpdate() > 0;
 

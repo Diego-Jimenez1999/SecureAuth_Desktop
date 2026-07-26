@@ -3,17 +3,14 @@ package secureauth.ui.dialogs;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.swing.BorderFactory;
-import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -28,7 +25,7 @@ import secureauth.shared.events.DashboardEventBus;
 import secureauth.ui.components.dashboard.DashboardCard;
 import secureauth.ui.components.dashboard.DashboardCardConfig;
 import secureauth.ui.components.dashboard.DashboardCardRegistry;
-import secureauth.ui.utils.UiTheme;
+
 
 /**
  * Diálogo interactivo para configurar la visibilidad y los títulos de las tarjetas del Dashboard.

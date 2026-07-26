@@ -195,6 +195,30 @@ public class AppointmentDAO {
         return appointments;
     }
 
+    public List<ServicePopularity> findMostRequestedServices(int limit) throws SQLException {
+        ensureSchema();
+        String sql = """
+                SELECT service_name, COUNT(*) AS total
+                FROM appointments
+                WHERE service_name IS NOT NULL
+                  AND TRIM(service_name) <> ''
+                GROUP BY service_name
+                ORDER BY total DESC, service_name ASC
+                LIMIT ?
+                """;
+        List<ServicePopularity> services = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    services.add(new ServicePopularity(rs.getString("service_name"), rs.getInt("total")));
+                }
+            }
+        }
+        return services;
+    }
+
     /**
      * Consulta citas con criterios avanzados de búsqueda, filtros de fecha, estado y ordenamiento.
      *
@@ -423,5 +447,8 @@ public class AppointmentDAO {
         if (!SchemaInspector.columnExists(conn, "appointments", column)) {
             st.execute("ALTER TABLE appointments ADD COLUMN " + column + " " + definition);
         }
+    }
+
+    public record ServicePopularity(String serviceName, int total) {
     }
 }

@@ -5,11 +5,13 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.GridLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.event.ItemEvent;
+import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,6 +23,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
@@ -689,23 +692,6 @@ public class ServiceAppointmentDialog extends JDialog {
         panel.add(field3, gbc);
     }
 
-    private void addFourthFields(JPanel panel, int row, String label1, Component field1, String label2,
-            Component field2, String label3, Component field3, String label4, Component field4) {
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        String[] labels = {label1, label2, label3, label4};
-        Component[] fields = {field1, field2, field3, field4};
-        for (int i = 0; i < labels.length; i++) {
-            gbc.gridx = i;
-            gbc.gridy = row;
-            gbc.insets = new Insets(14, i == 0 ? 0 : 10, 4, 0);
-            panel.add(smallLabel(labels[i]), gbc);
-            gbc.gridy = row + 1;
-            gbc.insets = new Insets(0, i == 0 ? 0 : 10, 0, 0);
-            panel.add(fields[i], gbc);
-        }
-    }
 
     private void addSummaryRow(JPanel panel, int row, String label, JLabel value) {
         GridBagConstraints gbc = new GridBagConstraints();
@@ -824,7 +810,7 @@ public class ServiceAppointmentDialog extends JDialog {
                     updateOwnerSuggestions(get(), query, showPopup);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
-                } catch (Exception ex) {
+                } catch (ExecutionException ex) {
                     JOptionPane.showMessageDialog(ServiceAppointmentDialog.this,
                             "No se pudieron cargar dueños: " + ex.getMessage(),
                             "Error de Base de Datos", JOptionPane.ERROR_MESSAGE);
@@ -910,7 +896,7 @@ public class ServiceAppointmentDialog extends JDialog {
                     }
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
-                } catch (Exception ex) {
+                } catch (ExecutionException ex) {
                     JOptionPane.showMessageDialog(ServiceAppointmentDialog.this,
                             "No se pudieron cargar mascotas: " + ex.getMessage(),
                             "Error de Base de Datos", JOptionPane.ERROR_MESSAGE);
@@ -980,64 +966,6 @@ public class ServiceAppointmentDialog extends JDialog {
         throw new IllegalArgumentException("Selecciona una mascota registrada para el dueño.");
     }
 
-    private void addReadOnlyInfo(JPanel panel, GridBagConstraints gbc, int row, int column, String label,
-            String value) {
-        JPanel item = new JPanel(new BorderLayout(0, 3));
-        item.setOpaque(false);
-        JLabel lbl = new JLabel(label);
-        lbl.setFont(UiTheme.BODY_FONT.deriveFont(12f));
-        lbl.setForeground(UiTheme.TEXT_SECONDARY);
-        JLabel val = new JLabel(value);
-        val.setFont(UiTheme.BODY_FONT.deriveFont(java.awt.Font.BOLD, 14f));
-        val.setForeground(UiTheme.TEXT_PRIMARY);
-        item.add(lbl, BorderLayout.NORTH);
-        item.add(val, BorderLayout.CENTER);
-        gbc.gridx = column;
-        gbc.gridy = row;
-        panel.add(item, gbc);
-    }
-
-    private void addRow(JPanel form, GridBagConstraints gbc, int row, String label, Component component) {
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.weightx = 0;
-        JLabel lbl = new JLabel(label);
-        lbl.setFont(UiTheme.BODY_FONT);
-        form.add(lbl, gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1;
-        form.add(component, gbc);
-    }
-
-    private JPanel section(String title, String[] labels, Component[] components) {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(UiTheme.PANEL_WHITE);
-        panel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UiTheme.BORDER_COLOR),
-                new EmptyBorder(12, 12, 12, 12)));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2;
-        JLabel sectionTitle = new JLabel(title);
-        sectionTitle.setFont(UiTheme.TITLE_FONT_SECTION);
-        panel.add(sectionTitle, gbc);
-        gbc.gridwidth = 1;
-        for (int i = 0; i < labels.length; i++) {
-            gbc.gridy++;
-            gbc.gridx = 0;
-            gbc.weightx = 0;
-            JLabel label = new JLabel(labels[i]);
-            label.setFont(UiTheme.BODY_FONT);
-            panel.add(label, gbc);
-            gbc.gridx = 1;
-            gbc.weightx = 1;
-            panel.add(components[i], gbc);
-        }
-        return panel;
-    }
 
     private JPanel buildProductsSection() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
@@ -1071,16 +999,6 @@ public class ServiceAppointmentDialog extends JDialog {
         return panel;
     }
 
-    private JPanel buildSummarySection() {
-        serviceAmountField = readOnlyField(currency.format(saleItem.price()));
-        productsAmountField = readOnlyField(currency.format(0));
-        subtotalField = readOnlyField(currency.format(0));
-        taxField = readOnlyField(currency.format(0));
-        totalField = readOnlyField(currency.format(0));
-        return section("Resumen", new String[]{"Servicio", "Productos", "Subtotal", "IVA", "Descuento", "Total"},
-                new Component[]{serviceAmountField, productsAmountField, subtotalField, taxField, discountField,
-                        totalField});
-    }
 
     private void addInventoryProduct() {
         InventoryOption option = chooseInventoryProduct();
@@ -1134,7 +1052,7 @@ public class ServiceAppointmentDialog extends JDialog {
             Object selected = JOptionPane.showInputDialog(this, "Producto", "Agregar producto",
                     JOptionPane.PLAIN_MESSAGE, null, options.toArray(), options.get(0));
             return selected instanceof InventoryOption option ? option : null;
-        } catch (Exception ex) {
+        } catch (HeadlessException | SQLException ex) {
             JOptionPane.showMessageDialog(this, "No se pudo cargar inventario: " + ex.getMessage(),
                     "Inventario", JOptionPane.ERROR_MESSAGE);
             return null;
@@ -1187,7 +1105,7 @@ public class ServiceAppointmentDialog extends JDialog {
                 suggestedProducts.add(product);
                 addOrReplaceProduct(product);
             }
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             // Las sugerencias son auxiliares; no deben bloquear el agendamiento.
         }
     }
@@ -1402,13 +1320,7 @@ public class ServiceAppointmentDialog extends JDialog {
         return candidate.withMinute(roundedMinute).withSecond(0).withNano(0);
     }
 
-    private String required(JTextField field, String label) {
-        String value = field.getText().trim();
-        if (value.isEmpty()) {
-            throw new IllegalArgumentException("Completa el campo: " + label);
-        }
-        return value;
-    }
+
 
     private String empty(String value) {
         return value == null ? "" : value;
