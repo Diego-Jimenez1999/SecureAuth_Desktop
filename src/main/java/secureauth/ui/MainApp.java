@@ -20,6 +20,7 @@ import secureauth.ui.frames.LoginFrame;
  * - Inicializa contexto de aplicación
  * - Inyecta dependencias (controllers, services)
  * - Controla navegación entre Login y Dashboard
+ *  
  */
 public final class MainApp {
 

@@ -64,6 +64,30 @@ public class InventoryDAO {
         return out;
     }
 
+    public InventorySummary loadSummary(int businessId, int branchId) throws SQLException {
+        ensureSchema();
+        String sql = """
+                SELECT COUNT(*) AS item_count,
+                       COALESCE(SUM(stock), 0) AS total_stock,
+                       COALESCE(SUM(CASE WHEN stock <= min_stock THEN 1 ELSE 0 END), 0) AS low_stock_count
+                FROM inventory_items
+                WHERE business_id = ?
+                  AND branch_id = ?
+                  AND UPPER(status_name) <> 'INACTIVO'
+                """;
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, businessId);
+            ps.setInt(2, branchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new InventorySummary(rs.getInt("item_count"), rs.getInt("total_stock"),
+                            rs.getInt("low_stock_count"));
+                }
+            }
+        }
+        return new InventorySummary(0, 0, 0);
+    }
+
     public void upsert(InventoryItem item) throws SQLException {
         String sql = """
                 INSERT INTO inventory_items(business_id, branch_id, sku, item_name, category_name, stock, min_stock, supplier, cost, price, status_name)
@@ -183,5 +207,8 @@ public class InventoryDAO {
 
     public record InventoryConsumptionSource(int id, String sku, String name, int stock, double cost, double price,
                                              String status, boolean active) {
+    }
+
+    public record InventorySummary(int itemCount, int totalStock, int lowStockCount) {
     }
 }

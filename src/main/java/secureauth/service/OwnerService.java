@@ -61,7 +61,9 @@ public class OwnerService {
      */
     public Owner createOwner(Owner owner) {
         validateOwner(owner);
-        return ownerDAO.insert(owner);
+        Owner created = ownerDAO.insert(owner);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
+        return created;
     }
 
     /**
@@ -75,6 +77,7 @@ public class OwnerService {
         }
         validateOwner(owner);
         ownerDAO.update(owner);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
     }
 
     /**
@@ -87,6 +90,14 @@ public class OwnerService {
             throw new IllegalArgumentException("Selecciona un dueño válido.");
         }
         ownerDAO.delete(id);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
+    }
+
+    /**
+     * Asegura que el esquema de la base de datos de dueños exista.
+     */
+    public void ensureSchema() {
+        ownerDAO.ensureSchema();
     }
 
     /**
@@ -96,6 +107,15 @@ public class OwnerService {
      */
     public int countNewThisMonth() {
         return ownerDAO.countNewThisMonth();
+    }
+
+    /**
+     * Carga estadísticas de dueños registrados hoy, en la semana y en el mes.
+     *
+     * @return estadísticas de dueños
+     */
+    public OwnerDAO.OwnerStats loadOwnerStats() {
+        return ownerDAO.loadOwnerStats();
     }
 
     private void validateOwner(Owner owner) {

@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -18,6 +19,7 @@ import secureauth.application.dto.ServiceOrderDTO;
 import secureauth.infrastructure.persistence.JdbcServiceOrderRepository;
 import secureauth.infrastructure.repository.ServiceOrderRepository;
 import secureauth.model.Appointment;
+import secureauth.model.ReportChartPoint;
 import secureauth.model.SaleItem;
 import secureauth.model.Venta;
 import secureauth.shared.events.EventPublisher;
@@ -188,14 +190,17 @@ public class SalesTransactionService {
                 int units = venta.getItems().stream().mapToInt(SaleItem::getQuantity).sum();
                 dao.insertTx(conn, businessId, branchId, venta.getTotal(), gain, tax, units, venta.getMetodoPago(),
                         itemsSummary, venta.getCliente(), venta.getUsuarioVendedor());
-                actividadDAO.insert(conn, "Venta registrada #" + saleId, "VENTA", venta.getUsuarioVendedor());
+                java.text.NumberFormat curFmt = java.text.NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
+                String auditSale = "Venta #" + saleId + " | Cliente: " + venta.getCliente() + " | Total: " + curFmt.format(venta.getTotal()) + " (Método: " + venta.getMetodoPago() + ")";
+                actividadDAO.insert(conn, auditSale, "VENTAS", venta.getUsuarioVendedor());
                 if (!quantities.isEmpty()) {
-                    actividadDAO.insert(conn, "Inventario actualizado", "INVENTARIO", venta.getUsuarioVendedor());
+                    String auditInv = "Inventario | Descuento de " + units + " unidad(es) de stock por Venta #" + saleId;
+                    actividadDAO.insert(conn, auditInv, "INVENTARIO", venta.getUsuarioVendedor());
                 }
                 for (Appointment appointment : appointments) {
                     appointmentDAO.insert(conn, appointment);
-                    actividadDAO.insert(conn, "Cita agendada para " + appointment.getPetName(), "CITA",
-                            appointment.getCreatedBy());
+                    String auditCita = "Cita agendada | Mascota: " + appointment.getPetName() + " | Servicio: " + appointment.getServiceName() + " (" + appointment.getAppointmentDate() + " " + appointment.getAppointmentTime() + ")";
+                    actividadDAO.insert(conn, auditCita, "CITAS", appointment.getCreatedBy());
                 }
                 conn.commit();
                 if (!appointments.isEmpty()) {
@@ -209,6 +214,7 @@ public class SalesTransactionService {
                     eventPublisher.publish(new InventoryConsumptionEvent(LocalDateTime.now(), consumedProductLines,
                             consumedUnits));
                 }
+                secureauth.shared.events.DashboardEventBus.notifyDataChanged();
             } catch (SQLException | RuntimeException ex) {
                 conn.rollback();
                 throw ex;
@@ -264,17 +270,45 @@ public class SalesTransactionService {
     public DashboardStats loadStats() throws SQLException {
         int businessId = context.getActiveBusinessId();
         int branchId = context.getActiveBranchId();
+        var stats = dao.loadDashboardStats(businessId, branchId);
         return new DashboardStats(
-                dao.salesToday(businessId, branchId),
-                dao.salesMonth(businessId, branchId),
-                dao.gainMonth(businessId, branchId),
-                dao.itemsMonth(businessId, branchId)
+                stats.salesToday(),
+                stats.salesMonth(),
+                stats.gainMonth(),
+                stats.itemsMonth()
         );
+    }
+
+    public SalesTransactionDAO.SalesStats loadDetailedStats() throws SQLException {
+        return dao.loadDashboardStats(context.getActiveBusinessId(), context.getActiveBranchId());
     }
 
     public record DashboardStats(double salesToday, double salesMonth, double gainMonth, int itemsMonth) { }
 
     public List<SaleReportRow> recentSales(int limit) throws SQLException {
         return dao.recentSales(context.getActiveBusinessId(), context.getActiveBranchId(), limit);
+    }
+
+    /**
+     * Serie de ventas totales agrupadas por día para el gráfico de tendencia.
+     * Se limita a la sucursal/negocio activos en {@link EnterpriseContext}.
+     *
+     * @param days cantidad de días hacia atrás a incluir (máx. 365)
+     * @return puntos agregados en la base de datos, listos para graficar
+     * @throws SQLException si falla la consulta
+     */
+    public List<ReportChartPoint> salesTrend(int days) throws SQLException {
+        return dao.salesByDay(context.getActiveBusinessId(), context.getActiveBranchId(), days);
+    }
+
+    /**
+     * Productos/servicios con mayor cantidad de unidades vendidas.
+     *
+     * @param limit cantidad máxima de elementos a retornar (máx. 20)
+     * @return puntos ordenados de mayor a menor por unidades vendidas
+     * @throws SQLException si falla la consulta
+     */
+    public List<ReportChartPoint> topProducts(int limit) throws SQLException {
+        return dao.topSoldItems(limit);
     }
 }

@@ -42,6 +42,53 @@ public final class ApplicationVisualSettings {
     private String mainLogoPath = "";
     private String logotipoImagePath = "";
 
+    // --- NUEVAS PROPIEDADES (GOAL 8) ---
+    // General
+    private String empresaNombre = "SecureAuth Veterinarias S.A.S.";
+    private String empresaDireccion = "Calle 100 #15-32";
+    private String empresaCiudad = "Bogotá";
+    private String empresaTelefono = "+57 300 1234567";
+    private String empresaCorreo = "contacto@secureauth.com";
+
+    // Agenda
+    private String agendaApertura = "08:00";
+    private String agendaCierre = "18:00";
+    private int agendaIntervalo = 30; // minutos
+    private int agendaDuracion = 60; // minutos
+    private String agendaDiasLaborales = "Lunes,Martes,Miércoles,Jueves,Viernes,Sábado";
+
+    // Ventas
+    private double ventasIva = 19.0;
+    private String ventasMoneda = "COP";
+    private String ventasPagoDefecto = "Efectivo";
+    private double ventasDescuentoMax = 20.0; // %
+
+    // Inventario
+    private int inventarioStockMin = 5;
+    private int inventarioAlertaVencimiento = 30; // días
+    private boolean inventarioAlertasAuto = true;
+
+    // Usuarios
+    private String usuariosRoles = "Administrador,Veterinario,Recepcionista";
+    private String usuariosPermisos = "Lectura,Escritura,Completo";
+    private int usuariosTiempoSesion = 15; // minutos
+
+    // Sistema
+    private String sistemaTema = "Oscuro";
+    private String sistemaIdioma = "Español";
+    private String sistemaZonaHoraria = "America/Bogota";
+    private String sistemaFormatFecha = "yyyy-MM-dd";
+    private String sistemaFormatHora = "HH:mm:ss";
+
+    // IA / Ollama
+    private String aiModel = "qwen2.5-coder:3b";
+    private double aiTemp = 0.2;
+    private boolean aiStream = false;
+    private int aiTimeout = 10; // segundos
+    private String aiContext = "Asistente clínico para una veterinaria";
+    private String aiPrompt = "Eres un generador de código Java experto. Devuelve solo código limpio.";
+    private boolean aiActive = true;
+
     public static ApplicationVisualSettings load() {
         ApplicationVisualSettings settings = new ApplicationVisualSettings();
         if (!Files.exists(CONFIG_PATH)) {
@@ -69,6 +116,47 @@ public final class ApplicationVisualSettings {
         settings.sizes = parseSizes(props.getProperty("sizes"));
         settings.mainLogoPath = text(props.getProperty("main_logo_path"), "");
         settings.logotipoImagePath = text(props.getProperty("logotipo_image_path"), "");
+
+        // Cargar Nuevas Propiedades
+        settings.empresaNombre = text(props.getProperty("empresa_nombre"), settings.empresaNombre);
+        settings.empresaDireccion = text(props.getProperty("empresa_direccion"), settings.empresaDireccion);
+        settings.empresaCiudad = text(props.getProperty("empresa_ciudad"), settings.empresaCiudad);
+        settings.empresaTelefono = text(props.getProperty("empresa_telefono"), settings.empresaTelefono);
+        settings.empresaCorreo = text(props.getProperty("empresa_correo"), settings.empresaCorreo);
+
+        settings.agendaApertura = text(props.getProperty("agenda_apertura"), settings.agendaApertura);
+        settings.agendaCierre = text(props.getProperty("agenda_cierre"), settings.agendaCierre);
+        settings.agendaIntervalo = parseInt(props.getProperty("agenda_intervalo"), settings.agendaIntervalo);
+        settings.agendaDuracion = parseInt(props.getProperty("agenda_duracion"), settings.agendaDuracion);
+        settings.agendaDiasLaborales = text(props.getProperty("agenda_dias_laborales"), settings.agendaDiasLaborales);
+
+        settings.ventasIva = parseDouble(props.getProperty("ventas_iva"), settings.ventasIva);
+        settings.ventasMoneda = text(props.getProperty("ventas_moneda"), settings.ventasMoneda);
+        settings.ventasPagoDefecto = text(props.getProperty("ventas_pago_defecto"), settings.ventasPagoDefecto);
+        settings.ventasDescuentoMax = parseDouble(props.getProperty("ventas_descuento_max"), settings.ventasDescuentoMax);
+
+        settings.inventarioStockMin = parseInt(props.getProperty("inventario_stock_min"), settings.inventarioStockMin);
+        settings.inventarioAlertaVencimiento = parseInt(props.getProperty("inventario_alerta_vencimiento"), settings.inventarioAlertaVencimiento);
+        settings.inventarioAlertasAuto = parseBoolean(props.getProperty("inventario_alertas_auto"), settings.inventarioAlertasAuto);
+
+        settings.usuariosRoles = text(props.getProperty("usuarios_roles"), settings.usuariosRoles);
+        settings.usuariosPermisos = text(props.getProperty("usuarios_permisos"), settings.usuariosPermisos);
+        settings.usuariosTiempoSesion = parseInt(props.getProperty("usuarios_tiempo_sesion"), settings.usuariosTiempoSesion);
+
+        settings.sistemaTema = text(props.getProperty("sistema_tema"), settings.sistemaTema);
+        settings.sistemaIdioma = text(props.getProperty("sistema_idioma"), settings.sistemaIdioma);
+        settings.sistemaZonaHoraria = text(props.getProperty("sistema_zona_horaria"), settings.sistemaZonaHoraria);
+        settings.sistemaFormatFecha = text(props.getProperty("sistema_format_fecha"), settings.sistemaFormatFecha);
+        settings.sistemaFormatHora = text(props.getProperty("sistema_format_hora"), settings.sistemaFormatHora);
+
+        settings.aiModel = text(props.getProperty("ai_model"), settings.aiModel);
+        settings.aiTemp = parseDouble(props.getProperty("ai_temp"), settings.aiTemp);
+        settings.aiStream = parseBoolean(props.getProperty("ai_stream"), settings.aiStream);
+        settings.aiTimeout = parseInt(props.getProperty("ai_timeout"), settings.aiTimeout);
+        settings.aiContext = text(props.getProperty("ai_context"), settings.aiContext);
+        settings.aiPrompt = text(props.getProperty("ai_prompt"), settings.aiPrompt);
+        settings.aiActive = parseBoolean(props.getProperty("ai_active"), settings.aiActive);
+
         return settings;
     }
 
@@ -90,6 +178,47 @@ public final class ApplicationVisualSettings {
         append(content, "sizes", String.join(",", sizes));
         append(content, "main_logo_path", mainLogoPath);
         append(content, "logotipo_image_path", logotipoImagePath);
+
+        // Guardar Nuevas Propiedades
+        append(content, "empresa_nombre", empresaNombre);
+        append(content, "empresa_direccion", empresaDireccion);
+        append(content, "empresa_ciudad", empresaCiudad);
+        append(content, "empresa_telefono", empresaTelefono);
+        append(content, "empresa_correo", empresaCorreo);
+
+        append(content, "agenda_apertura", agendaApertura);
+        append(content, "agenda_cierre", agendaCierre);
+        append(content, "agenda_intervalo", String.valueOf(agendaIntervalo));
+        append(content, "agenda_duracion", String.valueOf(agendaDuracion));
+        append(content, "agenda_dias_laborales", agendaDiasLaborales);
+
+        append(content, "ventas_iva", String.valueOf(ventasIva));
+        append(content, "ventas_moneda", ventasMoneda);
+        append(content, "ventas_pago_defecto", ventasPagoDefecto);
+        append(content, "ventas_descuento_max", String.valueOf(ventasDescuentoMax));
+
+        append(content, "inventario_stock_min", String.valueOf(inventarioStockMin));
+        append(content, "inventario_alerta_vencimiento", String.valueOf(inventarioAlertaVencimiento));
+        append(content, "inventario_alertas_auto", String.valueOf(inventarioAlertasAuto));
+
+        append(content, "usuarios_roles", usuariosRoles);
+        append(content, "usuarios_permisos", usuariosPermisos);
+        append(content, "usuarios_tiempo_sesion", String.valueOf(usuariosTiempoSesion));
+
+        append(content, "sistema_tema", sistemaTema);
+        append(content, "sistema_idioma", sistemaIdioma);
+        append(content, "sistema_zona_horaria", sistemaZonaHoraria);
+        append(content, "sistema_format_fecha", sistemaFormatFecha);
+        append(content, "sistema_format_hora", sistemaFormatHora);
+
+        append(content, "ai_model", aiModel);
+        append(content, "ai_temp", String.valueOf(aiTemp));
+        append(content, "ai_stream", String.valueOf(aiStream));
+        append(content, "ai_timeout", String.valueOf(aiTimeout));
+        append(content, "ai_context", aiContext);
+        append(content, "ai_prompt", aiPrompt);
+        append(content, "ai_active", String.valueOf(aiActive));
+
         Files.writeString(CONFIG_PATH, content.toString(), StandardCharsets.UTF_8);
     }
 
@@ -122,6 +251,21 @@ public final class ApplicationVisualSettings {
         } catch (NumberFormatException ignored) {
             return fallback;
         }
+    }
+
+    private static int parseInt(String value, int fallback) {
+        try {
+            return Integer.parseInt(text(value, String.valueOf(fallback)));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private static boolean parseBoolean(String value, boolean fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        return Boolean.parseBoolean(value.trim());
     }
 
     private static List<String> parseSizes(String value) {
@@ -160,4 +304,76 @@ public final class ApplicationVisualSettings {
     public void setMainLogoPath(String mainLogoPath) { this.mainLogoPath = mainLogoPath; }
     public String getLogotipoImagePath() { return logotipoImagePath; }
     public void setLogotipoImagePath(String logotipoImagePath) { this.logotipoImagePath = logotipoImagePath; }
+
+    // Getters y Setters para las Nuevas Propiedades
+    public String getEmpresaNombre() { return empresaNombre; }
+    public void setEmpresaNombre(String empresaNombre) { this.empresaNombre = empresaNombre; }
+    public String getEmpresaDireccion() { return empresaDireccion; }
+    public void setEmpresaDireccion(String empresaDireccion) { this.empresaDireccion = empresaDireccion; }
+    public String getEmpresaCiudad() { return empresaCiudad; }
+    public void setEmpresaCiudad(String empresaCiudad) { this.empresaCiudad = empresaCiudad; }
+    public String getEmpresaTelefono() { return empresaTelefono; }
+    public void setEmpresaTelefono(String empresaTelefono) { this.empresaTelefono = empresaTelefono; }
+    public String getEmpresaCorreo() { return empresaCorreo; }
+    public void setEmpresaCorreo(String empresaCorreo) { this.empresaCorreo = empresaCorreo; }
+
+    public String getAgendaApertura() { return agendaApertura; }
+    public void setAgendaApertura(String agendaApertura) { this.agendaApertura = agendaApertura; }
+    public String getAgendaCierre() { return agendaCierre; }
+    public void setAgendaCierre(String agendaCierre) { this.agendaCierre = agendaCierre; }
+    public int getAgendaIntervalo() { return agendaIntervalo; }
+    public void setAgendaIntervalo(int agendaIntervalo) { this.agendaIntervalo = agendaIntervalo; }
+    public int getAgendaDuracion() { return agendaDuracion; }
+    public void setAgendaDuracion(int agendaDuracion) { this.agendaDuracion = agendaDuracion; }
+    public String getAgendaDiasLaborales() { return agendaDiasLaborales; }
+    public void setAgendaDiasLaborales(String agendaDiasLaborales) { this.agendaDiasLaborales = agendaDiasLaborales; }
+
+    public double getVentasIva() { return ventasIva; }
+    public void setVentasIva(double ventasIva) { this.ventasIva = ventasIva; }
+    public String getVentasMoneda() { return ventasMoneda; }
+    public void setVentasMoneda(String ventasMoneda) { this.ventasMoneda = ventasMoneda; }
+    public String getVentasPagoDefecto() { return ventasPagoDefecto; }
+    public void setVentasPagoDefecto(String ventasPagoDefecto) { this.ventasPagoDefecto = ventasPagoDefecto; }
+    public double getVentasDescuentoMax() { return ventasDescuentoMax; }
+    public void setVentasDescuentoMax(double ventasDescuentoMax) { this.ventasDescuentoMax = ventasDescuentoMax; }
+
+    public int getInventarioStockMin() { return inventarioStockMin; }
+    public void setInventarioStockMin(int inventarioStockMin) { this.inventarioStockMin = inventarioStockMin; }
+    public int getInventarioAlertaVencimiento() { return inventarioAlertaVencimiento; }
+    public void setInventarioAlertaVencimiento(int inventarioAlertaVencimiento) { this.inventarioAlertaVencimiento = inventarioAlertaVencimiento; }
+    public boolean isInventarioAlertasAuto() { return inventarioAlertasAuto; }
+    public void setInventarioAlertasAuto(boolean inventarioAlertasAuto) { this.inventarioAlertasAuto = inventarioAlertasAuto; }
+
+    public String getUsuariosRoles() { return usuariosRoles; }
+    public void setUsuariosRoles(String usuariosRoles) { this.usuariosRoles = usuariosRoles; }
+    public String getUsuariosPermisos() { return usuariosPermisos; }
+    public void setUsuariosPermisos(String usuariosPermisos) { this.usuariosPermisos = usuariosPermisos; }
+    public int getUsuariosTiempoSesion() { return usuariosTiempoSesion; }
+    public void setUsuariosTiempoSesion(int usuariosTiempoSesion) { this.usuariosTiempoSesion = usuariosTiempoSesion; }
+
+    public String getSistemaTema() { return sistemaTema; }
+    public void setSistemaTema(String sistemaTema) { this.sistemaTema = sistemaTema; }
+    public String getSistemaIdioma() { return sistemaIdioma; }
+    public void setSistemaIdioma(String sistemaIdioma) { this.sistemaIdioma = sistemaIdioma; }
+    public String getSistemaZonaHoraria() { return sistemaZonaHoraria; }
+    public void setSistemaZonaHoraria(String sistemaZonaHoraria) { this.sistemaZonaHoraria = sistemaZonaHoraria; }
+    public String getSistemaFormatFecha() { return sistemaFormatFecha; }
+    public void setSistemaFormatFecha(String sistemaFormatFecha) { this.sistemaFormatFecha = sistemaFormatFecha; }
+    public String getSistemaFormatHora() { return sistemaFormatHora; }
+    public void setSistemaFormatHora(String sistemaFormatHora) { this.sistemaFormatHora = sistemaFormatHora; }
+
+    public String getAiModel() { return aiModel; }
+    public void setAiModel(String aiModel) { this.aiModel = aiModel; }
+    public double getAiTemp() { return aiTemp; }
+    public void setAiTemp(double aiTemp) { this.aiTemp = aiTemp; }
+    public boolean isAiStream() { return aiStream; }
+    public void setAiStream(boolean aiStream) { this.aiStream = aiStream; }
+    public int getAiTimeout() { return aiTimeout; }
+    public void setAiTimeout(int aiTimeout) { this.aiTimeout = aiTimeout; }
+    public String getAiContext() { return aiContext; }
+    public void setAiContext(String aiContext) { this.aiContext = aiContext; }
+    public String getAiPrompt() { return aiPrompt; }
+    public void setAiPrompt(String aiPrompt) { this.aiPrompt = aiPrompt; }
+    public boolean isAiActive() { return aiActive; }
+    public void setAiActive(boolean aiActive) { this.aiActive = aiActive; }
 }

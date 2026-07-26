@@ -7,11 +7,14 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 
-import javax.swing.BorderFactory;
+import java.text.NumberFormat;
+import java.util.Locale;
+
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -19,14 +22,20 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
+import secureauth.model.ReportChartData;
+import secureauth.ui.components.charts.ReportChartPanel;
 import secureauth.ui.utils.JpanelR;
 import secureauth.ui.utils.UiTheme;
 
 /**
  * Panel de reportes del sistema.
- * Incluye KPIs, gráficos y tablas resumen. Por ahora los gráficos son placeholders, pero se integrará JFreeChart para   visualizaciones reales.
+ * Incluye KPIs, gráficos reales y tablas resumen. Los gráficos se alimentan
+ * exclusivamente con datos calculados por la capa de negocio (Service/Repository)
+ * a través de {@link #updateSalesTrendChart(ReportChartData)} y
+ * {@link #updateTopProductsChart(ReportChartData)}; este panel nunca consulta
+ * la base de datos directamente.
  * @author Diego Gaviria Jimenez
- * @version 1.0.0
+ * @version 1.1.0
  */
 public class PanelReports extends JPanel {
 
@@ -46,6 +55,8 @@ public class PanelReports extends JPanel {
     private Runnable refreshAction;
     private Runnable exportAction;
     private DefaultTableModel salesTableModel;
+    private ReportChartPanel chartVentasTendencia;
+    private ReportChartPanel chartProductosTop;
 
     public PanelReports() {
 
@@ -113,11 +124,17 @@ public class PanelReports extends JPanel {
         btnGenerate.addActionListener(e -> {
             if (refreshAction != null) {
                 refreshAction.run();
+            } else {
+                JOptionPane.showMessageDialog(this, "La generación de reportes no está configurada.",
+                        "Reportes", JOptionPane.WARNING_MESSAGE);
             }
         });
         btnExport.addActionListener(e -> {
             if (exportAction != null) {
                 exportAction.run();
+            } else {
+                JOptionPane.showMessageDialog(this, "La exportación de reportes no está configurada.",
+                        "Reportes", JOptionPane.WARNING_MESSAGE);
             }
         });
 
@@ -225,18 +242,27 @@ public class PanelReports extends JPanel {
         JPanel panel = new JPanel(new GridLayout(1, 2, 20, 0));
         panel.setOpaque(false);
 
-        panel.add(createChartPlaceholder(
-                "Tendencia de Ventas"
-        ));
+        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
+        chartVentasTendencia = new ReportChartPanel(ReportChartPanel.ChartType.LINE, BLUE, currencyFormat);
+        panel.add(createChartCard("Tendencia de Ventas", chartVentasTendencia));
 
-        panel.add(createChartPlaceholder(
-                "Distribución de Productos"
-        ));
+        NumberFormat unitsFormat = NumberFormat.getIntegerInstance(Locale.of("es", "CO"));
+        chartProductosTop = new ReportChartPanel(ReportChartPanel.ChartType.BAR, ORANGE, unitsFormat);
+        panel.add(createChartCard("Distribución de Productos", chartProductosTop));
 
         return panel;
     }
 
-    private JPanel createChartPlaceholder(String title) {
+    /**
+     * Construye la tarjeta visual que envuelve un {@link ReportChartPanel}.
+     * El mismo método se reutiliza para cualquier gráfico del módulo: solo
+     * cambia el título y la instancia de gráfico que se le pase.
+     *
+     * @param title título mostrado sobre el gráfico
+     * @param chart componente de gráfico ya configurado (tipo y color)
+     * @return tarjeta lista para agregarse al layout
+     */
+    private JPanel createChartCard(String title, ReportChartPanel chart) {
 
         JpanelR card = new JpanelR();
         card.setArc(22);
@@ -250,19 +276,8 @@ public class PanelReports extends JPanel {
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 18));
         lbl.setForeground(TEXT);
 
-        JPanel fakeChart = new JPanel();
-        fakeChart.setBackground(new Color(248,250,252));
-        fakeChart.setBorder(BorderFactory.createDashedBorder(
-                new Color(180,180,180)
-        ));
-
-        JLabel placeholder = new JLabel("Integrar JFreeChart aquí");
-        placeholder.setForeground(SUBTEXT);
-
-        fakeChart.add(placeholder);
-
         card.add(lbl, BorderLayout.NORTH);
-        card.add(fakeChart, BorderLayout.CENTER);
+        card.add(chart, BorderLayout.CENTER);
 
         return card;
     }
@@ -366,6 +381,30 @@ public class PanelReports extends JPanel {
         lblVentasMes.setText(ventasMes);
         lblProductos.setText(productos);
         lblClientes.setText(clientes);
+    }
+
+    /**
+     * Actualiza el gráfico de tendencia de ventas con datos ya calculados
+     * por la capa de negocio. Debe invocarse desde el EDT.
+     *
+     * @param data serie de puntos (fecha/total) lista para graficar
+     */
+    public void updateSalesTrendChart(ReportChartData data) {
+        if (chartVentasTendencia != null) {
+            chartVentasTendencia.setData(data);
+        }
+    }
+
+    /**
+     * Actualiza el gráfico de productos/servicios más vendidos con datos ya
+     * calculados por la capa de negocio. Debe invocarse desde el EDT.
+     *
+     * @param data serie de puntos (nombre/unidades) lista para graficar
+     */
+    public void updateTopProductsChart(ReportChartData data) {
+        if (chartProductosTop != null) {
+            chartProductosTop.setData(data);
+        }
     }
 
     public void renderSalesRows(java.util.List<Object[]> rows) {

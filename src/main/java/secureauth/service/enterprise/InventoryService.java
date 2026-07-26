@@ -43,8 +43,13 @@ public class InventoryService {
         return dao.findAll(context.getActiveBusinessId(), context.getActiveBranchId(), query);
     }
 
+    public InventoryDAO.InventorySummary loadSummary() throws SQLException {
+        return dao.loadSummary(context.getActiveBusinessId(), context.getActiveBranchId());
+    }
+
     public void upsert(InventoryItem item) throws SQLException {
         dao.upsert(item);
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
     }
 
     /**
@@ -78,6 +83,7 @@ public class InventoryService {
                     parseDouble(row[7]), row.length > 8 ? row[8] : "ACTIVO");
             dao.upsert(item);
         }
+        secureauth.shared.events.DashboardEventBus.notifyDataChanged();
     }
 
     public void exportCsv(Path target, String query) throws IOException, SQLException {

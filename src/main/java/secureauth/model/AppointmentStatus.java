@@ -17,7 +17,8 @@ public enum AppointmentStatus {
     CONFIRMED("CONFIRMADA", "Confirmada"),
     IN_PROGRESS("EN_PROCESO", "En proceso"),
     FINALIZED("FINALIZADO", "Finalizado", Set.of("FINALIZADA", "REALIZADO")),
-    CANCELLED("CANCELADA", "Cancelada", Set.of("CANCELADO"));
+    CANCELLED("CANCELADA", "Cancelada", Set.of("CANCELADO")),
+    ARCHIVED("ARCHIVADA", "Archivada", Set.of("ARCHIVED", "ARCHIVADO"));
 
     private final String databaseValue;
     private final String displayName;

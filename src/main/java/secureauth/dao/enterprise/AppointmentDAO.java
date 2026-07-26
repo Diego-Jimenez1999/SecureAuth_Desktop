@@ -9,6 +9,7 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +38,7 @@ public class AppointmentDAO {
     public static final String STATUS_IN_PROGRESS = AppointmentStatus.IN_PROGRESS.databaseValue();
     public static final String STATUS_DONE = AppointmentStatus.FINALIZED.databaseValue();
     public static final String STATUS_CANCELLED = AppointmentStatus.CANCELLED.databaseValue();
+    public static final String STATUS_ARCHIVED = AppointmentStatus.ARCHIVED.databaseValue();
 
     /**
      * Crea y migra la tabla {@code appointments} si no existe.
@@ -56,6 +58,8 @@ public class AppointmentDAO {
                         pet_name VARCHAR(140) NOT NULL,
                         appointment_date DATE NOT NULL,
                         appointment_time TIME NOT NULL,
+                        end_date DATE NULL,
+                        end_time TIME NULL,
                         status VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE',
                         notes VARCHAR(900) NULL,
                         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -73,6 +77,8 @@ public class AppointmentDAO {
             addColumnIfMissing(conn, st, "pet_name", "VARCHAR(140) NOT NULL DEFAULT ''");
             addColumnIfMissing(conn, st, "appointment_date", "DATE NULL");
             addColumnIfMissing(conn, st, "appointment_time", "TIME NULL");
+            addColumnIfMissing(conn, st, "end_date", "DATE NULL");
+            addColumnIfMissing(conn, st, "end_time", "TIME NULL");
             addColumnIfMissing(conn, st, "status", "VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE'");
             addColumnIfMissing(conn, st, "notes", "VARCHAR(900) NULL");
             addColumnIfMissing(conn, st, "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
@@ -106,8 +112,8 @@ public class AppointmentDAO {
     public Appointment insert(Connection conn, Appointment appointment) throws SQLException {
         String sql = """
                 INSERT INTO appointments(service_id, service_name, owner_id, owner_name, pet_id, pet_name,
-                                         appointment_date, appointment_time, status, notes, created_by)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                                         appointment_date, appointment_time, end_date, end_time, status, notes, created_by)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, appointment.getServiceId());
@@ -118,9 +124,11 @@ public class AppointmentDAO {
             ps.setString(6, appointment.getPetName());
             ps.setDate(7, Date.valueOf(appointment.getAppointmentDate()));
             ps.setTime(8, Time.valueOf(appointment.getAppointmentTime()));
-            ps.setString(9, appointment.getStatus());
-            ps.setString(10, appointment.getNotes());
-            ps.setString(11, appointment.getCreatedBy());
+            ps.setDate(9, appointment.getEndDate() != null ? Date.valueOf(appointment.getEndDate()) : Date.valueOf(appointment.getAppointmentDate()));
+            ps.setTime(10, appointment.getEndTime() != null ? Time.valueOf(appointment.getEndTime()) : Time.valueOf(appointment.getAppointmentTime()));
+            ps.setString(11, appointment.getStatus());
+            ps.setString(12, appointment.getNotes());
+            ps.setString(13, appointment.getCreatedBy());
             ps.executeUpdate();
 
             try (ResultSet keys = ps.getGeneratedKeys()) {
@@ -143,7 +151,7 @@ public class AppointmentDAO {
         ensureSchema();
         String sql = """
                 SELECT id, service_id, service_name, owner_id, owner_name, pet_id, pet_name,
-                       appointment_date, appointment_time, status, notes, created_at, created_by
+                       appointment_date, appointment_time, end_date, end_time, status, notes, created_at, created_by
                 FROM appointments
                 WHERE id = ?
                 """;
@@ -167,10 +175,10 @@ public class AppointmentDAO {
         ensureSchema();
         String sql = """
                 SELECT id, service_id, service_name, owner_id, owner_name, pet_id, pet_name,
-                       appointment_date, appointment_time, status, notes, created_at, created_by
+                       appointment_date, appointment_time, end_date, end_time, status, notes, created_at, created_by
                 FROM appointments
-                ORDER BY FIELD(status, 'PENDIENTE', 'CONFIRMADA', 'EN_PROCESO', 'FINALIZADO', 'FINALIZADA', 'REALIZADO', 'CANCELADA', 'CANCELADO'),
-                         appointment_date ASC,
+                WHERE status IN ('PENDIENTE', 'CONFIRMADA', 'EN_PROCESO')
+                ORDER BY appointment_date ASC,
                          appointment_time ASC
                 LIMIT ?
                 """;
@@ -187,6 +195,100 @@ public class AppointmentDAO {
         return appointments;
     }
 
+    public List<ServicePopularity> findMostRequestedServices(int limit) throws SQLException {
+        ensureSchema();
+        String sql = """
+                SELECT service_name, COUNT(*) AS total
+                FROM appointments
+                WHERE service_name IS NOT NULL
+                  AND TRIM(service_name) <> ''
+                GROUP BY service_name
+                ORDER BY total DESC, service_name ASC
+                LIMIT ?
+                """;
+        List<ServicePopularity> services = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    services.add(new ServicePopularity(rs.getString("service_name"), rs.getInt("total")));
+                }
+            }
+        }
+        return services;
+    }
+
+    /**
+     * Consulta citas con criterios avanzados de búsqueda, filtros de fecha, estado y ordenamiento.
+     *
+     * @param query término de búsqueda (nombre cliente, mascota, servicio)
+     * @param dateFilter filtro de fecha ("HOY", "SEMANA", "MES", "ANIO", "TODAS")
+     * @param statusFilter filtro de estado ("PENDIENTES", "FINALIZADAS", "CANCELADAS", "ARCHIVADAS", "TODAS")
+     * @return lista de citas filtradas
+     * @throws SQLException si falla la base de datos
+     */
+    public List<Appointment> findAdvanced(String query, String dateFilter, String statusFilter) throws SQLException {
+        ensureSchema();
+        StringBuilder sql = new StringBuilder("""
+                SELECT id, service_id, service_name, owner_id, owner_name, pet_id, pet_name,
+                       appointment_date, appointment_time, end_date, end_time, status, notes, created_at, created_by
+                FROM appointments
+                WHERE 1=1
+                """);
+        List<Object> params = new ArrayList<>();
+
+        if (query != null && !query.trim().isEmpty()) {
+            sql.append(" AND (owner_name LIKE ? OR pet_name LIKE ? OR service_name LIKE ? OR notes LIKE ?)");
+            String likeParam = "%" + query.trim() + "%";
+            params.add(likeParam);
+            params.add(likeParam);
+            params.add(likeParam);
+            params.add(likeParam);
+        }
+
+        if (dateFilter != null) {
+            switch (dateFilter.toUpperCase()) {
+                case "HOY" -> {
+                    sql.append(" AND (appointment_date = CURRENT_DATE() OR (end_date IS NOT NULL AND appointment_date <= CURRENT_DATE() AND end_date >= CURRENT_DATE()))");
+                }
+                case "SEMANA" -> {
+                    sql.append(" AND (YEARWEEK(appointment_date, 1) = YEARWEEK(CURRENT_DATE(), 1) OR (end_date IS NOT NULL AND appointment_date <= CURRENT_DATE() + INTERVAL (7 - DAYOFWEEK(CURRENT_DATE())) DAY AND end_date >= CURRENT_DATE() - INTERVAL (DAYOFWEEK(CURRENT_DATE()) - 1) DAY))");
+                }
+                case "MES" -> {
+                    sql.append(" AND (YEAR(appointment_date) = YEAR(CURRENT_DATE()) AND MONTH(appointment_date) = MONTH(CURRENT_DATE()))");
+                }
+                case "ANIO", "AÑO" -> {
+                    sql.append(" AND YEAR(appointment_date) = YEAR(CURRENT_DATE())");
+                }
+            }
+        }
+
+        if (statusFilter != null && !statusFilter.equalsIgnoreCase("TODAS")) {
+            switch (statusFilter.toUpperCase()) {
+                case "PENDIENTES" -> sql.append(" AND status IN ('PENDIENTE', 'CONFIRMADA', 'EN_PROCESO')");
+                case "FINALIZADAS", "FINALIZADOS" -> sql.append(" AND status IN ('FINALIZADO', 'FINALIZADA', 'REALIZADO')");
+                case "CANCELADAS", "CANCELADOS" -> sql.append(" AND status IN ('CANCELADA', 'CANCELADO')");
+                case "ARCHIVADAS", "ARCHIVADOS" -> sql.append(" AND status = 'ARCHIVADA'");
+            }
+        }
+
+        sql.append(" ORDER BY appointment_date DESC, appointment_time DESC");
+
+        List<Appointment> results = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    results.add(mapRow(rs));
+                }
+            }
+        }
+        return results;
+    }
+
     /**
      * Lista citas activas del módulo veterinario para una fecha.
      *
@@ -198,9 +300,12 @@ public class AppointmentDAO {
         ensureSchema();
         String sql = """
                 SELECT id, service_id, service_name, owner_id, owner_name, pet_id, pet_name,
-                       appointment_date, appointment_time, status, notes, created_at, created_by
+                       appointment_date, appointment_time, end_date, end_time, status, notes, created_at, created_by
                 FROM appointments
-                WHERE appointment_date = ?
+                WHERE (
+                    (end_date IS NULL AND appointment_date = ?)
+                    OR (end_date IS NOT NULL AND appointment_date <= ? AND end_date >= ?)
+                )
                   AND status IN (?, ?, ?)
                 ORDER BY appointment_time
                 """;
@@ -208,9 +313,11 @@ public class AppointmentDAO {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setDate(1, Date.valueOf(date));
-            ps.setString(2, STATUS_PENDING);
-            ps.setString(3, STATUS_CONFIRMED);
-            ps.setString(4, STATUS_IN_PROGRESS);
+            ps.setDate(2, Date.valueOf(date));
+            ps.setDate(3, Date.valueOf(date));
+            ps.setString(4, STATUS_PENDING);
+            ps.setString(5, STATUS_CONFIRMED);
+            ps.setString(6, STATUS_IN_PROGRESS);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     appointments.add(mapRow(rs));
@@ -218,6 +325,41 @@ public class AppointmentDAO {
             }
         }
         return appointments;
+    }
+
+    /**
+     * Actualiza los datos de una cita completa.
+     *
+     * @param appointment la cita con sus nuevos datos
+     * @return true si se actualizó correctamente
+     * @throws SQLException si falla la base de datos
+     */
+    public boolean update(Appointment appointment) throws SQLException {
+        ensureSchema();
+        String sql = """
+                UPDATE appointments
+                SET appointment_date = ?,
+                    appointment_time = ?,
+                    end_date = ?,
+                    end_time = ?,
+                    created_by = ?,
+                    service_name = ?,
+                    notes = ?,
+                    status = ?
+                WHERE id = ?
+                """;
+        try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(appointment.getAppointmentDate()));
+            ps.setTime(2, Time.valueOf(appointment.getAppointmentTime()));
+            ps.setDate(3, appointment.getEndDate() != null ? Date.valueOf(appointment.getEndDate()) : Date.valueOf(appointment.getAppointmentDate()));
+            ps.setTime(4, appointment.getEndTime() != null ? Time.valueOf(appointment.getEndTime()) : Time.valueOf(appointment.getAppointmentTime()));
+            ps.setString(5, appointment.getCreatedBy());
+            ps.setString(6, appointment.getServiceName());
+            ps.setString(7, appointment.getNotes());
+            ps.setString(8, appointment.getStatus());
+            ps.setInt(9, appointment.getId());
+            return ps.executeUpdate() > 0;
+        }
     }
 
     /**
@@ -275,6 +417,13 @@ public class AppointmentDAO {
 
     private Appointment mapRow(ResultSet rs) throws SQLException {
         Timestamp createdAt = rs.getTimestamp("created_at");
+        Date endDateVal = rs.getDate("end_date");
+        Time endTimeVal = rs.getTime("end_time");
+        LocalDate startDate = rs.getDate("appointment_date").toLocalDate();
+        LocalTime startTime = rs.getTime("appointment_time").toLocalTime();
+        LocalDate endDate = endDateVal == null ? startDate : endDateVal.toLocalDate();
+        LocalTime endTime = endTimeVal == null ? startTime : endTimeVal.toLocalTime();
+
         return new Appointment(
                 rs.getInt("id"),
                 rs.getInt("service_id"),
@@ -283,8 +432,10 @@ public class AppointmentDAO {
                 rs.getString("owner_name"),
                 rs.getInt("pet_id"),
                 rs.getString("pet_name"),
-                rs.getDate("appointment_date").toLocalDate(),
-                rs.getTime("appointment_time").toLocalTime(),
+                startDate,
+                startTime,
+                endDate,
+                endTime,
                 rs.getString("status"),
                 rs.getString("notes"),
                 createdAt == null ? null : createdAt.toLocalDateTime(),
@@ -296,5 +447,8 @@ public class AppointmentDAO {
         if (!SchemaInspector.columnExists(conn, "appointments", column)) {
             st.execute("ALTER TABLE appointments ADD COLUMN " + column + " " + definition);
         }
+    }
+
+    public record ServicePopularity(String serviceName, int total) {
     }
 }

@@ -62,7 +62,11 @@ public class PetService {
             pet.setImagenPath(copiedPath);
         }
 
-        return petDAO.insert(pet);
+        boolean success = petDAO.insert(pet);
+        if (success) {
+            secureauth.shared.events.DashboardEventBus.notifyDataChanged();
+        }
+        return success;
     }
 
     /**

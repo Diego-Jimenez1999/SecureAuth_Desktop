@@ -21,6 +21,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.RoundRectangle2D;
+import java.io.File;
+import java.text.NumberFormat;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -29,6 +31,7 @@ import javax.swing.DefaultCellEditor;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -43,17 +46,28 @@ import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import secureauth.controller.AuthController;
 import secureauth.controller.IngresoController;
 import secureauth.dao.UserDAO;
 import secureauth.repository.UserRepositoryImpl;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import javax.swing.SwingWorker;
+import secureauth.service.OwnerService;
+import secureauth.service.enterprise.AppointmentService;
+import secureauth.service.enterprise.InventoryService;
+import secureauth.service.enterprise.SalesTransactionService;
 import secureauth.service.AuthService;
 import secureauth.service.UserService;
-import secureauth.ui.dialogs.ApplicationVisualConfigDialog;
+import secureauth.model.enterprise.InventoryItem;
+import secureauth.ui.dialogs.AdvancedConfigDialog;
 import secureauth.ui.dialogs.GestionVentasServiciosDialog;
 import secureauth.ui.dialogs.PreciosPorTamanoDialog;
 import secureauth.ui.dialogs.RegistroTrabajadores;
+import secureauth.ui.sales.SalesServiceCatalog;
 import secureauth.ui.utils.UiTheme;
 
 /**
@@ -96,10 +110,19 @@ public class PanelConfig extends JPanel {
 
     private final UserService   userService;
     private final IngresoController ingresoController;
+    private final SalesTransactionService salesService;
+    private final OwnerService ownerService;
+    private final InventoryService inventoryService;
+    private final AppointmentService appointmentService;
 
     // ─── Componentes de métricas ──────────────────────────────────────────────
     private JLabel lblVentasValor;
     private JLabel lblClientesValor;
+    private JLabel lblVentasTrend;
+    private JLabel lblClientesTrend;
+    private JPanel pnlServContent;
+    private JLabel lblInventarioValor;
+    private JLabel lblInventarioTrend;
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -110,8 +133,24 @@ public class PanelConfig extends JPanel {
      * @param ingresoController controlador principal para acciones de usuario
      */
     public PanelConfig(UserService userService, IngresoController ingresoController) {
+        this(userService, ingresoController, new SalesTransactionService(), new OwnerService(new secureauth.dao.OwnerDAO()),
+                new InventoryService(), new AppointmentService());
+    }
+
+    public PanelConfig(UserService userService, IngresoController ingresoController,
+                       SalesTransactionService salesService, OwnerService ownerService) {
+        this(userService, ingresoController, salesService, ownerService, new InventoryService(), new AppointmentService());
+    }
+
+    public PanelConfig(UserService userService, IngresoController ingresoController,
+                       SalesTransactionService salesService, OwnerService ownerService,
+                       InventoryService inventoryService, AppointmentService appointmentService) {
         this.userService = userService;
         this.ingresoController = ingresoController;
+        this.salesService = salesService;
+        this.ownerService = ownerService;
+        this.inventoryService = inventoryService;
+        this.appointmentService = appointmentService;
         initComponents();
     }
 
@@ -202,6 +241,17 @@ public class PanelConfig extends JPanel {
         texts.add(subtitle);
 
         header.add(texts, BorderLayout.WEST);
+
+        JButton refreshButton = new JButton("Actualizar");
+        refreshButton.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+        refreshButton.setBackground(UiTheme.ACCENT_BLUE);
+        refreshButton.setForeground(UiTheme.TEXT_LIGHT);
+        refreshButton.setBorderPainted(false);
+        refreshButton.setFocusPainted(false);
+        refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        refreshButton.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        refreshButton.addActionListener(e -> loadConfigMetrics(true));
+        header.add(refreshButton, BorderLayout.EAST);
         return header;
     }
 
@@ -211,59 +261,44 @@ public class PanelConfig extends JPanel {
 
     /**
      * Construye la fila de cuatro tarjetas de métricas del dashboard superior.
-     * Los valores son estáticos (placeholder); conectar al SettingsController para datos reales.
+     * Los valores son dinámicos y se obtienen de la base de datos MySQL.
      *
      * @return JPanel con las 4 tarjetas de métricas
      */
     private JPanel buildMetricsSection() {
         JPanel row = new JPanel(new GridLayout(1, 4, UiTheme.CARD_SPACING, 0));
         row.setBackground(UiTheme.BG_PAGE);
-        // FIX: se amplía el alto (110 -> 140) porque el título ahora puede
-        // hacer salto de línea en vez de truncarse con "...". Sin este
-        // espacio extra, un título de 2 líneas quedaría recortado igual.
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
 
         // Tarjeta 1 — Ventas Totales
-        lblVentasValor = new JLabel("$2,503.64");
+        lblVentasValor = new JLabel("Cargando...");
         lblVentasValor.setFont(UiTheme.CARD_VALUE_FONT);
         lblVentasValor.setForeground(UiTheme.TEXT_PRIMARY);
-        JLabel ventasTrend = trendLabel("↑ 3 Crecimiento", UiTheme.SUCCESS_COLOR);
+        lblVentasTrend = trendLabel("Cargando...", UiTheme.SUCCESS_COLOR);
         row.add(buildMetricCard("💰", "Ventas Totales (Este Mes)", lblVentasValor,
-                ventasTrend, UiTheme.ACCENT_BLUE));
+                lblVentasTrend, UiTheme.ACCENT_BLUE));
 
         // Tarjeta 2 — Servicios Populares
-        JPanel servContent = new JPanel(new GridLayout(2, 3, 4, 2));
-        servContent.setBackground(UiTheme.PANEL_WHITE);
-        String[] sLabels = {"Hotel", "Consulta", "Consulta", "53%", "50%", "70%"};
-        for (int i = 0; i < sLabels.length; i++) {
-            JLabel l = new JLabel(sLabels[i], SwingConstants.CENTER);
-            l.setFont(i < 3 ? UiTheme.SMALL_FONT.deriveFont(Font.BOLD) : UiTheme.SMALL_FONT);
-            l.setForeground(i < 3 ? UiTheme.TEXT_PRIMARY : UiTheme.ACCENT_AMBER);
-            servContent.add(l);
-        }
-        // "Baño" en la primera posición de la segunda fila (ajuste visual)
-        row.add(buildMetricCardCustom("⭐", "Servicios Más Populares", servContent, UiTheme.ACCENT_AMBER));
+        pnlServContent = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        pnlServContent.setBackground(UiTheme.PANEL_WHITE);
+        pnlServContent.add(new JLabel("Cargando..."));
+        row.add(buildMetricCardCustom("⭐", "Servicios Más Populares", pnlServContent, UiTheme.ACCENT_AMBER));
 
-        // Tarjeta 3 — Ingresos por Categoría
-        JPanel ingContent = new JPanel(new GridLayout(2, 2, 8, 4));
-        ingContent.setBackground(UiTheme.PANEL_WHITE);
-        String[] cats   = {"Alimentos", "$3%", "Accesorios", "$3%"};
-        Color[]  catClr = {UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR, UiTheme.TEXT_PRIMARY, UiTheme.SUCCESS_COLOR};
-        for (int i = 0; i < cats.length; i++) {
-            JLabel l = new JLabel(cats[i]);
-            l.setFont(UiTheme.BODY_FONT);
-            l.setForeground(catClr[i]);
-            ingContent.add(l);
-        }
-        row.add(buildMetricCardCustom("📊", "Ingresos por Categoría", ingContent, UiTheme.ACCENT_PURPLE));
+        // Tarjeta 3 — Inventario real
+        lblInventarioValor = new JLabel("Cargando...");
+        lblInventarioValor.setFont(UiTheme.CARD_VALUE_FONT);
+        lblInventarioValor.setForeground(UiTheme.TEXT_PRIMARY);
+        lblInventarioTrend = trendLabel("Cargando...", UiTheme.ACCENT_PURPLE);
+        row.add(buildMetricCard("📦", "Inventario Total", lblInventarioValor,
+                lblInventarioTrend, UiTheme.ACCENT_PURPLE));
 
-        // Tarjeta 4 — Nuevos Clientes
-        lblClientesValor = new JLabel("3");
+        // Tarjeta 4 — Operación y usuarios
+        lblClientesValor = new JLabel("Cargando...");
         lblClientesValor.setFont(UiTheme.CARD_VALUE_FONT);
         lblClientesValor.setForeground(UiTheme.TEXT_PRIMARY);
-        JLabel clientesTrend = trendLabel("↑ Crecimiento", UiTheme.SUCCESS_COLOR);
-        row.add(buildMetricCard("👥", "Nuevos Clientes", lblClientesValor,
-                clientesTrend, UiTheme.SUCCESS_COLOR));
+        lblClientesTrend = trendLabel("Cargando...", UiTheme.SUCCESS_COLOR);
+        row.add(buildMetricCard("👥", "Clientes y Usuarios", lblClientesValor,
+                lblClientesTrend, UiTheme.SUCCESS_COLOR));
 
         return row;
     }
@@ -889,7 +924,7 @@ public class PanelConfig extends JPanel {
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    //  MÉTODOS PLACEHOLDER — CONECTAR AL CONTROLADOR
+    //  ACCIONES DEL CENTRO DE ADMINISTRACIÓN
     // ═════════════════════════════════════════════════════════════════════════
 
     /** Abre el panel de tabla de servicios.
@@ -909,15 +944,107 @@ public class PanelConfig extends JPanel {
         new PreciosPorTamanoDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
     }
 
-    /** Abre el visor de inventario.
-     * @code InventoryController.show()
-    */
-    private void onVerInventarioClick()     { System.out.println("[DEBUG] Abriendo visor de inventario..."); }
+    /** Abre el visor de inventario. */
+    private void onVerInventarioClick() {
+        new SwingWorker<List<InventoryItem>, Void>() {
+            @Override
+            protected List<InventoryItem> doInBackground() throws Exception {
+                inventoryService.initializeSchema();
+                return inventoryService.findAll("");
+            }
 
-    /** Abre el importador CSV/Excel.
-     * @code InventoryController.importCSV()
-     */
-    private void onImportarCSVClick()       { System.out.println("[DEBUG] Abriendo importador CSV..."); }
+            @Override
+            protected void done() {
+                try {
+                    showInventoryDialog(get());
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(PanelConfig.this,
+                            "No se pudo cargar el inventario: " + ex.getMessage(),
+                            "Inventario", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
+    }
+
+    /** Abre el importador CSV/Excel. */
+    private void onImportarCSVClick() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("Inventario CSV/XLSX", "csv", "xlsx"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File file = chooser.getSelectedFile();
+        try {
+            InventoryService.ImportPreview preview = inventoryService.previewImport(file);
+            if (!preview.errors().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Errores detectados:\n" + String.join("\n", preview.errors()),
+                        "Importar Inventario", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Se importarán " + preview.validRows().size() + " filas válidas.\n¿Deseas continuar?",
+                    "Confirmar Importación", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+
+            new SwingWorker<Void, Void>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    inventoryService.importRows(preview.validRows());
+                    return null;
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        get();
+                        SalesServiceCatalog.getInstance().reload();
+                        loadConfigMetrics();
+                        JOptionPane.showMessageDialog(PanelConfig.this,
+                                "Inventario importado correctamente.",
+                                "Importar Inventario", JOptionPane.INFORMATION_MESSAGE);
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(PanelConfig.this,
+                                "No se pudo importar el inventario: " + ex.getMessage(),
+                                "Importar Inventario", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }.execute();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "No se pudo leer el archivo: " + ex.getMessage(),
+                    "Importar Inventario", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void showInventoryDialog(List<InventoryItem> items) {
+        String[] cols = {"SKU", "Producto", "Categoría", "Stock", "Mínimo", "Proveedor", "Costo", "Precio", "Estado"};
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+        NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
+        for (InventoryItem item : items) {
+            model.addRow(new Object[]{
+                    item.sku(),
+                    item.name(),
+                    item.category(),
+                    item.stock(),
+                    item.minStock(),
+                    item.supplier(),
+                    currency.format(item.cost()),
+                    currency.format(item.price()),
+                    item.status()
+            });
+        }
+        JTable table = new JTable(model);
+        table.setAutoCreateRowSorter(true);
+        table.setRowHeight(28);
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setPreferredSize(new Dimension(900, 420));
+        JOptionPane.showMessageDialog(this, scroll,
+                "Inventario Actual (" + items.size() + " productos)", JOptionPane.PLAIN_MESSAGE);
+    }
 
     /** Abre la lista de trabajadores (tabla users) dentro de Configuración. */
     private void onListaTrabajadoresClick() {
@@ -934,7 +1061,7 @@ public class PanelConfig extends JPanel {
     private void onConfigAppClick() {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame parent = (window instanceof Frame) ? (Frame) window : null;
-        new ApplicationVisualConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+        new AdvancedConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
     }
 
     /** Abre el formulario de registro de usuarios existente. */
@@ -1190,6 +1317,126 @@ public class PanelConfig extends JPanel {
         @Override public Component getTableCellEditorComponent(
                 JTable t, Object v, boolean sel, int row, int col) { return panel; }
         @Override public Object getCellEditorValue() { return ""; }
+    }
+
+    // ─── LÓGICA DE MÉTRICAS REALES DESDE DB (MÓDULO CONFIGURACIÓN) ───────────
+
+    private static record ConfigMetricsData(
+            double salesToday, double salesWeek, double salesMonth, double salesYear,
+            int clientsToday, int clientsWeek, int clientsMonth, int activeUsers, int pendingAppointments,
+            int inventoryItems, int inventoryUnits, int lowStockProducts,
+            List<String[]> servicesData) {}
+
+    public void loadConfigMetrics() {
+        loadConfigMetrics(false);
+    }
+
+    public void loadConfigMetrics(boolean notifyResult) {
+        new SwingWorker<ConfigMetricsData, Void>() {
+            @Override
+            protected ConfigMetricsData doInBackground() throws Exception {
+                salesService.initializeSchema();
+                ownerService.ensureSchema();
+                inventoryService.initializeSchema();
+                appointmentService.initializeSchema();
+
+                var salesStats = salesService.loadDetailedStats();
+                var ownerStats = ownerService.loadOwnerStats();
+                var inventoryStats = inventoryService.loadSummary();
+
+                double salesToday = salesStats.salesToday();
+                double salesWeek = salesStats.salesWeek();
+                double salesMonth = salesStats.salesMonth();
+                double salesYear = salesStats.salesYear();
+
+                int clientsToday = ownerStats.clientsToday();
+                int clientsWeek = ownerStats.clientsWeek();
+                int clientsMonth = ownerStats.clientsMonth();
+                int activeUsers = userService.countActiveUsers();
+                int pendingAppointments = appointmentService.countScheduledAppointments();
+
+                var popularServices = appointmentService.findMostRequestedServices(3);
+
+                int totalServicesCount = popularServices.stream().mapToInt(s -> s.total()).sum();
+                List<String[]> servicesData = new ArrayList<>();
+                for (var service : popularServices) {
+                    double pct = totalServicesCount == 0 ? 0.0 : (service.total() * 100.0 / totalServicesCount);
+                    servicesData.add(new String[]{service.serviceName(), String.format(Locale.US, "%d | %.0f%%", service.total(), pct)});
+                }
+
+                return new ConfigMetricsData(
+                        salesToday, salesWeek, salesMonth, salesYear,
+                        clientsToday, clientsWeek, clientsMonth, activeUsers, pendingAppointments,
+                        inventoryStats.itemCount(), inventoryStats.totalStock(), inventoryStats.lowStockCount(),
+                        servicesData);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    ConfigMetricsData data = get();
+                    java.text.NumberFormat curFmt = java.text.NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
+
+                    lblVentasValor.setText(curFmt.format(data.salesMonth));
+                    if (lblVentasTrend != null) {
+                        lblVentasTrend.setText("<html>Día: " + curFmt.format(data.salesToday) + " | Sem: " + curFmt.format(data.salesWeek) + "<br>Año: " + curFmt.format(data.salesYear) + "</html>");
+                    }
+
+                    if (lblInventarioValor != null) {
+                        lblInventarioValor.setText(String.valueOf(data.inventoryUnits));
+                    }
+                    if (lblInventarioTrend != null) {
+                        lblInventarioTrend.setText("<html>Productos: " + data.inventoryItems
+                                + " | Bajo stock: " + data.lowStockProducts + "</html>");
+                    }
+
+                    lblClientesValor.setText(String.valueOf(data.clientsMonth));
+                    if (lblClientesTrend != null) {
+                        lblClientesTrend.setText("<html>Hoy: " + data.clientsToday + " | Sem: " + data.clientsWeek
+                                + "<br>Usuarios: " + data.activeUsers + " | Citas: " + data.pendingAppointments + "</html>");
+                    }
+
+                    if (pnlServContent != null) {
+                        pnlServContent.removeAll();
+                        if (data.servicesData.isEmpty()) {
+                            pnlServContent.setLayout(new FlowLayout(FlowLayout.CENTER));
+                            JLabel lblEmpty = new JLabel("Sin servicios agendados");
+                            lblEmpty.setFont(UiTheme.SMALL_FONT);
+                            pnlServContent.add(lblEmpty);
+                        } else {
+                            pnlServContent.setLayout(new GridLayout(2, data.servicesData.size(), 4, 2));
+                            for (String[] row : data.servicesData) {
+                                JLabel l = new JLabel(row[0], SwingConstants.CENTER);
+                                l.setFont(UiTheme.SMALL_FONT.deriveFont(Font.BOLD));
+                                l.setForeground(UiTheme.TEXT_PRIMARY);
+                                pnlServContent.add(l);
+                            }
+                            for (String[] row : data.servicesData) {
+                                JLabel l = new JLabel(row[1], SwingConstants.CENTER);
+                                l.setFont(UiTheme.SMALL_FONT);
+                                l.setForeground(UiTheme.ACCENT_AMBER);
+                                pnlServContent.add(l);
+                            }
+                        }
+                        pnlServContent.revalidate();
+                        pnlServContent.repaint();
+                    }
+                    if (notifyResult) {
+                        JOptionPane.showMessageDialog(PanelConfig.this,
+                                "Métricas de configuración actualizadas correctamente.",
+                                "Configuración", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                } catch (Exception ex) {
+                    if (notifyResult) {
+                        JOptionPane.showMessageDialog(PanelConfig.this,
+                                "No se pudieron actualizar las métricas: " + ex.getMessage(),
+                                "Configuración", JOptionPane.ERROR_MESSAGE);
+                    } else {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        }.execute();
     }
 
 }

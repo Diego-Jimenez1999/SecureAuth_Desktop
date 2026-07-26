@@ -29,7 +29,7 @@ import secureauth.service.enterprise.SalesTransactionService;
  * compartidos para evitar {@code new Service()} y {@code new DAO()} dispersos
  * dentro de ventanas Swing.</p>
  */
-public final class AppContext {
+public class AppContext {
 
     private final UserDAO userDAO;
     private final UserRepository userRepository;
@@ -81,6 +81,13 @@ public final class AppContext {
 
     public void initialize() {
         enterpriseBootstrapService.initialize();
+        try {
+            getSalesTransactionService().initializeSchema();
+            getAppointmentService().initializeSchema();
+            getInventoryService().initializeSchema();
+            getActividadRecienteService().initializeSchema();
+            getOwnerService().ensureSchema();
+        } catch (Exception ignored) {}
     }
 
     public UserRepository getUserRepository() {
