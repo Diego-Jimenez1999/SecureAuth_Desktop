@@ -32,6 +32,7 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -47,18 +48,18 @@ import javax.swing.event.DocumentListener;
 
 import secureauth.dao.OwnerDAO;
 import secureauth.dao.PetDAO;
-import secureauth.model.CitaServicio;
+import secureauth.model.SalesAppointment;
 import secureauth.model.Owner;
 import secureauth.model.Pet;
 import secureauth.service.OwnerService;
 import secureauth.service.PetService;
-import secureauth.service.enterprise.AgendaService;
+import secureauth.service.enterprise.SalesAppointmentService;
 import secureauth.ui.utils.UiTheme;
 
 /**
  * Diálogo compacto para agendar servicios desde ventas con flujo de ERP veterinario.
  */
-public class AgendaServicioDialog extends JDialog {
+public class SalesAppointmentDialog extends JDialog {
 
     private static final int DEFAULT_DURATION_MINUTES = 120;
 
@@ -88,7 +89,7 @@ public class AgendaServicioDialog extends JDialog {
             5));
     private final JTextArea notesArea = new JTextArea(3, 28);
 
-    private final AgendaService agendaService;
+    private final SalesAppointmentService agendaService;
     private final OwnerService ownerService;
     private final PetService petService;
     private JTextField ownerEditorField;
@@ -108,11 +109,11 @@ public class AgendaServicioDialog extends JDialog {
      * @param serviceName servicio vendido que se agenda
      * @param agendaService servicio de agenda
      */
-    public AgendaServicioDialog(Window owner, String serviceName, AgendaService agendaService) {
+    public SalesAppointmentDialog(Window owner, String serviceName, SalesAppointmentService agendaService) {
         this(owner, serviceName, agendaService, new OwnerService(new OwnerDAO()), new PetService(new PetDAO()));
     }
 
-    public AgendaServicioDialog(Window owner, String serviceName, AgendaService agendaService,
+    public SalesAppointmentDialog(Window owner, String serviceName, SalesAppointmentService agendaService,
             OwnerService ownerService, PetService petService) {
         super(owner, "Agenda de servicio veterinario", ModalityType.APPLICATION_MODAL);
         this.agendaService = agendaService;
@@ -152,11 +153,6 @@ public class AgendaServicioDialog extends JDialog {
         gbc.insets = new Insets(0, 0, 10, 0);
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weightx = 1;
-        // IMPORTANTE: si ninguna fila tiene weighty, GridBagLayout reparte cualquier
-        // espacio vertical sobrante como huecos entre filas (aquí aparecía ese hueco
-        // en blanco tapando "Cliente"/"Mascota"). Cada fila fija va con weighty = 0
-        // explícito y solo la última (Observaciones) se queda con weighty = 1 para
-        // absorber el espacio extra que deja setMinimumSize más abajo.
         gbc.weighty = 0;
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -198,10 +194,6 @@ public class AgendaServicioDialog extends JDialog {
         configureInputs();
         updateSummaryVisual();
         pack();
-        // setMinimumSize (no setPreferredSize) evita forzar un tamaño mayor al contenido
-        // real antes de calcular el layout; ahora que las filas tienen weighty correcto,
-        // cualquier espacio extra por el mínimo se lo queda "Observaciones", no un hueco
-        // en medio del formulario.
         setMinimumSize(new Dimension(1120, 720));
         setLocationRelativeTo(getOwner());
     }
@@ -782,7 +774,7 @@ public class AgendaServicioDialog extends JDialog {
                 showConflictSuggestions(date);
                 return;
             }
-            CitaServicio cita = new CitaServicio(null, owner.getNombreCompleto(), pet.getNombreMascota(),
+            SalesAppointment cita = new SalesAppointment(null, owner.getNombreCompleto(), pet.getNombreMascota(),
                     empty(pet.getRaza()), required(phoneField, "Teléfono"), required(serviceField, "Servicio"),
                     date, start, end, notesArea.getText().trim(), "AGENDADA");
             agendaService.registrarCita(cita);

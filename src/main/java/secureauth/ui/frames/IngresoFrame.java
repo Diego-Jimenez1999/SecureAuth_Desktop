@@ -19,7 +19,7 @@ import secureauth.ui.components.HomeDashboardPanel;
 import secureauth.ui.components.PanelConfig;
 import secureauth.ui.components.PanelInventory;
 import secureauth.ui.components.PanelReports;
-import secureauth.ui.components.RegMascotaPanel;
+import secureauth.ui.components.PetRegistrationPanel;
 import secureauth.ui.components.SalesPanel;
 import secureauth.ui.components.SidebarPanel;
 import secureauth.ui.components.UserPanel;
@@ -35,7 +35,7 @@ import secureauth.ui.dialogs.SubServiceSelector;
  * @author Diego Alexander Gaviria Jimenez
  * @version 2.0
  * @see secureauth.ui.components.SidebarPanel
- * @see secureauth.ui.components.RegMascotaPanel
+ * @see secureauth.ui.components.PetRegistrationPanel
  */
 public class IngresoFrame extends javax.swing.JFrame {
 
@@ -62,7 +62,7 @@ public class IngresoFrame extends javax.swing.JFrame {
     /** Paneles de los módulos del sistema. */
     private UserPanel userPanel;
     private final HomeDashboardPanel homePanel;
-    private RegMascotaPanel mascotaRegistroPanel;
+    private PetRegistrationPanel mascotaRegistroPanel;
     private SalesPanel salesPanel;
     private PanelConfig configPanel;
     private PanelInventory inventoryPanel;
@@ -103,7 +103,7 @@ public class IngresoFrame extends javax.swing.JFrame {
         this.appContext = appContext;
         this.homePanel = new HomeDashboardPanel(usuario, appContext.getSalesTransactionService(),
                 appContext.getOwnerService(), appContext.getUserService(), appContext.getInventoryService(),
-                appContext.getActividadRecienteService(), appContext.getAppointmentService());
+                appContext.getRecentActivityService(), appContext.getAppointmentService());
         this.contentLayout = new CardLayout();
         this.contentPanel = new JPanel(contentLayout);
 
@@ -171,9 +171,9 @@ public class IngresoFrame extends javax.swing.JFrame {
         return userPanel;
     }
 
-    private RegMascotaPanel getMascotaRegistroPanel() {
+    private PetRegistrationPanel getMascotaRegistroPanel() {
         if (mascotaRegistroPanel == null) {
-            mascotaRegistroPanel = new RegMascotaPanel();
+            mascotaRegistroPanel = new PetRegistrationPanel();
             contentPanel.add(mascotaRegistroPanel, PANEL_MASCOTAS);
         }
         return mascotaRegistroPanel;

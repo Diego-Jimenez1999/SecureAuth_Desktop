@@ -12,12 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import secureauth.config.DatabaseConnection;
-import secureauth.model.CitaServicio;
+import secureauth.model.SalesAppointment;
 
 /**
- * DAO JDBC para citas de peluquería, baño, spa y servicios caninos.
+ * DAO JDBC para citas de peluquería, baño, spa y servicios caninos (Sales Appointments).
  */
-public class AgendaServicioDAO {
+public class SalesAppointmentDAO {
 
     /**
      * Crea la tabla {@code citas_servicio} si no existe.
@@ -52,7 +52,7 @@ public class AgendaServicioDAO {
      * @param cita cita validada
      * @throws SQLException si falla el insert
      */
-    public void insert(Connection conn, CitaServicio cita) throws SQLException {
+    public void insert(Connection conn, SalesAppointment cita) throws SQLException {
         String sql = """
                 INSERT INTO citas_servicio(nombre_dueno, nombre_perro, raza, telefono, servicio,
                                            fecha_servicio, hora_servicio, hora_recogida, observaciones, estado)
@@ -79,7 +79,7 @@ public class AgendaServicioDAO {
      * @param cita cita validada
      * @throws SQLException si falla el registro
      */
-    public void insert(CitaServicio cita) throws SQLException {
+    public void insert(SalesAppointment cita) throws SQLException {
         try (Connection conn = DatabaseConnection.getConnection()) {
             insert(conn, cita);
         }
@@ -92,7 +92,7 @@ public class AgendaServicioDAO {
      * @return citas ordenadas por hora
      * @throws SQLException si falla la consulta
      */
-    public List<CitaServicio> findActiveByDate(LocalDate date) throws SQLException {
+    public List<SalesAppointment> findActiveByDate(LocalDate date) throws SQLException {
         ensureSchema();
         String sql = """
                 SELECT id_cita, nombre_dueno, nombre_perro, raza, telefono, servicio,
@@ -102,13 +102,13 @@ public class AgendaServicioDAO {
                   AND UPPER(estado) NOT IN ('CANCELADA', 'CANCELADO')
                 ORDER BY hora_servicio
                 """;
-        List<CitaServicio> appointments = new ArrayList<>();
+        List<SalesAppointment> appointments = new ArrayList<>();
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setDate(1, Date.valueOf(date));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    appointments.add(new CitaServicio(
+                    appointments.add(new SalesAppointment(
                             rs.getInt("id_cita"),
                             rs.getString("nombre_dueno"),
                             rs.getString("nombre_perro"),

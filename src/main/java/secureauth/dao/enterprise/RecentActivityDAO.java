@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Locale;
 
 import secureauth.config.DatabaseConnection;
-import secureauth.model.ActividadReciente;
+import secureauth.model.RecentActivity;
 
 /**
  * DAO JDBC para la tabla {@code actividad_reciente}.
@@ -18,7 +18,7 @@ import secureauth.model.ActividadReciente;
  * <p>Centraliza la escritura de eventos generados por ventas, inventario y
  * agendamiento para que el Home pueda mostrarlos en tiempo real.</p>
  */
-public class ActividadRecienteDAO {
+public class RecentActivityDAO {
 
     /**
      * Crea la tabla de actividad reciente si no existe.
@@ -79,7 +79,7 @@ public class ActividadRecienteDAO {
      * @return actividades ordenadas de más reciente a más antigua
      * @throws SQLException si falla la consulta
      */
-    public List<ActividadReciente> findRecent(int limit) throws SQLException {
+    public List<RecentActivity> findRecent(int limit) throws SQLException {
         String sql = """
                 SELECT id_actividad, descripcion, fecha_hora, tipo, COALESCE(usuario, ''),
                        DATE_FORMAT(fecha_hora, '%Y-%m-%d') as fecha_real,
@@ -89,12 +89,12 @@ public class ActividadRecienteDAO {
                 ORDER BY fecha_hora DESC
                 LIMIT ?
                 """;
-        List<ActividadReciente> rows = new ArrayList<>();
+        List<RecentActivity> rows = new ArrayList<>();
         try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, limit);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    rows.add(new ActividadReciente(
+                    rows.add(new RecentActivity(
                             rs.getInt(1),
                             rs.getString(2),
                             rs.getTimestamp(3).toLocalDateTime(),
@@ -120,7 +120,7 @@ public class ActividadRecienteDAO {
      * @return lista de actividades/auditoría
      * @throws SQLException si falla la base de datos
      */
-    public List<ActividadReciente> findAdvanced(String query, String moduleFilter, String dateFilter, String userFilter) throws SQLException {
+    public List<RecentActivity> findAdvanced(String query, String moduleFilter, String dateFilter, String userFilter) throws SQLException {
         ensureSchema();
         StringBuilder sql = new StringBuilder("""
                 SELECT id_actividad, descripcion, fecha_hora, tipo, COALESCE(usuario, ''),
@@ -158,14 +158,14 @@ public class ActividadRecienteDAO {
 
         sql.append(" ORDER BY fecha_hora DESC");
 
-        List<ActividadReciente> results = new ArrayList<>();
+        List<RecentActivity> results = new ArrayList<>();
         try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
             for (int i = 0; i < params.size(); i++) {
                 ps.setObject(i + 1, params.get(i));
             }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    results.add(new ActividadReciente(
+                    results.add(new RecentActivity(
                             rs.getInt(1),
                             rs.getString(2),
                             rs.getTimestamp(3).toLocalDateTime(),

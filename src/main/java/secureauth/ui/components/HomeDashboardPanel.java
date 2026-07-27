@@ -52,7 +52,7 @@ import secureauth.model.AppointmentStatus;
 import secureauth.model.User;
 import secureauth.service.OwnerService;
 import secureauth.service.UserService;
-import secureauth.service.enterprise.ActividadRecienteService;
+import secureauth.service.enterprise.RecentActivityService;
 import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.InventoryService;
 import secureauth.service.enterprise.SalesTransactionService;
@@ -93,7 +93,7 @@ public final class HomeDashboardPanel extends JPanel {
     private final OwnerService ownerService;
     private final UserService userService;
     private final InventoryService inventoryService;
-    private final ActividadRecienteService actividadService;
+    private final RecentActivityService actividadService;
     private final AppointmentService appointmentService;
     private final DateTimeFormatter appointmentDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private DefaultTableModel activityModel;
@@ -111,7 +111,7 @@ public final class HomeDashboardPanel extends JPanel {
      */
     public HomeDashboardPanel() {
         this(null, new SalesTransactionService(), new OwnerService(new secureauth.dao.OwnerDAO()), new UserService(),
-                new InventoryService(), new ActividadRecienteService(), new AppointmentService());
+                new InventoryService(), new RecentActivityService(), new AppointmentService());
     }
 
     /**
@@ -121,7 +121,7 @@ public final class HomeDashboardPanel extends JPanel {
      */
     public HomeDashboardPanel(User currentUser) {
         this(currentUser, new SalesTransactionService(), new OwnerService(new secureauth.dao.OwnerDAO()),
-                new UserService(), new InventoryService(), new ActividadRecienteService(), new AppointmentService());
+                new UserService(), new InventoryService(), new RecentActivityService(), new AppointmentService());
     }
 
     /**
@@ -135,7 +135,7 @@ public final class HomeDashboardPanel extends JPanel {
     public HomeDashboardPanel(User currentUser, SalesTransactionService salesService, OwnerService ownerService,
             UserService userService) {
         this(currentUser, salesService, ownerService, userService, new InventoryService(),
-                new ActividadRecienteService(), new AppointmentService());
+                new RecentActivityService(), new AppointmentService());
     }
 
     /**
@@ -150,7 +150,7 @@ public final class HomeDashboardPanel extends JPanel {
      * @param appointmentService servicio de citas
      */
     public HomeDashboardPanel(User currentUser, SalesTransactionService salesService, OwnerService ownerService,
-                                UserService userService, InventoryService inventoryService, ActividadRecienteService actividadService,
+                                UserService userService, InventoryService inventoryService, RecentActivityService actividadService,
                                     AppointmentService appointmentService) {
 
         this.salesService = salesService;
@@ -179,7 +179,7 @@ public final class HomeDashboardPanel extends JPanel {
             @Override public OwnerService getOwnerService() { return ownerService; }
             @Override public UserService getUserService() { return userService; }
             @Override public InventoryService getInventoryService() { return inventoryService; }
-            @Override public ActividadRecienteService getActividadRecienteService() { return actividadService; }
+            @Override public RecentActivityService getRecentActivityService() { return actividadService; }
             @Override public AppointmentService getAppointmentService() { return appointmentService; }
         };
     }

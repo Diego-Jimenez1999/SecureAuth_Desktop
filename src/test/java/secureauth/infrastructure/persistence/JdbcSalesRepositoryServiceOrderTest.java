@@ -19,7 +19,7 @@ import secureauth.domain.sales.SaleItemType;
 import secureauth.domain.services.ServiceOrderStatus;
 import secureauth.domain.services.ServiceSummary;
 import secureauth.model.Appointment;
-import secureauth.model.Venta;
+import secureauth.model.Sale;
 import secureauth.service.enterprise.SalesTransactionService;
 
 class JdbcSalesRepositoryServiceOrderTest {
@@ -73,7 +73,7 @@ class JdbcSalesRepositoryServiceOrderTest {
         private List<Appointment> appointments = List.of();
 
         @Override
-        public void registrarVentaConCitas(Venta venta, double gain, double tax, String itemsSummary,
+        public void registrarVentaConCitas(Sale sale, double gain, double tax, String itemsSummary,
                 List<Appointment> appointments, List<ServiceOrderDTO> serviceOrders) {
             this.appointments = appointments;
             this.orders = serviceOrders;

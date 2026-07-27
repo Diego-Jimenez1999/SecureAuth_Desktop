@@ -3,8 +3,8 @@ package secureauth.service.enterprise;
 import java.sql.SQLException;
 import java.util.List;
 
-import secureauth.dao.enterprise.ActividadRecienteDAO;
-import secureauth.model.ActividadReciente;
+import secureauth.dao.enterprise.RecentActivityDAO;
+import secureauth.model.RecentActivity;
 
 /**
  * Servicio de consulta y registro de actividad reciente.
@@ -12,15 +12,15 @@ import secureauth.model.ActividadReciente;
  * <p>Expone una API simple para que Home, ventas, inventario y agenda compartan
  * el mismo historial de eventos.</p>
  */
-public class ActividadRecienteService {
+public class RecentActivityService {
 
-    private final ActividadRecienteDAO dao;
+    private final RecentActivityDAO dao;
 
-    public ActividadRecienteService() {
-        this(new ActividadRecienteDAO());
+    public RecentActivityService() {
+        this(new RecentActivityDAO());
     }
 
-    public ActividadRecienteService(ActividadRecienteDAO dao) {
+    public RecentActivityService(RecentActivityDAO dao) {
         this.dao = dao;
     }
 
@@ -53,7 +53,7 @@ public class ActividadRecienteService {
      * @return eventos recientes
      * @throws SQLException si falla la consulta
      */
-    public List<ActividadReciente> recientes(int limit) throws SQLException {
+    public List<RecentActivity> recientes(int limit) throws SQLException {
         dao.ensureSchema();
         return dao.findRecent(limit);
     }
@@ -68,7 +68,7 @@ public class ActividadRecienteService {
      * @return registros de auditoría correspondientes
      * @throws SQLException si falla la base de datos
      */
-    public List<ActividadReciente> findAdvanced(String query, String moduleFilter, String dateFilter, String userFilter) throws SQLException {
+    public List<RecentActivity> findAdvanced(String query, String moduleFilter, String dateFilter, String userFilter) throws SQLException {
         dao.ensureSchema();
         return dao.findAdvanced(query, moduleFilter, dateFilter, userFilter);
     }

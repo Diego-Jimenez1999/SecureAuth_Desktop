@@ -40,8 +40,8 @@ import secureauth.infrastructure.persistence.JdbcSalesRepository;
 import secureauth.service.OwnerService;
 import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.SalesTransactionService;
-import secureauth.ui.dialogs.GestionVentasServiciosDialog;
-import secureauth.ui.dialogs.PreciosPorTamanoDialog;
+import secureauth.ui.dialogs.SalesServicesManagementDialog;
+import secureauth.ui.dialogs.SizePricesDialog;
 import secureauth.ui.dialogs.ServiceAppointmentDialog;
 import secureauth.ui.dialogs.SubServiceSelector;
 import secureauth.ui.sales.SalesServiceCatalog;
@@ -374,7 +374,7 @@ public class SalesPanel extends JPanel {
      */
     private void openGestionDialog() {
         java.awt.Window w = javax.swing.SwingUtilities.getWindowAncestor(this);
-        new GestionVentasServiciosDialog(w instanceof javax.swing.JFrame ? (javax.swing.JFrame) w : null).setVisible(true);
+        new SalesServicesManagementDialog(w instanceof javax.swing.JFrame ? (javax.swing.JFrame) w : null).setVisible(true);
     }
 
     /**
@@ -382,7 +382,7 @@ public class SalesPanel extends JPanel {
      */
     private void openSizesDialog() {
         java.awt.Window w = javax.swing.SwingUtilities.getWindowAncestor(this);
-        new PreciosPorTamanoDialog(w instanceof javax.swing.JFrame ? (javax.swing.JFrame) w : null).setVisible(true);
+        new SizePricesDialog(w instanceof javax.swing.JFrame ? (javax.swing.JFrame) w : null).setVisible(true);
     }
 
     /**

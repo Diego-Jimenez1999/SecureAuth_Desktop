@@ -21,7 +21,7 @@ import java.time.LocalTime;
  * @param observaciones notas adicionales
  * @param estado estado de la cita
  */
-public record CitaServicio(Integer idCita, String nombreDueno, String nombrePerro, String raza, String telefono,
+public record SalesAppointment(Integer idCita, String nombreDueno, String nombrePerro, String raza, String telefono,
                            String servicio, LocalDate fechaServicio, LocalTime horaServicio,
                            LocalTime horaRecogida, String observaciones, String estado) {
 }

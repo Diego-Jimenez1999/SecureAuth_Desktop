@@ -21,14 +21,14 @@ import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
 import secureauth.ui.utils.UiTheme;
 
 /** Diálogo para editar precios dinámicos por tamaño en servicios/productos. */
-public class PreciosPorTamanoDialog extends JDialog {
+public class SizePricesDialog extends JDialog {
 
     private final SalesServiceCatalog catalog;
     private final JComboBox<ServiceItemEntry> cbItems;
     private final JTextField txtTamano;
     private final JTextField txtPrecio;
 
-    public PreciosPorTamanoDialog(JFrame parent) {
+    public SizePricesDialog(JFrame parent) {
         super(parent, "Precios por Tamaño", true);
         this.catalog = SalesServiceCatalog.getInstance();
         this.cbItems = new JComboBox<>(catalog.getItems().toArray(new ServiceItemEntry[0]));

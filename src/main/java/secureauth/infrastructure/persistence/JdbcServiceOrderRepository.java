@@ -8,23 +8,23 @@ import secureauth.application.dto.ServiceOrderDTO;
 import secureauth.application.dto.ServiceProductDTO;
 import secureauth.application.usecase.ValidateServiceOrderInventoryUseCase;
 import secureauth.application.usecase.ValidateServiceOrderUseCase;
-import secureauth.dao.enterprise.ActividadRecienteDAO;
+import secureauth.dao.enterprise.RecentActivityDAO;
 import secureauth.dao.enterprise.InventoryDAO;
 import secureauth.infrastructure.repository.ServiceOrderRepository;
 
 public class JdbcServiceOrderRepository implements ServiceOrderRepository {
 
     private final InventoryDAO inventoryDAO;
-    private final ActividadRecienteDAO actividadDAO;
+    private final RecentActivityDAO actividadDAO;
     private final ValidateServiceOrderUseCase serviceOrderValidator;
     private final ValidateServiceOrderInventoryUseCase inventoryValidator;
 
     public JdbcServiceOrderRepository() {
-        this(new InventoryDAO(), new ActividadRecienteDAO(), new ValidateServiceOrderUseCase(),
+        this(new InventoryDAO(), new RecentActivityDAO(), new ValidateServiceOrderUseCase(),
                 new ValidateServiceOrderInventoryUseCase());
     }
 
-    public JdbcServiceOrderRepository(InventoryDAO inventoryDAO, ActividadRecienteDAO actividadDAO,
+    public JdbcServiceOrderRepository(InventoryDAO inventoryDAO, RecentActivityDAO actividadDAO,
             ValidateServiceOrderUseCase serviceOrderValidator,
             ValidateServiceOrderInventoryUseCase inventoryValidator) {
         this.inventoryDAO = inventoryDAO;

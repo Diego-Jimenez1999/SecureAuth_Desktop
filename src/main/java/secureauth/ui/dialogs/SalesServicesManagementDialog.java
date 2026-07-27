@@ -33,7 +33,7 @@ import secureauth.ui.utils.UiTheme;
  * @version  1.2
  * @author  Diego Jimenez
  */
-public class GestionVentasServiciosDialog extends JDialog {
+public class SalesServicesManagementDialog extends JDialog {
 
     private final SalesServiceCatalog catalog;
     private final DefaultTableModel categoryModel;
@@ -61,7 +61,7 @@ public class GestionVentasServiciosDialog extends JDialog {
      * 
      * @param parent parent del dialogo
      */
-    public GestionVentasServiciosDialog(JFrame parent) {
+    public SalesServicesManagementDialog(JFrame parent) {
         super(parent, "Gestión de Ventas y Servicios", true);
         this.catalog = SalesServiceCatalog.getInstance();
         this.categoryModel = new DefaultTableModel(new String[]{"ID", "Categoría", "Subcategoría"}, 0) {
@@ -324,7 +324,7 @@ public class GestionVentasServiciosDialog extends JDialog {
     }
 
     private void openSizePricesDialog() {
-        new PreciosPorTamanoDialog((JFrame) getParent()).setVisible(true);
+        new SizePricesDialog((JFrame) getParent()).setVisible(true);
     }
 
     private void clearForm() {

@@ -44,7 +44,7 @@ import secureauth.ui.utils.UiTheme;
 
 /**
  * =========================================================
- * CLASE: RegistroTrabajadores
+ * CLASE: EmployeeRegistrationDialog
  * =========================================================
  *
  * Ventana modal utilizada para registrar o editar trabajadores
@@ -88,7 +88,7 @@ import secureauth.ui.utils.UiTheme;
  * @author Diego
  * @version 2.0
  */
-public class RegistroTrabajadores extends JDialog {
+public class EmployeeRegistrationDialog extends JDialog {
 
 /* =========================================================
 * CONSTANTES VISUALES
@@ -196,7 +196,7 @@ public class RegistroTrabajadores extends JDialog {
      * @param parent     ventana padre
      * @param controller controlador de autenticación
      */
-    public RegistroTrabajadores( java.awt.Frame parent,AuthController controller) {
+    public EmployeeRegistrationDialog( java.awt.Frame parent,AuthController controller) {
 
         super(parent, "Registrar Trabajador", true);
         this.controller = controller;

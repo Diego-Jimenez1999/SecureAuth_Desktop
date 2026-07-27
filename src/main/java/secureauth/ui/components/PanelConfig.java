@@ -64,9 +64,9 @@ import secureauth.service.AuthService;
 import secureauth.service.UserService;
 import secureauth.model.enterprise.InventoryItem;
 import secureauth.ui.dialogs.AdvancedConfigDialog;
-import secureauth.ui.dialogs.GestionVentasServiciosDialog;
-import secureauth.ui.dialogs.PreciosPorTamanoDialog;
-import secureauth.ui.dialogs.RegistroTrabajadores;
+import secureauth.ui.dialogs.SalesServicesManagementDialog;
+import secureauth.ui.dialogs.SizePricesDialog;
+import secureauth.ui.dialogs.EmployeeRegistrationDialog;
 import secureauth.ui.sales.SalesServiceCatalog;
 import secureauth.ui.utils.UiTheme;
 
@@ -932,7 +932,7 @@ public class PanelConfig extends JPanel {
     private void onTablaServiciosClick()    {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame parent = (window instanceof Frame) ? (Frame) window : null;
-        new GestionVentasServiciosDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+        new SalesServicesManagementDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
     }
 
     /** Abre el configurador de precios por tamaño.
@@ -941,7 +941,7 @@ public class PanelConfig extends JPanel {
     private void onPreciosTamanoClick()     {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame parent = (window instanceof Frame) ? (Frame) window : null;
-        new PreciosPorTamanoDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+        new SizePricesDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
     }
 
     /** Abre el visor de inventario. */
@@ -1075,8 +1075,8 @@ public class PanelConfig extends JPanel {
         // Instanciar el controlador con sus dependencias requeridas (Repository -> Service -> Controller)
         AuthController authController = new AuthController(new AuthService(new UserRepositoryImpl()));
 
-        // Abrir el diálogo RegistroTrabajadores solicitado
-        RegistroTrabajadores registrationDialog = new RegistroTrabajadores(parentFrame, authController);
+        // Abrir el diálogo EmployeeRegistrationDialog solicitado
+        EmployeeRegistrationDialog registrationDialog = new EmployeeRegistrationDialog(parentFrame, authController);
         registrationDialog.setVisible(true);
         
         // Refrescar la tabla de trabajadores para mostrar el nuevo registro inmediatamente

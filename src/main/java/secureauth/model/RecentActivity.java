@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  * @param tipo categoría del evento: VENTA, CITA o INVENTARIO
  * @param usuario usuario que originó el evento
  */
-public record ActividadReciente(
+public record RecentActivity(
         int idActividad,
         String descripcion,
         LocalDateTime fechaHora,
@@ -24,7 +24,7 @@ public record ActividadReciente(
     /**
      * Constructor de compatibilidad legacy.
      */
-    public ActividadReciente(int idActividad, String descripcion, LocalDateTime fechaHora, String tipo, String usuario) {
+    public RecentActivity(int idActividad, String descripcion, LocalDateTime fechaHora, String tipo, String usuario) {
         this(idActividad, descripcion, fechaHora, tipo, usuario,
              fechaHora != null ? fechaHora.toLocalDate().toString() : "",
              fechaHora != null ? fechaHora.toLocalTime().toString() : "",

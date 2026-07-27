@@ -13,7 +13,7 @@ import secureauth.config.DatabaseConnection;
 import secureauth.config.SchemaInspector;
 import secureauth.model.ReportChartPoint;
 import secureauth.model.SaleItem;
-import secureauth.model.Venta;
+import secureauth.model.Sale;
 
 /** DAO de ventas POS para persistir totales y métricas por sucursal. */
 public class SalesTransactionDAO {
@@ -136,18 +136,18 @@ public class SalesTransactionDAO {
      * Inserta la cabecera de venta solicitada por el módulo profesional.
      *
      * @param conn conexión transaccional
-     * @param venta venta validada
+     * @param sale venta validada
      * @return id generado de la venta
      * @throws SQLException si falla el insert
      */
-    public int insertVenta(Connection conn, Venta venta) throws SQLException {
+    public int insertVenta(Connection conn, Sale sale) throws SQLException {
         String sql = "INSERT INTO ventas(fecha, cliente, total, metodo_pago, usuario_vendedor) VALUES(?,?,?,?,?)";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setTimestamp(1, Timestamp.valueOf(venta.getFecha()));
-            ps.setString(2, venta.getCliente());
-            ps.setDouble(3, venta.getTotal());
-            ps.setString(4, venta.getMetodoPago());
-            ps.setString(5, venta.getUsuarioVendedor());
+            ps.setTimestamp(1, Timestamp.valueOf(sale.getDate()));
+            ps.setString(2, sale.getCustomerName());
+            ps.setDouble(3, sale.getTotal());
+            ps.setString(4, sale.getPaymentMethod());
+            ps.setString(5, sale.getSellerName());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {

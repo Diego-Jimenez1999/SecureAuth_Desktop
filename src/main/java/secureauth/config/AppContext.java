@@ -4,7 +4,7 @@ import secureauth.controller.AuthController;
 import secureauth.dao.OwnerDAO;
 import secureauth.dao.PetDAO;
 import secureauth.dao.UserDAO;
-import secureauth.dao.enterprise.ActividadRecienteDAO;
+import secureauth.dao.enterprise.RecentActivityDAO;
 import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.dao.enterprise.EnterpriseBootstrapDAO;
 import secureauth.dao.enterprise.InventoryDAO;
@@ -15,7 +15,7 @@ import secureauth.service.AuthService;
 import secureauth.service.OwnerService;
 import secureauth.service.PetService;
 import secureauth.service.UserService;
-import secureauth.service.enterprise.ActividadRecienteService;
+import secureauth.service.enterprise.RecentActivityService;
 import secureauth.service.enterprise.AppointmentService;
 import secureauth.service.enterprise.EnterpriseContext;
 import secureauth.service.enterprise.EnterpriseBootstrapService;
@@ -42,13 +42,13 @@ public class AppContext {
     private final PetDAO petDAO;
     private final InventoryDAO inventoryDAO;
     private final SalesTransactionDAO salesTransactionDAO;
-    private final ActividadRecienteDAO actividadRecienteDAO;
+    private final RecentActivityDAO recentActivityDAO;
     private final AppointmentDAO appointmentDAO;
     private final EnterpriseBootstrapDAO enterpriseBootstrapDAO;
     private final EnterpriseContext enterpriseContext;
     private final InventoryService inventoryService;
     private final SalesTransactionService salesTransactionService;
-    private final ActividadRecienteService actividadRecienteService;
+    private final RecentActivityService recentActivityService;
     private final AppointmentService appointmentService;
     private final EnterpriseBootstrapService enterpriseBootstrapService;
 
@@ -65,17 +65,17 @@ public class AppContext {
         this.enterpriseContext = EnterpriseContext.getInstance();
         this.inventoryDAO = new InventoryDAO();
         this.salesTransactionDAO = new SalesTransactionDAO();
-        this.actividadRecienteDAO = new ActividadRecienteDAO();
+        this.recentActivityDAO = new RecentActivityDAO();
         this.appointmentDAO = new AppointmentDAO();
         this.enterpriseBootstrapDAO = new EnterpriseBootstrapDAO();
         this.inventoryService = new InventoryService(inventoryDAO);
         this.salesTransactionService = new SalesTransactionService(
                 salesTransactionDAO,
                 inventoryDAO,
-                actividadRecienteDAO,
+                recentActivityDAO,
                 appointmentDAO);
-        this.actividadRecienteService = new ActividadRecienteService(actividadRecienteDAO);
-        this.appointmentService = new AppointmentService(appointmentDAO, petDAO, actividadRecienteDAO);
+        this.recentActivityService = new RecentActivityService(recentActivityDAO);
+        this.appointmentService = new AppointmentService(appointmentDAO, petDAO, recentActivityDAO);
         this.enterpriseBootstrapService = new EnterpriseBootstrapService(enterpriseBootstrapDAO, enterpriseContext);
     }
 
@@ -85,7 +85,7 @@ public class AppContext {
             getSalesTransactionService().initializeSchema();
             getAppointmentService().initializeSchema();
             getInventoryService().initializeSchema();
-            getActividadRecienteService().initializeSchema();
+            getRecentActivityService().initializeSchema();
             getOwnerService().ensureSchema();
         } catch (Exception ignored) {}
     }
@@ -122,8 +122,8 @@ public class AppContext {
         return salesTransactionService;
     }
 
-    public ActividadRecienteService getActividadRecienteService() {
-        return actividadRecienteService;
+    public RecentActivityService getRecentActivityService() {
+        return recentActivityService;
     }
 
     public AppointmentService getAppointmentService() {
