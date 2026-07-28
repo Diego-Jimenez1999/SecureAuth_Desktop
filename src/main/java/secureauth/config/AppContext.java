@@ -42,6 +42,7 @@ public class AppContext {
     private final PetDAO petDAO;
     private final InventoryDAO inventoryDAO;
     private final SalesTransactionDAO salesTransactionDAO;
+    private final secureauth.dao.SalesCatalogDAO salesCatalogDAO;
     private final RecentActivityDAO recentActivityDAO;
     private final AppointmentDAO appointmentDAO;
     private final EnterpriseBootstrapDAO enterpriseBootstrapDAO;
@@ -66,6 +67,7 @@ public class AppContext {
         this.inventoryDAO = new InventoryDAO();
         this.salesTransactionDAO = new SalesTransactionDAO();
         this.recentActivityDAO = new RecentActivityDAO();
+        this.salesCatalogDAO = new secureauth.dao.SalesCatalogDAO();
         this.appointmentDAO = new AppointmentDAO();
         this.enterpriseBootstrapDAO = new EnterpriseBootstrapDAO();
         this.inventoryService = new InventoryService(inventoryDAO);
@@ -82,6 +84,9 @@ public class AppContext {
     public void initialize() {
         enterpriseBootstrapService.initialize();
         try {
+            // Inject the DAO into the presentation catalog singleton during bootstrap
+            secureauth.ui.sales.SalesServiceCatalog.getInstance().setDao(salesCatalogDAO);
+
             getSalesTransactionService().initializeSchema();
             getAppointmentService().initializeSchema();
             getInventoryService().initializeSchema();
@@ -128,5 +133,13 @@ public class AppContext {
 
     public AppointmentService getAppointmentService() {
         return appointmentService;
+    }
+
+    public EnterpriseBootstrapService getEnterpriseBootstrapService() {
+        return enterpriseBootstrapService;
+    }
+
+    public secureauth.dao.SalesCatalogDAO getSalesCatalogDAO() {
+        return salesCatalogDAO;
     }
 }

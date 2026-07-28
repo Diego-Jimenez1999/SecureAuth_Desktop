@@ -62,6 +62,7 @@ import secureauth.service.enterprise.InventoryService;
 import secureauth.service.enterprise.SalesTransactionService;
 import secureauth.service.AuthService;
 import secureauth.service.UserService;
+import secureauth.service.enterprise.EnterpriseBootstrapService;
 import secureauth.model.enterprise.InventoryItem;
 import secureauth.ui.dialogs.AdvancedConfigDialog;
 import secureauth.ui.dialogs.SalesServicesManagementDialog;
@@ -114,6 +115,7 @@ public class PanelConfig extends JPanel {
     private final OwnerService ownerService;
     private final InventoryService inventoryService;
     private final AppointmentService appointmentService;
+    private final EnterpriseBootstrapService bootstrapService;
 
     // ─── Componentes de métricas ──────────────────────────────────────────────
     private JLabel lblVentasValor;
@@ -134,23 +136,31 @@ public class PanelConfig extends JPanel {
      */
     public PanelConfig(UserService userService, IngresoController ingresoController) {
         this(userService, ingresoController, new SalesTransactionService(), new OwnerService(new secureauth.dao.OwnerDAO()),
-                new InventoryService(), new AppointmentService());
+                new InventoryService(), new AppointmentService(), new EnterpriseBootstrapService());
     }
 
     public PanelConfig(UserService userService, IngresoController ingresoController,
                        SalesTransactionService salesService, OwnerService ownerService) {
-        this(userService, ingresoController, salesService, ownerService, new InventoryService(), new AppointmentService());
+        this(userService, ingresoController, salesService, ownerService, new InventoryService(), new AppointmentService(), new EnterpriseBootstrapService());
     }
 
     public PanelConfig(UserService userService, IngresoController ingresoController,
                        SalesTransactionService salesService, OwnerService ownerService,
                        InventoryService inventoryService, AppointmentService appointmentService) {
+        this(userService, ingresoController, salesService, ownerService, inventoryService, appointmentService, new EnterpriseBootstrapService());
+    }
+
+    public PanelConfig(UserService userService, IngresoController ingresoController,
+                       SalesTransactionService salesService, OwnerService ownerService,
+                       InventoryService inventoryService, AppointmentService appointmentService,
+                       EnterpriseBootstrapService bootstrapService) {
         this.userService = userService;
         this.ingresoController = ingresoController;
         this.salesService = salesService;
         this.ownerService = ownerService;
         this.inventoryService = inventoryService;
         this.appointmentService = appointmentService;
+        this.bootstrapService = bootstrapService;
         initComponents();
     }
 
@@ -1061,7 +1071,7 @@ public class PanelConfig extends JPanel {
     private void onConfigAppClick() {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame parent = (window instanceof Frame) ? (Frame) window : null;
-        new AdvancedConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null).setVisible(true);
+        new AdvancedConfigDialog(parent instanceof javax.swing.JFrame ? (javax.swing.JFrame) parent : null, bootstrapService).setVisible(true);
     }
 
     /** Abre el formulario de registro de usuarios existente. */
@@ -1099,7 +1109,7 @@ public class PanelConfig extends JPanel {
 
         // Fix: UserService actualmente solo soporta findAllWorkersWithRoleName() sin parámetros.
         // Aplicamos un filtro en memoria para mantener la funcionalidad de búsqueda.
-        java.util.List<UserDAO.WorkerRow> workers = userService.findAllWorkersWithRoleName();
+        java.util.List<secureauth.model.EmployeeSummary> workers = userService.findAllWorkersWithRoleName();
         
         if (query != null && !query.trim().isEmpty()) {
             String q = query.toLowerCase().trim();
@@ -1110,7 +1120,7 @@ public class PanelConfig extends JPanel {
                 .toList();
         }
 
-        for (UserDAO.WorkerRow worker : workers) {
+        for (secureauth.model.EmployeeSummary worker : workers) {
             workersTableModel.addRow(new Object[]{
                     worker.getId(),
                     worker.getNombre(),

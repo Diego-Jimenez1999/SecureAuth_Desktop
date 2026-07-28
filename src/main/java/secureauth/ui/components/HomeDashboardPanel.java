@@ -732,9 +732,9 @@ public final class HomeDashboardPanel extends JPanel {
         JMenuItem finish = new JMenuItem("Finalizar Servicio");
         JMenuItem cancel = new JMenuItem("Cancelar Cita");
         JMenuItem details = new JMenuItem("Ver Detalles");
-        start.addActionListener(e -> updateSelectedAppointmentStatus(AppointmentDAO.STATUS_IN_PROGRESS));
-        finish.addActionListener(e -> updateSelectedAppointmentStatus(AppointmentDAO.STATUS_DONE));
-        cancel.addActionListener(e -> updateSelectedAppointmentStatus(AppointmentDAO.STATUS_CANCELLED));
+        start.addActionListener(e -> updateSelectedAppointmentStatus(secureauth.model.AppointmentStatus.STATUS_IN_PROGRESS));
+        finish.addActionListener(e -> updateSelectedAppointmentStatus(secureauth.model.AppointmentStatus.STATUS_DONE));
+        cancel.addActionListener(e -> updateSelectedAppointmentStatus(secureauth.model.AppointmentStatus.STATUS_CANCELLED));
         details.addActionListener(e -> showSelectedAppointmentDetails());
         menu.add(start);
         menu.add(finish);

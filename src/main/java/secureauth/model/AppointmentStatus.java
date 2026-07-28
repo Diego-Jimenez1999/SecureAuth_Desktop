@@ -20,6 +20,13 @@ public enum AppointmentStatus {
     CANCELLED("CANCELADA", "Cancelada", Set.of("CANCELADO")),
     ARCHIVED("ARCHIVADA", "Archivada", Set.of("ARCHIVED", "ARCHIVADO"));
 
+    public static final String STATUS_PENDING = "PENDIENTE";
+    public static final String STATUS_CONFIRMED = "CONFIRMADA";
+    public static final String STATUS_IN_PROGRESS = "EN_PROCESO";
+    public static final String STATUS_DONE = "FINALIZADO";
+    public static final String STATUS_CANCELLED = "CANCELADA";
+    public static final String STATUS_ARCHIVED = "ARCHIVADA";
+
     private final String databaseValue;
     private final String displayName;
     private final Set<String> aliases;

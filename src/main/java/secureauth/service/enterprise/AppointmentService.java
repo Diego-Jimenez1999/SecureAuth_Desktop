@@ -109,7 +109,7 @@ public class AppointmentService {
      */
     public Appointment prepareForRegistration(Appointment appointment) {
         validate(appointment);
-        appointment.setStatus(AppointmentDAO.STATUS_PENDING);
+        appointment.setStatus(AppointmentStatus.STATUS_PENDING);
         appointment.setCreatedAt(LocalDateTime.now());
         if (isBlank(appointment.getCreatedBy())) {
             appointment.setCreatedBy("Sistema");

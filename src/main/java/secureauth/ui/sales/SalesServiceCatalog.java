@@ -26,10 +26,14 @@ public final class SalesServiceCatalog {
     private final List<CategoryEntry> categories = new ArrayList<>();
     private final List<ServiceItemEntry> items = new ArrayList<>();
     private final PropertyChangeSupport changeSupport = new PropertyChangeSupport(this);
-    private final SalesCatalogDAO dao = new SalesCatalogDAO();
+    private SalesCatalogDAO dao;
     private final EnterpriseContext context = EnterpriseContext.getInstance();
 
     private SalesServiceCatalog() {
+    }
+
+    public synchronized void setDao(SalesCatalogDAO dao) {
+        this.dao = dao;
         loadFromPersistenceOrSeed();
     }
 

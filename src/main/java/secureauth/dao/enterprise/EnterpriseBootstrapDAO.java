@@ -245,4 +245,22 @@ public class EnterpriseBootstrapDAO {
         }
     }
 
+    /**
+     * Prueba si la conexión con la base de datos MySQL es válida.
+     */
+    public boolean testConnection() throws SQLException {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            return conn.isValid(3);
+        }
+    }
+
+    /**
+     * Ejecuta la optimización de las tablas de base de datos.
+     */
+    public void optimizeTables() throws SQLException {
+        try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
+            st.execute("OPTIMIZE TABLE appointments, ventas, detalle_venta, actividad_reciente, citas_servicio");
+        }
+    }
+
 }

@@ -48,4 +48,18 @@ public class EnterpriseBootstrapService {
     public List<Branch> getBranches(int businessId) throws SQLException {
         return dao.findBranchesByBusiness(businessId);
     }
+
+    /**
+     * Prueba si la conexión con la base de datos es correcta.
+     */
+    public boolean testConnection() throws SQLException {
+        return dao.testConnection();
+    }
+
+    /**
+     * Optimiza las tablas de la base de datos.
+     */
+    public void optimizeTables() throws SQLException {
+        dao.optimizeTables();
+    }
 }

@@ -200,7 +200,8 @@ public class IngresoFrame extends javax.swing.JFrame {
         if (configPanel == null) {
             configPanel = new PanelConfig(appContext.getUserService(), this.controller,
                     appContext.getSalesTransactionService(), appContext.getOwnerService(),
-                    appContext.getInventoryService(), appContext.getAppointmentService());
+                    appContext.getInventoryService(), appContext.getAppointmentService(),
+                    appContext.getEnterpriseBootstrapService());
             contentPanel.add(configPanel, PANEL_CONFIGURACION);
         }
         return configPanel;
