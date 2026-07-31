@@ -3,6 +3,7 @@ package secureauth.service;
 import java.util.List;
 import secureauth.dao.UserDAO;
 import secureauth.model.User;
+import secureauth.model.EmployeeSummary;
 import secureauth.repository.UserRepository;
 import secureauth.repository.UserRepositoryImpl;
 
@@ -101,7 +102,7 @@ public class UserService {
      *
      * @return filas de trabajadores para tabla de configuración
      */
-    public List<UserDAO.WorkerRow> findAllWorkersWithRoleName() {
+    public List<EmployeeSummary> findAllWorkersWithRoleName() {
         return userDAO.findAllWithRoleName();
     }
 

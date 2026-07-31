@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import secureauth.dao.PetDAO;
+import secureauth.dao.PetDataAccessException;
 import secureauth.model.Pet;
 import secureauth.service.enterprise.EnterpriseContext;
 
@@ -51,22 +52,27 @@ public class PetService {
      * @return {@code true} si el registro fue exitoso, {@code false} si no se pudo persistir
      * @throws IllegalArgumentException cuando falta un campo obligatorio o el peso es inválido
      * @throws IOException cuando falla la copia de la imagen a {@code /resources/pets/}
+     * @throws PetServiceException cuando falla la persistencia en base de datos
      */
     public boolean registerPet(Pet pet) throws IOException {
         assignActiveBusinessIfMissing(pet);
         validateRequiredFields(pet);
-        petDAO.ensureSchema();
 
         if (!isBlank(pet.getImagenPath())) {
             String copiedPath = copyImageToInternalResources(pet.getImagenPath());
             pet.setImagenPath(copiedPath);
         }
 
-        boolean success = petDAO.insert(pet);
-        if (success) {
-            secureauth.shared.events.DashboardEventBus.notifyDataChanged();
+        try {
+            petDAO.ensureSchema();
+            boolean success = petDAO.insert(pet);
+            if (success) {
+                secureauth.shared.events.DashboardEventBus.notifyDataChanged();
+            }
+            return success;
+        } catch (PetDataAccessException ex) {
+            throw new PetServiceException(ex.getMessage(), ex);
         }
-        return success;
     }
 
     /**

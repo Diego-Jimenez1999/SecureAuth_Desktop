@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import secureauth.config.DatabaseConnection;
 import secureauth.model.User;
+import secureauth.model.EmployeeSummary;
 
 /**
  * DAO de acceso a datos para la entidad User.
@@ -27,36 +28,6 @@ import secureauth.model.User;
 public class UserDAO {
 
     private static final Logger LOGGER = Logger.getLogger(UserDAO.class.getName());
-
-    /**
-     * DTO liviano para renderizar filas de trabajadores en tablas de gestión.
-     * Evita exponer contraseñas u objetos pesados a la capa UI.
-     */
-    public static class WorkerRow {
-        private final int id;
-        private final String nombre;
-        private final String apellido;
-        private final String email;
-        private final String genero;
-        private final String rol;
-
-        public WorkerRow(int id, String nombre, String apellido,
-                        String email, String genero, String rol) {
-            this.id = id;
-            this.nombre = nombre;
-            this.apellido = apellido;
-            this.email = email;
-            this.genero = genero;
-            this.rol = rol;
-        }
-
-        public int getId()          { return id; }
-        public String getNombre()   { return nombre; }
-        public String getApellido() { return apellido; }
-        public String getEmail()    { return email; }
-        public String getGenero()   { return genero; }
-        public String getRol()      { return rol; }
-    }
 
     // =========================================================
     // CONSULTAS
@@ -174,10 +145,10 @@ public class UserDAO {
      * JOIN entre users y roles para obtener trabajadores con nombre de rol legible.
      *
      * @param query Filtro opcional de texto.
-     * @return Lista de {@link WorkerRow}.
+     * @return Lista de {@link EmployeeSummary}.
      */
-    public List<WorkerRow> findAllWithRoleName(String query) {
-        List<WorkerRow> workers = new ArrayList<>();
+    public List<EmployeeSummary> findAllWithRoleName(String query) {
+        List<EmployeeSummary> workers = new ArrayList<>();
         String roleNameColumn = resolveRoleNameColumn();
 
         StringBuilder sql = new StringBuilder("""
@@ -205,7 +176,7 @@ public class UserDAO {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    workers.add(new WorkerRow(
+                    workers.add(new EmployeeSummary(
                             rs.getInt("id"),
                             rs.getString("nombre"),
                             rs.getString("apellido"),
@@ -223,7 +194,7 @@ public class UserDAO {
     }
 
     /** Sobrecarga sin filtro — lista todos los trabajadores. */
-    public List<WorkerRow> findAllWithRoleName() {
+    public List<EmployeeSummary> findAllWithRoleName() {
         return findAllWithRoleName(null);
     }
 

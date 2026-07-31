@@ -31,16 +31,6 @@ import secureauth.model.AppointmentStatus;
 public class AppointmentDAO {
 
     /**
-     * Estados operativos soportados por el módulo de citas.
-     */
-    public static final String STATUS_PENDING = AppointmentStatus.PENDING.databaseValue();
-    public static final String STATUS_CONFIRMED = AppointmentStatus.CONFIRMED.databaseValue();
-    public static final String STATUS_IN_PROGRESS = AppointmentStatus.IN_PROGRESS.databaseValue();
-    public static final String STATUS_DONE = AppointmentStatus.FINALIZED.databaseValue();
-    public static final String STATUS_CANCELLED = AppointmentStatus.CANCELLED.databaseValue();
-    public static final String STATUS_ARCHIVED = AppointmentStatus.ARCHIVED.databaseValue();
-
-    /**
      * Crea y migra la tabla {@code appointments} si no existe.
      *
      * @throws SQLException si falla la inicialización de esquema
@@ -315,9 +305,9 @@ public class AppointmentDAO {
             ps.setDate(1, Date.valueOf(date));
             ps.setDate(2, Date.valueOf(date));
             ps.setDate(3, Date.valueOf(date));
-            ps.setString(4, STATUS_PENDING);
-            ps.setString(5, STATUS_CONFIRMED);
-            ps.setString(6, STATUS_IN_PROGRESS);
+            ps.setString(4, AppointmentStatus.PENDING.databaseValue());
+            ps.setString(5, AppointmentStatus.CONFIRMED.databaseValue());
+            ps.setString(6, AppointmentStatus.IN_PROGRESS.databaseValue());
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     appointments.add(mapRow(rs));
@@ -387,7 +377,7 @@ public class AppointmentDAO {
      * @throws SQLException si falla la consulta
      */
     public int countScheduled() throws SQLException {
-        return countByStatuses(STATUS_PENDING, STATUS_CONFIRMED, STATUS_IN_PROGRESS);
+        return countByStatuses(AppointmentStatus.PENDING.databaseValue(), AppointmentStatus.CONFIRMED.databaseValue(), AppointmentStatus.IN_PROGRESS.databaseValue());
     }
 
     /**
@@ -397,7 +387,7 @@ public class AppointmentDAO {
      * @throws SQLException si falla la consulta
      */
     public int countFinished() throws SQLException {
-        return countByStatuses(STATUS_DONE, "FINALIZADA", "REALIZADO");
+        return countByStatuses(AppointmentStatus.FINALIZED.databaseValue(), "FINALIZADA", "REALIZADO");
     }
 
     private int countByStatuses(String... statuses) throws SQLException {

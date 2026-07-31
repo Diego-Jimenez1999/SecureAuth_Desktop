@@ -6,7 +6,7 @@ import secureauth.application.dto.SaleDTO;
 import secureauth.application.dto.SaleItemDTO;
 import secureauth.domain.sales.SaleItemType;
 import secureauth.model.SaleItem;
-import secureauth.model.Venta;
+import secureauth.model.Sale;
 
 public final class SaleMapper {
 
@@ -30,12 +30,12 @@ public final class SaleMapper {
         return items.stream().map(SaleMapper::toDomain).toList();
     }
 
-    public static Venta toDomain(SaleDTO dto) {
-        Venta venta = new Venta(dto.id(), dto.date(), dto.customerName(), dto.total(), dto.paymentMethod(),
+    public static Sale toDomain(SaleDTO dto) {
+        Sale sale = new Sale(dto.id(), dto.date(), dto.customerName(), dto.total(), dto.paymentMethod(),
                 dto.sellerName());
         for (SaleItemDTO item : dto.items()) {
-            venta.addItem(toDomain(item));
+            sale.addItem(toDomain(item));
         }
-        return venta;
+        return sale;
     }
 }

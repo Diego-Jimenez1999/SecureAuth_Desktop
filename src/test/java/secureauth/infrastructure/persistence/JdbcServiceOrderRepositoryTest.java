@@ -16,7 +16,7 @@ import secureauth.application.dto.ServiceOrderItemDTO;
 import secureauth.application.dto.ServiceProductDTO;
 import secureauth.application.usecase.ValidateServiceOrderInventoryUseCase;
 import secureauth.application.usecase.ValidateServiceOrderUseCase;
-import secureauth.dao.enterprise.ActividadRecienteDAO;
+import secureauth.dao.enterprise.RecentActivityDAO;
 import secureauth.dao.enterprise.InventoryDAO;
 import secureauth.domain.services.ServiceOrderStatus;
 import secureauth.domain.services.ServiceSummary;
@@ -92,7 +92,7 @@ class JdbcServiceOrderRepositoryTest {
         }
     }
 
-    private static final class FakeActividadDAO extends ActividadRecienteDAO {
+    private static final class FakeActividadDAO extends RecentActivityDAO {
         private int inserted;
 
         @Override

@@ -10,12 +10,12 @@ import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import secureauth.dao.PetDataAccessException;
 import secureauth.model.Owner;
 import secureauth.model.Pet;
 import secureauth.service.OwnerService;
 import secureauth.service.PetService;
-import secureauth.ui.components.RegMascotaPanel;
+import secureauth.service.PetServiceException;
+import secureauth.ui.components.PetRegistrationPanel;
 
 /**
  * Controlador de eventos para el módulo de registro de mascotas.
@@ -24,7 +24,7 @@ import secureauth.ui.components.RegMascotaPanel;
  */
 public class PetController {
 
-    private final RegMascotaPanel view;
+    private final PetRegistrationPanel view;
     private final PetService service;
     private final OwnerService ownerService;
 
@@ -35,7 +35,7 @@ public class PetController {
      * @param service servicio de negocio de mascotas
      * @param ownerService servicio de negocio de dueños
      */
-    public PetController(RegMascotaPanel view, PetService service, OwnerService ownerService) {
+    public PetController(PetRegistrationPanel view, PetService service, OwnerService ownerService) {
         this.view = view;
         this.service = service;
         this.ownerService = ownerService;
@@ -65,7 +65,7 @@ public class PetController {
         } catch (IllegalArgumentException | IOException ex) {
             String errorPrefix = (ex instanceof IOException) ? "No se pudo procesar la imagen: " : "";
             view.showError(errorPrefix + ex.getMessage());
-        } catch (PetDataAccessException ex) {
+        } catch (PetServiceException ex) {
             view.showError(ex.getMessage());
         } catch (Exception ex) {
             view.showError("Error inesperado al registrar mascota: " + ex.getMessage());
