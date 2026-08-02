@@ -67,7 +67,7 @@ import secureauth.ui.dialogs.AdvancedConfigDialog;
 import secureauth.ui.dialogs.SalesServicesManagementDialog;
 import secureauth.ui.dialogs.SizePricesDialog;
 import secureauth.ui.dialogs.EmployeeRegistrationDialog;
-import secureauth.ui.sales.SalesServiceCatalog;
+import secureauth.service.enterprise.SalesServiceCatalog;
 import secureauth.ui.utils.UiTheme;
 
 /**

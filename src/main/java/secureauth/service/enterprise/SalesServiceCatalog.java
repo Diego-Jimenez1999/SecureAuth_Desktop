@@ -1,4 +1,4 @@
-package secureauth.ui.sales;
+package secureauth.service.enterprise;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
@@ -10,9 +10,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import secureauth.service.enterprise.SalesCatalogService;
 import secureauth.domain.sales.SaleItemType;
-import secureauth.service.enterprise.EnterpriseContext;
+import secureauth.domain.sales.CategoryEntry;
+import secureauth.domain.sales.ServiceItemEntry;
 
 /**
  * Repositorio unificado de categorías, servicios y precios por tamaño.
@@ -174,26 +174,5 @@ public final class SalesServiceCatalog {
         consulta.put("Urgencia", 110000d);
         upsertItem(new ServiceItemEntry(0, "Guardería Canina", "Salud Veterinaria", "Consulta", "Servicio", 35000d,
                 16000d, 19000d, "Activo", null, consulta));
-    }
-
-    public record CategoryEntry(int id, String category, String subcategory) { }
-
-    public record ServiceItemEntry(int id, String category, String subcategory, String name, String type,
-                                   double price, double cost, double gain, String status, Integer stock,
-                                   Map<String, Double> sizePrices, Integer inventoryItemId, String sku) {
-        public ServiceItemEntry(int id, String category, String subcategory, String name, String type,
-                double price, double cost, double gain, String status, Integer stock,
-                Map<String, Double> sizePrices) {
-            this(id, category, subcategory, name, type, price, cost, gain, status, stock, sizePrices, null, null);
-        }
-
-        public ServiceItemEntry withId(int newId) {
-            return new ServiceItemEntry(newId, category, subcategory, name, type, price, cost, gain, status, stock,
-                    sizePrices, inventoryItemId, sku);
-        }
-
-        public SaleItemType saleItemType() {
-            return SaleItemType.fromCatalogValue(type);
-        }
     }
 }

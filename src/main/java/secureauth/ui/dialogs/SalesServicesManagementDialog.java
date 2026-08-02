@@ -24,8 +24,9 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
 import secureauth.domain.sales.SaleItemType;
-import secureauth.ui.sales.SalesServiceCatalog;
-import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
+import secureauth.domain.sales.CategoryEntry;
+import secureauth.domain.sales.ServiceItemEntry;
+import secureauth.service.enterprise.SalesServiceCatalog;
 import secureauth.ui.utils.UiTheme;
 
 /** Diálogo principal de administración de categorías, subcategorías y servicios/productos.
@@ -241,7 +242,7 @@ public class SalesServicesManagementDialog extends JDialog {
 
     private void refreshTables() {
         categoryModel.setRowCount(0);
-        for (SalesServiceCatalog.CategoryEntry c : catalog.getCategories()) {
+        for (CategoryEntry c : catalog.getCategories()) {
             categoryModel.addRow(new Object[]{c.id(), c.category(), c.subcategory()});
         }
 

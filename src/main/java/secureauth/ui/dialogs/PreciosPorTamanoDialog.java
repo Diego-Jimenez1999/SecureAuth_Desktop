@@ -16,8 +16,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import secureauth.ui.sales.SalesServiceCatalog;
-import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
+import secureauth.domain.sales.ServiceItemEntry;
+import secureauth.service.enterprise.SalesServiceCatalog;
 import secureauth.ui.utils.UiTheme;
 
 /** Diálogo para editar precios dinámicos por tamaño en servicios/productos. */

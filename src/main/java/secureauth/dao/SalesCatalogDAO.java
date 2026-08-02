@@ -14,8 +14,8 @@ import java.util.logging.Logger;
 
 import secureauth.config.DatabaseConnection;
 import secureauth.config.SchemaInspector;
-import secureauth.ui.sales.SalesServiceCatalog.CategoryEntry;
-import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
+import secureauth.domain.sales.CategoryEntry;
+import secureauth.domain.sales.ServiceItemEntry;
 
 /** DAO del catálogo multi-sucursal de ventas y servicios. */
 public class SalesCatalogDAO {

@@ -3,14 +3,14 @@ package secureauth.service.enterprise;
 import java.util.List;
 
 import secureauth.dao.SalesCatalogDAO;
-import secureauth.ui.sales.SalesServiceCatalog.CategoryEntry;
-import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
+import secureauth.domain.sales.CategoryEntry;
+import secureauth.domain.sales.ServiceItemEntry;
 
 /**
  * Servicio de negocio para el catálogo de categorías, servicios y precios.
  *
  * <p>Introducido en la Fase 3 de estabilización arquitectónica: antes,
- * {@link secureauth.ui.sales.SalesServiceCatalog} llamaba directamente a
+ * {@link secureauth.service.enterprise.SalesServiceCatalog} llamaba directamente a
  * {@link SalesCatalogDAO}. Ahora la UI pasa por este servicio, respetando
  * la dirección de dependencias {@code UI -> Service -> DAO}.</p>
  *
