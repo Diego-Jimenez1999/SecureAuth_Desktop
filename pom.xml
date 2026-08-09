@@ -141,6 +141,11 @@
                 <version>3.14.0</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
+                    <excludes>
+                        <exclude>secureauth/ui/sales/SalesServiceCatalog.java</exclude>
+                        <exclude>secureauth/ui/dialogs/GestionVentasServiciosDialog.java</exclude>
+                        <exclude>secureauth/ui/dialogs/PreciosPorTamanoDialog.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
 
