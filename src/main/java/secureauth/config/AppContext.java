@@ -88,7 +88,7 @@ public class AppContext {
         enterpriseBootstrapService.initialize();
         try {
             // Inject the DAO into the presentation catalog singleton during bootstrap
-            secureauth.ui.sales.SalesServiceCatalog.getInstance().setSalesCatalogService(salesCatalogService);
+            secureauth.service.enterprise.SalesServiceCatalog.getInstance().setSalesCatalogService(salesCatalogService);
 
             getSalesTransactionService().initializeSchema();
             getAppointmentService().initializeSchema();

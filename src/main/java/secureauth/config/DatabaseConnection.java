@@ -38,8 +38,30 @@ public class DatabaseConnection {
     private static final Map<String, String> LOCAL_ENV = loadLocalEnv();
 
     private static final String URL      = setting("SECUREAUTH_DB_URL",      "jdbc:mysql://localhost:3306/secureauth");
-    private static final String USER     = setting("SECUREAUTH_DB_USER",     "root");
-    private static final String PASSWORD = setting("SECUREAUTH_DB_PASSWORD", "1234");
+    private static final String USER     = setting("SECUREAUTH_DB_USER",     null);
+    private static final String PASSWORD = setting("SECUREAUTH_DB_PASSWORD", null);
+
+    static {
+        validateCredentials();
+    }
+
+    private static void validateCredentials() {
+        java.util.List<String> missing = new java.util.ArrayList<>();
+        if (USER == null || USER.trim().isEmpty()) {
+            missing.add("SECUREAUTH_DB_USER");
+        }
+        if (PASSWORD == null || PASSWORD.trim().isEmpty()) {
+            missing.add("SECUREAUTH_DB_PASSWORD");
+        }
+        if (!missing.isEmpty()) {
+            String missingStr = String.join(", ", missing);
+            throw new IllegalStateException(
+                "Configuración de base de datos incompleta. Faltan las siguientes variables: " + missingStr + ".\n" +
+                "Defínelas como variable de entorno, system property (-DSECUREAUTH_DB_USER=...) o en un archivo .env en la raíz del proyecto.\n" +
+                "Ver .env.example para la lista completa de variables esperadas."
+            );
+        }
+    }
 
     private static final long CONNECTION_TIMEOUT_MS = 5_000L;
     private static final long VALIDATION_TIMEOUT_MS = 3_000L;
@@ -60,6 +82,7 @@ public class DatabaseConnection {
             try {
                 return DATA_SOURCE.getConnection();
             } catch (SQLException ex) {
+                LOGGER.log(Level.SEVERE, "Error de conexion completo (sin password): URL=" + URL + ", usuario=" + USER, ex);
                 throw new SQLException(buildConnectionErrorMessage(), ex);
             }
         }
@@ -72,6 +95,7 @@ public class DatabaseConnection {
         try {
             return java.sql.DriverManager.getConnection(URL, USER, PASSWORD);
         } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error de conexion completo (sin password): URL=" + URL + ", usuario=" + USER, ex);
             throw new SQLException(buildConnectionErrorMessage(), ex);
         }
     }
@@ -107,7 +131,6 @@ public class DatabaseConnection {
 
     private static String buildConnectionErrorMessage() {
         return "No se pudo conectar a MySQL con URL=" + URL
-                + ", usuario=" + USER
                 + ". Verifica SECUREAUTH_DB_URL, SECUREAUTH_DB_USER y SECUREAUTH_DB_PASSWORD.";
     }
 

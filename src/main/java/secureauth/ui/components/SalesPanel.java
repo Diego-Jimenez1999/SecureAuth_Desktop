@@ -44,8 +44,8 @@ import secureauth.ui.dialogs.SalesServicesManagementDialog;
 import secureauth.ui.dialogs.SizePricesDialog;
 import secureauth.ui.dialogs.ServiceAppointmentDialog;
 import secureauth.ui.dialogs.SubServiceSelector;
-import secureauth.ui.sales.SalesServiceCatalog;
-import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
+import secureauth.service.enterprise.SalesServiceCatalog;
+import secureauth.domain.sales.ServiceItemEntry;
 import secureauth.ui.utils.UiTheme;
 
 /** * Panel principal de ventas (Punto de Venta - POS).
