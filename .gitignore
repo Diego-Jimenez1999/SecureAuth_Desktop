@@ -14,6 +14,17 @@ nbdist/
 .idea/
 *.iml
 .vscode/
+.classpath
+.project
+.settings/
+.fleet/
+
+# Local agent configuration
+.agents/
+
+# Generated modernization tooling (not CI workflows)
+.github/java-upgrade/
+.github/modernize/
 
 # OS
 Thumbs.db

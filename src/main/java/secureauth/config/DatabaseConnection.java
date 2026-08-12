@@ -1,7 +1,5 @@
 package secureauth.config;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,22 +10,23 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 /**
- * Gestiona el pool de conexiones a la base de datos MySQL.
- *
- * <p>Intenta usar <strong>HikariCP</strong> si la librería está disponible en el
- * classpath. Si el pool no puede inicializarse, cae automáticamente a
- * {@link java.sql.DriverManager} como respaldo.</p>
- *
  * <h2>Configuración</h2>
  * <p>Las credenciales se leen de propiedades JVM, variables de entorno o archivo
- * local {@code .env}:
+ * local {@code .env}, en ese orden de prioridad:
  * <ul>
- *   <li>{@code SECUREAUTH_DB_URL}  — por defecto {@code jdbc:mysql://localhost:3306/secureauth}</li>
- *   <li>{@code SECUREAUTH_DB_USER} — por defecto {@code root}</li>
- *   <li>{@code SECUREAUTH_DB_PASSWORD} — por defecto {@code ""} (vacío; configura la variable en entornos reales)</li>
+ *   <li>{@code SECUREAUTH_DB_URL} — opcional, por defecto {@code jdbc:mysql://localhost:3306/secureauth}</li>
+ *   <li>{@code SECUREAUTH_DB_USER} — <strong>obligatoria</strong>, sin valor por defecto</li>
+ *     <li>{@code SECUREAUTH_DB_PASSWORD} — <strong>obligatoria</strong>, sin valor por defecto</li>
  * </ul>
- * </p>
+ * Si {@code SECUREAUTH_DB_USER} o {@code SECUREAUTH_DB_PASSWORD} no están definidas
+ * por ninguna de las tres vías, la aplicación falla al arrancar con un
+ * {@link IllegalStateException} (ver {@link #validateCredentials()}) en vez de
+ * conectar con credenciales adivinadas. Ver {@code .env.example} en la raíz del
+ * proyecto para la plantilla de configuración local.</p>
  *
  * @author Diego
  * @version 2.3 — Pool HikariCP tipado y configuracion local segura.

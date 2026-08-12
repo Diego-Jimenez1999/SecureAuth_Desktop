@@ -38,7 +38,7 @@ Actualizacion: 2026-07-17. La ejecucion del roadmap se documenta ahora en `docs/
 
 ## Cambios aplicados en esta intervencion
 
-- Se elimino el fallback hardcodeado `SECUREAUTH_DB_PASSWORD=1234`.
+- Se elimino el fallback hardcodeado para la contraseña de base de datos.
 - Se tipifico HikariCP directamente en `DatabaseConnection`.
 - Se configuro `initializationFailTimeout=-1` para no bloquear el arranque Swing cuando MySQL no este disponible al inicio.
 - Se creo `SchemaInspector` para validar tablas/columnas reales antes de aplicar migraciones progresivas.
