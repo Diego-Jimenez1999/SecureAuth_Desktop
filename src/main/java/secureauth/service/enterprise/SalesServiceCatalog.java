@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import secureauth.domain.sales.SaleItemType;
 import secureauth.domain.sales.CategoryEntry;
 import secureauth.domain.sales.ServiceItemEntry;
 
