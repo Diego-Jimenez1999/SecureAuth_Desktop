@@ -149,6 +149,11 @@ public class SalesAppointmentDialog extends JDialog {
         gbc.insets = new Insets(0, 0, 10, 0);
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weightx = 1;
+        // IMPORTANTE: si ninguna fila tiene weighty, GridBagLayout reparte cualquier
+        // espacio vertical sobrante como huecos entre filas (aquí aparecía ese hueco
+        // en blanco tapando "Cliente"/"Mascota"). Cada fila fija va con weighty = 0
+        // explícito y solo la última (Observaciones) se queda con weighty = 1 para
+        // absorber el espacio extra que deja setMinimumSize más abajo.
         gbc.weighty = 0;
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -190,6 +195,10 @@ public class SalesAppointmentDialog extends JDialog {
         configureInputs();
         updateSummaryVisual();
         pack();
+        // setMinimumSize (no setPreferredSize) evita forzar un tamaño mayor al contenido
+        // real antes de calcular el layout; ahora que las filas tienen weighty correcto,
+        // cualquier espacio extra por el mínimo se lo queda "Observaciones", no un hueco
+        // en medio del formulario.
         setMinimumSize(new Dimension(1120, 720));
         setLocationRelativeTo(getOwner());
     }

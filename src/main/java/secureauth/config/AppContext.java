@@ -4,10 +4,10 @@ import secureauth.controller.AuthController;
 import secureauth.dao.OwnerDAO;
 import secureauth.dao.PetDAO;
 import secureauth.dao.UserDAO;
-import secureauth.dao.enterprise.RecentActivityDAO;
 import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.dao.enterprise.EnterpriseBootstrapDAO;
 import secureauth.dao.enterprise.InventoryDAO;
+import secureauth.dao.enterprise.RecentActivityDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO;
 import secureauth.repository.UserRepository;
 import secureauth.repository.UserRepositoryImpl;
@@ -15,13 +15,13 @@ import secureauth.service.AuthService;
 import secureauth.service.OwnerService;
 import secureauth.service.PetService;
 import secureauth.service.UserService;
-import secureauth.service.enterprise.RecentActivityService;
 import secureauth.service.enterprise.AppointmentService;
-import secureauth.service.enterprise.EnterpriseContext;
 import secureauth.service.enterprise.EnterpriseBootstrapService;
+import secureauth.service.enterprise.EnterpriseContext;
 import secureauth.service.enterprise.InventoryService;
-import secureauth.service.enterprise.SalesTransactionService;
+import secureauth.service.enterprise.RecentActivityService;
 import secureauth.service.enterprise.SalesCatalogService;
+import secureauth.service.enterprise.SalesTransactionService;
 
 /**
  * Contenedor simple de dependencias de la aplicación.
@@ -87,6 +87,7 @@ public class AppContext {
     public void initialize() {
         enterpriseBootstrapService.initialize();
         try {
+
             // Inject the DAO into the presentation catalog singleton during bootstrap
             secureauth.service.enterprise.SalesServiceCatalog.getInstance().setSalesCatalogService(salesCatalogService);
 
@@ -94,6 +95,7 @@ public class AppContext {
             getAppointmentService().initializeSchema();
             getInventoryService().initializeSchema();
             getRecentActivityService().initializeSchema();
+
             getOwnerService().ensureSchema();
         } catch (Exception ignored) {}
     }
