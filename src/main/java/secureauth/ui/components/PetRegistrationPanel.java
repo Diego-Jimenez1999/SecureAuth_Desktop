@@ -41,7 +41,7 @@ import secureauth.ui.utils.UiTheme;
  * * @author Diego
  * @version 1.1
  */
-public class RegMascotaPanel extends JPanel {
+public class PetRegistrationPanel extends JPanel {
 
     private static final Color COLOR_BG = UiTheme.BG_PAGE;
     private static final Color COLOR_CARD = UiTheme.PANEL_WHITE;
@@ -82,7 +82,7 @@ public class RegMascotaPanel extends JPanel {
      * Constructor principal de la vista de registro de mascota.
      * Inicializa y ensambla todos los componentes visuales.
      */
-    public RegMascotaPanel() {
+    public PetRegistrationPanel() {
         init();
     }
 

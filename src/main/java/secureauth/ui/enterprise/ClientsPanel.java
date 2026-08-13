@@ -3,6 +3,7 @@ package secureauth.ui.enterprise;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.util.List;
+import java.util.Objects;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -14,19 +15,21 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
-import secureauth.dao.OwnerDAO;
 import secureauth.model.Owner;
+import secureauth.service.OwnerService;
 import secureauth.ui.utils.UiTheme;
 
 /** Módulo de clientes (dueños) con alta rápida y búsqueda. */
 public class ClientsPanel extends JPanel {
 
-    private final OwnerDAO ownerDAO = new OwnerDAO();
+    private final OwnerService ownerService;
     private final DefaultTableModel model;
     private final JTable table;
     private final JTextField txtSearch;
 
-    public ClientsPanel() {
+    public ClientsPanel(OwnerService ownerService) {
+        this.ownerService = Objects.requireNonNull(ownerService, "OwnerService es requerido");
+
         setLayout(new BorderLayout(0, 10));
         setBackground(UiTheme.BG_PAGE);
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
@@ -63,7 +66,7 @@ public class ClientsPanel extends JPanel {
 
     private void load(String query) {
         model.setRowCount(0);
-        List<Owner> owners = ownerDAO.findAll();
+        List<Owner> owners = ownerService.findAllOwners();
         String q = query == null ? "" : query.trim().toLowerCase();
         for (Owner owner : owners) {
             if (!q.isEmpty() && !owner.getNombreCompleto().toLowerCase().contains(q) && !owner.getCorreo().toLowerCase().contains(q)) {
@@ -82,12 +85,13 @@ public class ClientsPanel extends JPanel {
         if (JOptionPane.showConfirmDialog(this, fields, "Nuevo Cliente", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
             return;
         }
-        if (name.getText().isBlank() || email.getText().isBlank()) {
-            JOptionPane.showMessageDialog(this, "Nombre y correo son obligatorios.");
-            return;
+        try {
+            Owner owner = new Owner(0, name.getText().trim(), phone.getText().trim(), email.getText().trim(), address.getText().trim());
+            ownerService.createOwner(owner);
+            load(null);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Validación", JOptionPane.WARNING_MESSAGE);
         }
-        ownerDAO.insert(new Owner(0, name.getText().trim(), phone.getText().trim(), email.getText().trim(), address.getText().trim()));
-        load(null);
     }
 
     private JButton button(String text) {

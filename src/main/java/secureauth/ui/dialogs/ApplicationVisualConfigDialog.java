@@ -30,7 +30,7 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
 import secureauth.ui.config.ApplicationVisualSettings;
-import secureauth.ui.sales.SalesModuleSettings;
+import secureauth.service.enterprise.SalesModuleSettings;
 import secureauth.ui.utils.JpanelR;
 import secureauth.ui.utils.UiTheme;
 

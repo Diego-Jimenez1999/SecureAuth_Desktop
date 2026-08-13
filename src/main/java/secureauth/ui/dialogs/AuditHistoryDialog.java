@@ -22,8 +22,8 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
-import secureauth.model.ActividadReciente;
-import secureauth.service.enterprise.ActividadRecienteService;
+import secureauth.model.RecentActivity;
+import secureauth.service.enterprise.RecentActivityService;
 import secureauth.ui.utils.UiTheme;
 
 /**
@@ -34,16 +34,16 @@ import secureauth.ui.utils.UiTheme;
  */
 public class AuditHistoryDialog extends JDialog {
 
-    private final ActividadRecienteService auditService;
+    private final RecentActivityService auditService;
     private final JTextField searchField = new JTextField(15);
     private final JTextField userField = new JTextField(10);
     private final JComboBox<String> moduleCombo = new JComboBox<>(new String[]{"Todas", "Ventas", "Inventario", "Usuarios", "Servicios", "Citas", "Sistema"});
     private final JComboBox<String> dateCombo = new JComboBox<>(new String[]{"Todas", "Hoy", "Esta semana", "Este mes", "Este año"});
     private final DefaultTableModel tableModel;
     private final JTable auditTable;
-    private List<ActividadReciente> loadedRecords;
+    private List<RecentActivity> loadedRecords;
 
-    public AuditHistoryDialog(java.awt.Window owner, ActividadRecienteService auditService) {
+    public AuditHistoryDialog(java.awt.Window owner, RecentActivityService auditService) {
         super(owner, "Auditoría de Actividad del Sistema", ModalityType.APPLICATION_MODAL);
         this.auditService = auditService;
 
@@ -148,7 +148,7 @@ public class AuditHistoryDialog extends JDialog {
             loadedRecords = auditService.findAdvanced(query, moduleFilter, dateFilter, userFilter);
             tableModel.setRowCount(0);
 
-            for (ActividadReciente record : loadedRecords) {
+            for (RecentActivity record : loadedRecords) {
                 tableModel.addRow(new Object[]{
                         record.idActividad(),
                         record.timestampReal(), // Exact real timestamp retrieved directly from DB without shift!

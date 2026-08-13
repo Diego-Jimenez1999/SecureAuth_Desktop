@@ -24,8 +24,9 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
 import secureauth.domain.sales.SaleItemType;
-import secureauth.ui.sales.SalesServiceCatalog;
-import secureauth.ui.sales.SalesServiceCatalog.ServiceItemEntry;
+import secureauth.domain.sales.CategoryEntry;
+import secureauth.domain.sales.ServiceItemEntry;
+import secureauth.service.enterprise.SalesServiceCatalog;
 import secureauth.ui.utils.UiTheme;
 
 /** Diálogo principal de administración de categorías, subcategorías y servicios/productos.
@@ -33,7 +34,7 @@ import secureauth.ui.utils.UiTheme;
  * @version  1.2
  * @author  Diego Jimenez
  */
-public class GestionVentasServiciosDialog extends JDialog {
+public class SalesServicesManagementDialog extends JDialog {
 
     private final SalesServiceCatalog catalog;
     private final DefaultTableModel categoryModel;
@@ -61,7 +62,7 @@ public class GestionVentasServiciosDialog extends JDialog {
      * 
      * @param parent parent del dialogo
      */
-    public GestionVentasServiciosDialog(JFrame parent) {
+    public SalesServicesManagementDialog(JFrame parent) {
         super(parent, "Gestión de Ventas y Servicios", true);
         this.catalog = SalesServiceCatalog.getInstance();
         this.categoryModel = new DefaultTableModel(new String[]{"ID", "Categoría", "Subcategoría"}, 0) {
@@ -241,7 +242,7 @@ public class GestionVentasServiciosDialog extends JDialog {
 
     private void refreshTables() {
         categoryModel.setRowCount(0);
-        for (SalesServiceCatalog.CategoryEntry c : catalog.getCategories()) {
+        for (CategoryEntry c : catalog.getCategories()) {
             categoryModel.addRow(new Object[]{c.id(), c.category(), c.subcategory()});
         }
 
@@ -324,7 +325,7 @@ public class GestionVentasServiciosDialog extends JDialog {
     }
 
     private void openSizePricesDialog() {
-        new PreciosPorTamanoDialog((JFrame) getParent()).setVisible(true);
+        new SizePricesDialog((JFrame) getParent()).setVisible(true);
     }
 
     private void clearForm() {

@@ -14,9 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -35,7 +32,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
-import secureauth.config.DatabaseConnection;
+import secureauth.service.enterprise.EnterpriseBootstrapService;
 import secureauth.ui.config.ApplicationVisualSettings;
 import secureauth.ui.utils.UiTheme;
 
@@ -49,6 +46,7 @@ import secureauth.ui.utils.UiTheme;
 public class AdvancedConfigDialog extends JDialog {
 
     private final ApplicationVisualSettings visualSettings;
+    private final EnterpriseBootstrapService bootstrapService;
 
     // --- Campos de texto ---
     // General
@@ -106,7 +104,12 @@ public class AdvancedConfigDialog extends JDialog {
     private static final String ASSETS_DIR = "src/main/resources/assets/";
 
     public AdvancedConfigDialog(JFrame parent) {
+        this(parent, new EnterpriseBootstrapService());
+    }
+
+    public AdvancedConfigDialog(JFrame parent, EnterpriseBootstrapService bootstrapService) {
         super(parent, "Configuración Avanzada del ERP", true);
+        this.bootstrapService = bootstrapService;
         this.visualSettings = ApplicationVisualSettings.load();
 
         // 1. Cargar valores iniciales
@@ -278,25 +281,69 @@ public class AdvancedConfigDialog extends JDialog {
 
         JButton btnTestConn = buildActionButton("Probar Conexión", new Color(0x2563EB), new Color(0x1D4ED8), Color.WHITE);
         btnTestConn.addActionListener(e -> {
-            try (Connection conn = DatabaseConnection.getConnection()) {
-                if (conn.isValid(3)) {
-                    JOptionPane.showMessageDialog(this, "Conexión a base de datos MySQL probada con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
-                } else {
-                    JOptionPane.showMessageDialog(this, "No se pudo establecer una conexión válida.", "Fallo", JOptionPane.ERROR_MESSAGE);
+            btnTestConn.setEnabled(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+            new javax.swing.SwingWorker<Boolean, Void>() {
+                private String errorMessage = null;
+
+                @Override
+                protected Boolean doInBackground() {
+                    try {
+                        return bootstrapService.testConnection();
+                    } catch (Exception ex) {
+                        errorMessage = ex.getMessage();
+                        return false;
+                    }
                 }
-            } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(this, "Error de conexión: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
+
+                @Override
+                protected void done() {
+                    setCursor(Cursor.getDefaultCursor());
+                    btnTestConn.setEnabled(true);
+                    try {
+                        if (get()) {
+                            JOptionPane.showMessageDialog(AdvancedConfigDialog.this, "Conexión a base de datos MySQL probada con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                        } else {
+                            String msg = errorMessage != null ? errorMessage : "No se pudo establecer una conexión válida.";
+                            JOptionPane.showMessageDialog(AdvancedConfigDialog.this, msg, "Fallo", JOptionPane.ERROR_MESSAGE);
+                        }
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(AdvancedConfigDialog.this, "Error al probar conexión: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }.execute();
         });
 
         JButton btnOptimize = buildActionButton("Optimizar Tablas", UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT);
         btnOptimize.addActionListener(e -> {
-            try (Connection conn = DatabaseConnection.getConnection(); Statement st = conn.createStatement()) {
-                st.execute("OPTIMIZE TABLE appointments, ventas, detalle_venta, actividad_reciente");
-                JOptionPane.showMessageDialog(this, "Tablas e índices de base de datos optimizados.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
-            } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(this, "Error de optimización: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
+            btnOptimize.setEnabled(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+            new javax.swing.SwingWorker<Void, Void>() {
+                private String errorMessage = null;
+
+                @Override
+                protected Void doInBackground() {
+                    try {
+                        bootstrapService.optimizeTables();
+                    } catch (Exception ex) {
+                        errorMessage = ex.getMessage();
+                    }
+                    return null;
+                }
+
+                @Override
+                protected void done() {
+                    setCursor(Cursor.getDefaultCursor());
+                    btnOptimize.setEnabled(true);
+                    if (errorMessage == null) {
+                        JOptionPane.showMessageDialog(AdvancedConfigDialog.this, "Tablas e índices de base de datos optimizados.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(AdvancedConfigDialog.this, "Error de optimización: " + errorMessage, "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }.execute();
         });
 
         JButton btnBackup = buildActionButton("Generar Respaldo (Backup)", UiTheme.BTN_DARK, UiTheme.BTN_DARK_HOVER, UiTheme.TEXT_LIGHT);

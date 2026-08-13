@@ -10,7 +10,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import secureauth.model.enterprise.InventoryItem;
 import secureauth.service.enterprise.InventoryService;
 import secureauth.ui.components.PanelInventory;
-import secureauth.ui.sales.SalesServiceCatalog;
+import secureauth.service.enterprise.SalesServiceCatalog;
 
 /** Controlador enterprise del inventario con importación CSV/XLSX. */
 public class InventoryController {

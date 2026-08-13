@@ -1,4 +1,4 @@
-package secureauth.ui.sales;
+package secureauth.service.enterprise;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
@@ -10,9 +10,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import secureauth.dao.SalesCatalogDAO;
 import secureauth.domain.sales.SaleItemType;
-import secureauth.service.enterprise.EnterpriseContext;
+import secureauth.domain.sales.CategoryEntry;
+import secureauth.domain.sales.ServiceItemEntry;
 
 /**
  * Repositorio unificado de categorías, servicios y precios por tamaño.
@@ -26,10 +26,14 @@ public final class SalesServiceCatalog {
     private final List<CategoryEntry> categories = new ArrayList<>();
     private final List<ServiceItemEntry> items = new ArrayList<>();
     private final PropertyChangeSupport changeSupport = new PropertyChangeSupport(this);
-    private final SalesCatalogDAO dao = new SalesCatalogDAO();
+    private SalesCatalogService salesCatalogService;
     private final EnterpriseContext context = EnterpriseContext.getInstance();
 
     private SalesServiceCatalog() {
+    }
+
+    public synchronized void setSalesCatalogService(SalesCatalogService salesCatalogService) {
+        this.salesCatalogService = salesCatalogService;
         loadFromPersistenceOrSeed();
     }
 
@@ -59,7 +63,7 @@ public final class SalesServiceCatalog {
     }
 
     public synchronized void addCategory(String category, String subcategory) {
-        int id = dao.insertCategory(context.getActiveBusinessId(), context.getActiveBranchId(), category, subcategory);
+        int id = salesCatalogService.insertCategory(context.getActiveBusinessId(), context.getActiveBranchId(), category, subcategory);
         if (id > 0) {
             categories.add(new CategoryEntry(id, category, subcategory));
         } else {
@@ -80,14 +84,14 @@ public final class SalesServiceCatalog {
                 .map(ServiceItemEntry::id)
                 .toList();
         items.removeIf(i -> removedIds.contains(i.id()));
-        dao.deleteCategory(categoryId);
-        removedIds.forEach(dao::deleteItem);
+        salesCatalogService.deleteCategory(categoryId);
+        removedIds.forEach(salesCatalogService::deleteItem);
         fireChanged();
     }
 
     public synchronized void upsertItem(ServiceItemEntry entry) {
         ServiceItemEntry normalized = normalize(entry);
-        int storedId = dao.upsertItem(context.getActiveBusinessId(), context.getActiveBranchId(), normalized);
+        int storedId = salesCatalogService.upsertItem(context.getActiveBusinessId(), context.getActiveBranchId(), normalized);
         int finalId = storedId > 0 ? storedId : (entry.id() > 0 ? entry.id() : itemIdGen.getAndIncrement());
         ServiceItemEntry persisted = normalized.withId(finalId);
 
@@ -108,7 +112,7 @@ public final class SalesServiceCatalog {
 
     public synchronized void removeItem(int itemId) {
         items.removeIf(i -> i.id() == itemId);
-        dao.deleteItem(itemId);
+        salesCatalogService.deleteItem(itemId);
         fireChanged();
     }
 
@@ -119,12 +123,12 @@ public final class SalesServiceCatalog {
     }
 
     private void loadFromPersistenceOrSeed() {
-        dao.ensureSchema();
-        dao.syncInventoryCatalog(context.getActiveBusinessId(), context.getActiveBranchId());
-        dao.removeLegacyDomainData(context.getActiveBusinessId(), context.getActiveBranchId());
-        List<CategoryEntry> dbCategories = dao.findAllCategories(context.getActiveBusinessId(), context.getActiveBranchId());
-        List<ServiceItemEntry> dbItems = dao.findAllItems(context.getActiveBusinessId(), context.getActiveBranchId());
-        List<ServiceItemEntry> inventoryItems = dao.findInventoryItems(context.getActiveBusinessId(), context.getActiveBranchId());
+        salesCatalogService.ensureSchema();
+        salesCatalogService.syncInventoryCatalog(context.getActiveBusinessId(), context.getActiveBranchId());
+        salesCatalogService.removeLegacyDomainData(context.getActiveBusinessId(), context.getActiveBranchId());
+        List<CategoryEntry> dbCategories = salesCatalogService.findAllCategories(context.getActiveBusinessId(), context.getActiveBranchId());
+        List<ServiceItemEntry> dbItems = salesCatalogService.findAllItems(context.getActiveBusinessId(), context.getActiveBranchId());
+        List<ServiceItemEntry> inventoryItems = salesCatalogService.findInventoryItems(context.getActiveBusinessId(), context.getActiveBranchId());
 
         if (!dbCategories.isEmpty() || !dbItems.isEmpty() || !inventoryItems.isEmpty()) {
             categories.addAll(dbCategories);
@@ -170,26 +174,5 @@ public final class SalesServiceCatalog {
         consulta.put("Urgencia", 110000d);
         upsertItem(new ServiceItemEntry(0, "Guardería Canina", "Salud Veterinaria", "Consulta", "Servicio", 35000d,
                 16000d, 19000d, "Activo", null, consulta));
-    }
-
-    public record CategoryEntry(int id, String category, String subcategory) { }
-
-    public record ServiceItemEntry(int id, String category, String subcategory, String name, String type,
-                                   double price, double cost, double gain, String status, Integer stock,
-                                   Map<String, Double> sizePrices, Integer inventoryItemId, String sku) {
-        public ServiceItemEntry(int id, String category, String subcategory, String name, String type,
-                double price, double cost, double gain, String status, Integer stock,
-                Map<String, Double> sizePrices) {
-            this(id, category, subcategory, name, type, price, cost, gain, status, stock, sizePrices, null, null);
-        }
-
-        public ServiceItemEntry withId(int newId) {
-            return new ServiceItemEntry(newId, category, subcategory, name, type, price, cost, gain, status, stock,
-                    sizePrices, inventoryItemId, sku);
-        }
-
-        public SaleItemType saleItemType() {
-            return SaleItemType.fromCatalogValue(type);
-        }
     }
 }

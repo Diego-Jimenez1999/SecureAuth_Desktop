@@ -9,19 +9,19 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import secureauth.application.dto.ServiceOrderDTO;
 import secureauth.config.DatabaseConnection;
-import secureauth.dao.enterprise.ActividadRecienteDAO;
 import secureauth.dao.enterprise.AppointmentDAO;
+import secureauth.dao.enterprise.InventoryDAO;
+import secureauth.dao.enterprise.RecentActivityDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO;
 import secureauth.dao.enterprise.SalesTransactionDAO.SaleReportRow;
-import secureauth.dao.enterprise.InventoryDAO;
-import secureauth.application.dto.ServiceOrderDTO;
 import secureauth.infrastructure.persistence.JdbcServiceOrderRepository;
 import secureauth.infrastructure.repository.ServiceOrderRepository;
 import secureauth.model.Appointment;
 import secureauth.model.ReportChartPoint;
+import secureauth.model.Sale;
 import secureauth.model.SaleItem;
-import secureauth.model.Venta;
 import secureauth.shared.events.EventPublisher;
 import secureauth.shared.events.InventoryConsumptionEvent;
 import secureauth.shared.events.NoOpEventPublisher;
@@ -38,35 +38,35 @@ public class SalesTransactionService {
 
     private final SalesTransactionDAO dao;
     private final InventoryDAO inventoryDAO;
-    private final ActividadRecienteDAO actividadDAO;
+    private final RecentActivityDAO actividadDAO;
     private final AppointmentDAO appointmentDAO;
     private final ServiceOrderRepository serviceOrderRepository;
     private final EventPublisher eventPublisher;
     private final EnterpriseContext context = EnterpriseContext.getInstance();
 
     public SalesTransactionService() {
-        this(new SalesTransactionDAO(), new InventoryDAO(), new ActividadRecienteDAO(), new AppointmentDAO(),
+        this(new SalesTransactionDAO(), new InventoryDAO(), new RecentActivityDAO(), new AppointmentDAO(),
                 new JdbcServiceOrderRepository());
     }
 
     public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
-            ActividadRecienteDAO actividadDAO) {
+            RecentActivityDAO actividadDAO) {
         this(dao, inventoryDAO, actividadDAO, new AppointmentDAO(), new JdbcServiceOrderRepository());
     }
 
     public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
-            ActividadRecienteDAO actividadDAO, AppointmentDAO appointmentDAO) {
+            RecentActivityDAO actividadDAO, AppointmentDAO appointmentDAO) {
         this(dao, inventoryDAO, actividadDAO, appointmentDAO, new JdbcServiceOrderRepository());
     }
 
     public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
-            ActividadRecienteDAO actividadDAO, AppointmentDAO appointmentDAO,
+            RecentActivityDAO actividadDAO, AppointmentDAO appointmentDAO,
             ServiceOrderRepository serviceOrderRepository) {
         this(dao, inventoryDAO, actividadDAO, appointmentDAO, serviceOrderRepository, new NoOpEventPublisher());
     }
 
     public SalesTransactionService(SalesTransactionDAO dao, InventoryDAO inventoryDAO,
-            ActividadRecienteDAO actividadDAO, AppointmentDAO appointmentDAO,
+            RecentActivityDAO actividadDAO, AppointmentDAO appointmentDAO,
             ServiceOrderRepository serviceOrderRepository, EventPublisher eventPublisher) {
         this.dao = dao;
         this.inventoryDAO = inventoryDAO;
@@ -95,11 +95,11 @@ public class SalesTransactionService {
 
     public void registerSaleWithInventory(List<SaleItem> saleItems, double total, double gain, double tax,
             String paymentMethod, String itemsSummary, String clientName, String userName) throws SQLException {
-        Venta venta = new Venta(null, LocalDateTime.now(), clientName, total, paymentMethod, userName);
+        Sale sale = new Sale(null, LocalDateTime.now(), clientName, total, paymentMethod, userName);
         for (SaleItem item : saleItems) {
-            venta.addItem(item);
+            sale.addItem(item);
         }
-        registrarVenta(venta, gain, tax, itemsSummary);
+        registrarVenta(sale, gain, tax, itemsSummary);
     }
 
     /**
@@ -111,45 +111,45 @@ public class SalesTransactionService {
      * la transacción de reportes y publica actividad reciente. Si cualquier paso
      * falla ejecuta {@code rollback()}.</p>
      *
-     * @param venta objeto venta con productos asociados
+     * @param sale objeto venta con productos asociados
      * @throws SQLException si ocurre un error durante la transacción
      */
-    public void registrarVenta(Venta venta) throws SQLException {
-        registrarVenta(venta, 0d, venta.getTotal() * 0.19d / 1.19d, buildItemsSummary(venta.getItems()));
+    public void registrarVenta(Sale sale) throws SQLException {
+        registrarVenta(sale, 0d, sale.getTotal() * 0.19d / 1.19d, buildItemsSummary(sale.getItems()));
     }
 
     /**
      * Registra una venta con métricas POS calculadas por la vista.
      *
-     * @param venta venta validada
+     * @param sale venta validada
      * @param gain ganancia calculada
      * @param tax impuesto calculado
      * @param itemsSummary resumen de items
      * @throws SQLException si ocurre un error JDBC
      */
-    public void registrarVenta(Venta venta, double gain, double tax, String itemsSummary) throws SQLException {
-        registrarVentaConCitas(venta, gain, tax, itemsSummary, List.of());
+    public void registrarVenta(Sale sale, double gain, double tax, String itemsSummary) throws SQLException {
+        registrarVentaConCitas(sale, gain, tax, itemsSummary, List.of());
     }
 
     /**
      * Registra venta, movimiento de pago/reportes, inventario y citas de
      * servicios en una sola transacción.
      *
-     * @param venta venta validada
+     * @param sale venta validada
      * @param gain ganancia calculada
      * @param tax impuesto calculado
      * @param itemsSummary resumen de items
      * @param appointments citas asociadas a servicios vendidos
      * @throws SQLException si cualquier paso falla
      */
-    public void registrarVentaConCitas(Venta venta, double gain, double tax, String itemsSummary,
+    public void registrarVentaConCitas(Sale sale, double gain, double tax, String itemsSummary,
             List<Appointment> appointments) throws SQLException {
-        registrarVentaConCitas(venta, gain, tax, itemsSummary, appointments, List.of());
+        registrarVentaConCitas(sale, gain, tax, itemsSummary, appointments, List.of());
     }
 
-    public void registrarVentaConCitas(Venta venta, double gain, double tax, String itemsSummary,
+    public void registrarVentaConCitas(Sale sale, double gain, double tax, String itemsSummary,
             List<Appointment> appointments, List<ServiceOrderDTO> serviceOrders) throws SQLException {
-        validateSale(venta);
+        validateSale(sale);
         validateAppointments(appointments);
         int businessId = context.getActiveBusinessId();
         int branchId = context.getActiveBranchId();
@@ -167,7 +167,7 @@ public class SalesTransactionService {
             boolean previousAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
             try {
-                Map<Integer, Integer> quantities = inventoryQuantities(venta.getItems());
+                Map<Integer, Integer> quantities = inventoryQuantities(sale.getItems());
                 for (Map.Entry<Integer, Integer> entry : quantities.entrySet()) {
                     boolean available = inventoryDAO.hasStockForUpdate(conn, businessId, branchId, entry.getKey(),
                             entry.getValue());
@@ -176,26 +176,26 @@ public class SalesTransactionService {
                     }
                 }
 
-                int saleId = dao.insertVenta(conn, venta);
-                venta.setIdVenta(saleId);
-                dao.insertDetalles(conn, saleId, venta.getItems());
+                int saleId = dao.insertSale(conn, sale);
+                sale.setId(saleId);
+                dao.insertDetalles(conn, saleId, sale.getItems());
 
                 serviceOrderRepository.registerWithInventoryConsumption(conn, businessId, branchId, saleId,
-                        serviceOrders, venta.getUsuarioVendedor());
+                        serviceOrders, sale.getSellerName());
 
                 for (Map.Entry<Integer, Integer> entry : quantities.entrySet()) {
                     inventoryDAO.decreaseStock(conn, businessId, branchId, entry.getKey(), entry.getValue());
                 }
 
-                int units = venta.getItems().stream().mapToInt(SaleItem::getQuantity).sum();
-                dao.insertTx(conn, businessId, branchId, venta.getTotal(), gain, tax, units, venta.getMetodoPago(),
-                        itemsSummary, venta.getCliente(), venta.getUsuarioVendedor());
+                int units = sale.getItems().stream().mapToInt(SaleItem::getQuantity).sum();
+                dao.insertTx(conn, businessId, branchId, sale.getTotal(), gain, tax, units, sale.getPaymentMethod(),
+                        itemsSummary, sale.getCustomerName(), sale.getSellerName());
                 java.text.NumberFormat curFmt = java.text.NumberFormat.getCurrencyInstance(Locale.of("es", "CO"));
-                String auditSale = "Venta #" + saleId + " | Cliente: " + venta.getCliente() + " | Total: " + curFmt.format(venta.getTotal()) + " (Método: " + venta.getMetodoPago() + ")";
-                actividadDAO.insert(conn, auditSale, "VENTAS", venta.getUsuarioVendedor());
+                String auditSale = "Venta #" + saleId + " | Cliente: " + sale.getCustomerName() + " | Total: " + curFmt.format(sale.getTotal()) + " (Método: " + sale.getPaymentMethod() + ")";
+                actividadDAO.insert(conn, auditSale, "VENTAS", sale.getSellerName());
                 if (!quantities.isEmpty()) {
                     String auditInv = "Inventario | Descuento de " + units + " unidad(es) de stock por Venta #" + saleId;
-                    actividadDAO.insert(conn, auditInv, "INVENTARIO", venta.getUsuarioVendedor());
+                    actividadDAO.insert(conn, auditInv, "INVENTARIO", sale.getSellerName());
                 }
                 for (Appointment appointment : appointments) {
                     appointmentDAO.insert(conn, appointment);
@@ -234,11 +234,11 @@ public class SalesTransactionService {
         return quantities;
     }
 
-    private void validateSale(Venta venta) throws SQLException {
-        if (venta == null || venta.getItems().isEmpty()) {
+    private void validateSale(Sale sale) throws SQLException {
+        if (sale == null || sale.getItems().isEmpty()) {
             throw new SQLException("No se permiten ventas vacías.");
         }
-        for (SaleItem item : venta.getItems()) {
+        for (SaleItem item : sale.getItems()) {
             if (item.getQuantity() <= 0) {
                 throw new SQLException("No se permiten cantidades negativas o en cero.");
             }

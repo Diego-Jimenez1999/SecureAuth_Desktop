@@ -32,6 +32,7 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -45,20 +46,18 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
-import secureauth.dao.OwnerDAO;
-import secureauth.dao.PetDAO;
-import secureauth.model.CitaServicio;
+import secureauth.model.SalesAppointment;
 import secureauth.model.Owner;
 import secureauth.model.Pet;
 import secureauth.service.OwnerService;
 import secureauth.service.PetService;
-import secureauth.service.enterprise.AgendaService;
+import secureauth.service.enterprise.SalesAppointmentService;
 import secureauth.ui.utils.UiTheme;
 
 /**
  * Diálogo compacto para agendar servicios desde ventas con flujo de ERP veterinario.
  */
-public class AgendaServicioDialog extends JDialog {
+public class SalesAppointmentDialog extends JDialog {
 
     private static final int DEFAULT_DURATION_MINUTES = 120;
 
@@ -88,7 +87,7 @@ public class AgendaServicioDialog extends JDialog {
             5));
     private final JTextArea notesArea = new JTextArea(3, 28);
 
-    private final AgendaService agendaService;
+    private final SalesAppointmentService agendaService;
     private final OwnerService ownerService;
     private final PetService petService;
     private JTextField ownerEditorField;
@@ -107,12 +106,10 @@ public class AgendaServicioDialog extends JDialog {
      * @param owner ventana padre
      * @param serviceName servicio vendido que se agenda
      * @param agendaService servicio de agenda
+     * @param ownerService servicio de dueños (inyectado desde el composition root)
+     * @param petService servicio de mascotas (inyectado desde el composition root)
      */
-    public AgendaServicioDialog(Window owner, String serviceName, AgendaService agendaService) {
-        this(owner, serviceName, agendaService, new OwnerService(new OwnerDAO()), new PetService(new PetDAO()));
-    }
-
-    public AgendaServicioDialog(Window owner, String serviceName, AgendaService agendaService,
+    public SalesAppointmentDialog(Window owner, String serviceName, SalesAppointmentService agendaService,
             OwnerService ownerService, PetService petService) {
         super(owner, "Agenda de servicio veterinario", ModalityType.APPLICATION_MODAL);
         this.agendaService = agendaService;
@@ -782,10 +779,10 @@ public class AgendaServicioDialog extends JDialog {
                 showConflictSuggestions(date);
                 return;
             }
-            CitaServicio cita = new CitaServicio(null, owner.getNombreCompleto(), pet.getNombreMascota(),
+            SalesAppointment cita = new SalesAppointment(null, owner.getNombreCompleto(), pet.getNombreMascota(),
                     empty(pet.getRaza()), required(phoneField, "Teléfono"), required(serviceField, "Servicio"),
                     date, start, end, notesArea.getText().trim(), "AGENDADA");
-            agendaService.registrarCita(cita);
+            agendaService.registerAppointment(cita);
             saved = true;
             finalizeSale = finalizingSale;
             JOptionPane.showMessageDialog(this, "Agenda guardada correctamente.");

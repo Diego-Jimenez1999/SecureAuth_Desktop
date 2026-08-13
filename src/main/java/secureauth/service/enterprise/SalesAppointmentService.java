@@ -9,30 +9,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 import secureauth.config.DatabaseConnection;
-import secureauth.dao.enterprise.ActividadRecienteDAO;
-import secureauth.dao.enterprise.AgendaServicioDAO;
+import secureauth.dao.enterprise.RecentActivityDAO;
+import secureauth.dao.enterprise.SalesAppointmentDAO;
 import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.model.Appointment;
-import secureauth.model.CitaServicio;
+import secureauth.model.SalesAppointment;
 
 /**
- * Servicio de negocio para agendamiento de servicios caninos.
+ * Servicio de negocio para agendamiento de servicios caninos (Sales Appointments).
  */
-public class AgendaService {
+public class SalesAppointmentService {
 
-    private final AgendaServicioDAO agendaDAO;
+    private final SalesAppointmentDAO agendaDAO;
     private final AppointmentDAO appointmentDAO;
-    private final ActividadRecienteDAO actividadDAO;
+    private final RecentActivityDAO actividadDAO;
 
-    public AgendaService() {
-        this(new AgendaServicioDAO(), new AppointmentDAO(), new ActividadRecienteDAO());
+    public SalesAppointmentService() {
+        this(new SalesAppointmentDAO(), new AppointmentDAO(), new RecentActivityDAO());
     }
 
-    public AgendaService(AgendaServicioDAO agendaDAO, ActividadRecienteDAO actividadDAO) {
+    public SalesAppointmentService(SalesAppointmentDAO agendaDAO, RecentActivityDAO actividadDAO) {
         this(agendaDAO, new AppointmentDAO(), actividadDAO);
     }
 
-    public AgendaService(AgendaServicioDAO agendaDAO, AppointmentDAO appointmentDAO, ActividadRecienteDAO actividadDAO) {
+    public SalesAppointmentService(SalesAppointmentDAO agendaDAO, AppointmentDAO appointmentDAO, RecentActivityDAO actividadDAO) {
         this.agendaDAO = agendaDAO;
         this.appointmentDAO = appointmentDAO;
         this.actividadDAO = actividadDAO;
@@ -55,9 +55,9 @@ public class AgendaService {
      * @param cita datos completos de la cita
      * @throws SQLException si ocurre un error durante la transacción
      */
-    public void registrarCita(CitaServicio cita) throws SQLException {
+    public void registerAppointment(SalesAppointment cita) throws SQLException {
         validate(cita);
-        if (hasConflict(cita.fechaServicio(), cita.horaServicio(), cita.horaRecogida())) {
+        if (hasConflict(cita.date(), cita.startTime(), cita.pickupTime())) {
             throw new IllegalArgumentException("Ya existe una cita activa en ese horario.");
         }
         initializeSchema();
@@ -65,7 +65,7 @@ public class AgendaService {
             boolean previousAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
             try {
-                registrarCita(conn, cita, "Sistema");
+                registerAppointment(conn, cita, "Sistema");
                 conn.commit();
             } catch (SQLException | RuntimeException ex) {
                 conn.rollback();
@@ -84,10 +84,10 @@ public class AgendaService {
      * @param usuario usuario responsable
      * @throws SQLException si falla el registro
      */
-    public void registrarCita(Connection conn, CitaServicio cita, String usuario) throws SQLException {
+    public void registerAppointment(Connection conn, SalesAppointment cita, String usuario) throws SQLException {
         validate(cita);
         agendaDAO.insert(conn, cita);
-        actividadDAO.insert(conn, "Cita agendada para " + cita.nombrePerro(), "CITA", usuario);
+        actividadDAO.insert(conn, "Cita agendada para " + cita.petName(), "CITA", usuario);
     }
 
     /**
@@ -150,8 +150,8 @@ public class AgendaService {
     private List<TimeBlock> busyBlocks(LocalDate date) throws SQLException {
         initializeSchema();
         List<TimeBlock> blocks = new ArrayList<>();
-        for (CitaServicio cita : agendaDAO.findActiveByDate(date)) {
-            blocks.add(new TimeBlock(cita.horaServicio(), cita.horaRecogida(), cita.servicio()));
+        for (SalesAppointment cita : agendaDAO.findActiveByDate(date)) {
+            blocks.add(new TimeBlock(cita.startTime(), cita.pickupTime(), cita.service()));
         }
         for (Appointment appointment : appointmentDAO.findActiveByDate(date)) {
             LocalTime start = appointment.getAppointmentTime();
@@ -160,16 +160,16 @@ public class AgendaService {
         return blocks;
     }
 
-    private void validate(CitaServicio cita) {
+    private void validate(SalesAppointment cita) {
         if (cita == null) {
             throw new IllegalArgumentException("La cita no puede ser nula.");
         }
-        if (isBlank(cita.nombreDueno()) || isBlank(cita.nombrePerro()) || isBlank(cita.telefono())
-                || isBlank(cita.servicio()) || cita.fechaServicio() == null || cita.horaServicio() == null
-                || cita.horaRecogida() == null) {
+        if (isBlank(cita.ownerName()) || isBlank(cita.petName()) || isBlank(cita.phone())
+                || isBlank(cita.service()) || cita.date() == null || cita.startTime() == null
+                || cita.pickupTime() == null) {
             throw new IllegalArgumentException("Completa los datos obligatorios de la cita.");
         }
-        if (LocalDateTime.of(cita.fechaServicio(), cita.horaServicio()).isBefore(LocalDateTime.now())) {
+        if (LocalDateTime.of(cita.date(), cita.startTime()).isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("No se permiten horas pasadas para la cita.");
         }
     }

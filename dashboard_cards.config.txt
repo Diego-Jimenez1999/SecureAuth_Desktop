@@ -1,5 +1,5 @@
 #Dashboard Cards Configuration
-#Sat Jul 25 17:58:50 GMT-05:00 2026
+#Sun Jul 26 12:22:44 GMT-05:00 2026
 card.finished_services.title=Servicios Finalizados
 card.finished_services.visible=true
 card.new_clients_month.title=Clientes Nuevos/Mes

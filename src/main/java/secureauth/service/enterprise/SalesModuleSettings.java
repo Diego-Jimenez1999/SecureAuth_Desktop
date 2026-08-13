@@ -1,4 +1,4 @@
-package secureauth.ui.sales;
+package secureauth.service.enterprise;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;

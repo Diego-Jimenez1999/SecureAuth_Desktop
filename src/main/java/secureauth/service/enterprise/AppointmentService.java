@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Locale;
 
 import secureauth.dao.PetDAO;
-import secureauth.dao.enterprise.ActividadRecienteDAO;
+import secureauth.dao.enterprise.RecentActivityDAO;
 import secureauth.dao.enterprise.AppointmentDAO;
 import secureauth.model.Appointment;
 import secureauth.model.AppointmentStatus;
@@ -29,14 +29,14 @@ public class AppointmentService {
 
     private final AppointmentDAO appointmentDAO;
     private final PetDAO petDAO;
-    private final ActividadRecienteDAO actividadDAO;
+    private final RecentActivityDAO actividadDAO;
     private final EnterpriseContext context;
 
     /**
      * Crea el servicio con DAOs por defecto.
      */
     public AppointmentService() {
-        this(new AppointmentDAO(), new PetDAO(), new ActividadRecienteDAO());
+        this(new AppointmentDAO(), new PetDAO(), new RecentActivityDAO());
     }
 
     /**
@@ -46,7 +46,7 @@ public class AppointmentService {
      * @param petDAO DAO de mascotas
      * @param actividadDAO DAO de actividad reciente
      */
-    public AppointmentService(AppointmentDAO appointmentDAO, PetDAO petDAO, ActividadRecienteDAO actividadDAO) {
+    public AppointmentService(AppointmentDAO appointmentDAO, PetDAO petDAO, RecentActivityDAO actividadDAO) {
         this.appointmentDAO = appointmentDAO;
         this.petDAO = petDAO;
         this.actividadDAO = actividadDAO;
@@ -109,7 +109,7 @@ public class AppointmentService {
      */
     public Appointment prepareForRegistration(Appointment appointment) {
         validate(appointment);
-        appointment.setStatus(AppointmentDAO.STATUS_PENDING);
+        appointment.setStatus(AppointmentStatus.PENDING.databaseValue());
         appointment.setCreatedAt(LocalDateTime.now());
         if (isBlank(appointment.getCreatedBy())) {
             appointment.setCreatedBy("Sistema");
