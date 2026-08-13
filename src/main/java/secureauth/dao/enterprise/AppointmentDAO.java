@@ -301,7 +301,7 @@ public class AppointmentDAO {
                 """;
         List<Appointment> appointments = new ArrayList<>();
         try (Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setDate(1, Date.valueOf(date));
             ps.setDate(2, Date.valueOf(date));
             ps.setDate(3, Date.valueOf(date));

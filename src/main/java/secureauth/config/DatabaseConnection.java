@@ -45,26 +45,22 @@ public class DatabaseConnection {
     }
 
     private static void validateCredentials() {
-    java.util.List<String> missing = new java.util.ArrayList<>();
-
-    if (USER == null || USER.trim().isEmpty()) {
-        missing.add("SECUREAUTH_DB_USER");
+        java.util.List<String> missing = new java.util.ArrayList<>();
+        if (USER == null || USER.trim().isEmpty()) {
+            missing.add("SECUREAUTH_DB_USER");
+        }
+        if (PASSWORD == null || PASSWORD.trim().isEmpty()) {
+            missing.add("SECUREAUTH_DB_PASSWORD");
+        }
+        if (!missing.isEmpty()) {
+            String missingStr = String.join(", ", missing);
+            throw new IllegalStateException(
+                "Configuración de base de datos incompleta. Faltan las siguientes variables: " + missingStr + ".\n" +
+                "Defínelas como variable de entorno, system property (-DSECUREAUTH_DB_USER=...) o en un archivo .env en la raíz del proyecto.\n" +
+                "Ver .env.example para la lista completa de variables esperadas."
+            );
+        }
     }
-
-    if (PASSWORD == null || PASSWORD.trim().isEmpty()) {
-        missing.add("SECUREAUTH_DB_PASSWORD");
-    }
-
-    if (!missing.isEmpty()) {
-        String missingStr = String.join(", ", missing);
-
-        throw new IllegalStateException(
-            "Configuración de base de datos incompleta. Faltan las siguientes variables: " + missingStr + ".\n" +
-            "Defínelas como variable de entorno, system property (-DSECUREAUTH_DB_USER=...) o en un archivo .env en la raíz del proyecto.\n" +
-            "Ver .env.example para la lista completa de variables esperadas."
-        );
-    }
-}
 
     private static final long CONNECTION_TIMEOUT_MS = 5_000L;
     private static final long VALIDATION_TIMEOUT_MS = 3_000L;
