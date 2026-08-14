@@ -219,6 +219,17 @@ public class EmployeeRegistrationDialog extends JDialog {
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
 
+        // Escape para cerrar el diálogo
+        javax.swing.KeyStroke escapeKeyStroke = javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0, false);
+        javax.swing.Action escapeAction = new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                dispose();
+            }
+        };
+        getRootPane().getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW).put(escapeKeyStroke, "ESCAPE");
+        getRootPane().getActionMap().put("ESCAPE", escapeAction);
+
     }
 
     /* =========================================================
@@ -315,6 +326,10 @@ public class EmployeeRegistrationDialog extends JDialog {
     private void initializeButton() {
 
         btnRegistrar = new JButton("Registrar Usuario");
+        btnRegistrar.setMnemonic(java.awt.event.KeyEvent.VK_R);
+        btnRegistrar.setToolTipText("Registrar el nuevo usuario en el sistema (Alt + R)");
+        btnRegistrar.getAccessibleContext().setAccessibleName("Registrar Usuario");
+        getRootPane().setDefaultButton(btnRegistrar);
 
     }
 
@@ -740,6 +755,7 @@ public class EmployeeRegistrationDialog extends JDialog {
      */
     private JPanel createLabelWithIndicator(
             String text,
+            JComponent input,
             JLabel errorLabel
     ) {
 
@@ -749,6 +765,7 @@ public class EmployeeRegistrationDialog extends JDialog {
         panel.setOpaque(false);
 
         JLabel label = new JLabel(text);
+        label.setLabelFor(input);
 
         label.setFont(BASE_FONT);
 
@@ -770,10 +787,14 @@ public class EmployeeRegistrationDialog extends JDialog {
         panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
 
-        JPanel labelPanel = createLabelWithIndicator(label, errorLabel);
+        JPanel labelPanel = createLabelWithIndicator(label, input, errorLabel);
         labelPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         input.setAlignmentX(Component.LEFT_ALIGNMENT);
         input.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+        if (!(input instanceof javax.swing.JPasswordField)) {
+            input.getAccessibleContext().setAccessibleName(label);
+        }
 
         panel.add(labelPanel);
         panel.add(javax.swing.Box.createVerticalStrut(4));
